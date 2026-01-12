@@ -1,113 +1,180 @@
-package com.ecommerce;
+package generator;
 
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-
-import java.io.FileOutputStream;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Random;
 
-public class FlashSaleDataGenerator {
+/**
+ * Legacy Data Generator for E-Commerce Simulation
+ * Shopee / Lazada-like system
+ */
+public class LegacyDataGenerator {
 
-    private static final int TOTAL_ROWS = 12000;
+    private static final Random rand = new Random();
+
+    private static final int USER_COUNT = 10000;
+    private static final int SHOP_COUNT = 100;
+    private static final int PRODUCT_COUNT = 500;
+    private static final int ORDER_COUNT = 15000;
 
     public static void main(String[] args) {
-        try (Workbook workbook = new XSSFWorkbook()) {
+        try {
+            createDataFolder();
 
-            Sheet sheet = workbook.createSheet("Order_FlashSale_Raw");
-            createHeader(sheet);
-            generateData(sheet);
+            generateUsers();
+            generateShops();
+            generateProducts();
+            generateVariants();
+            generateVouchers();
+            generateOrders();
 
-            try (FileOutputStream fos =
-                         new FileOutputStream("flashsale_orders_raw.xlsx")) {
-                workbook.write(fos);
-            }
-
-            System.out.println("✅ File generated: flashsale_orders_raw.xlsx");
-            System.out.println("📄 Total rows: " + TOTAL_ROWS);
-
-        } catch (Exception e) {
+            System.out.println("🎉 Legacy CSV dataset generated successfully!");
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private static void createHeader(Sheet sheet) {
-        Row header = sheet.createRow(0);
-        String[] headers = {
-                "order_id", "user_id", "shop_id", "product_id", "variant_id",
-                "size", "color", "quantity", "unit_price",
-                "voucher_code", "discount_value", "order_time", "order_status"
-        };
-
-        for (int i = 0; i < headers.length; i++) {
-            header.createCell(i).setCellValue(headers[i]);
+    // ================== UTILITY ==================
+    private static void createDataFolder() {
+        File dir = new File("data");
+        if (!dir.exists()) {
+            dir.mkdir();
         }
     }
 
-    private static void generateData(Sheet sheet) {
-        Random random = new Random();
+    // ================== USERS ==================
+    private static void generateUsers() throws IOException {
+        FileWriter fw = new FileWriter("data/users.csv");
+        fw.write("user_id,name,email,user_type,balance\n");
 
-        for (int i = 1; i <= TOTAL_ROWS; i++) {
-            Row row = sheet.createRow(i);
-
-            Object quantity = random.nextInt(5) + 1;
-            Object unitPrice = 10000 + random.nextInt(90000);
-            Object discount = random.nextInt(30000);
-
-            // === CÀI CẮM LỖI DỮ LIỆU ===
-            if (i % 50 == 0) quantity = -2;
-            if (i % 77 == 0) quantity = "two";
-            if (i % 90 == 0) unitPrice = "12O000";
-            if (i % 120 == 0) discount = 999999;
-            if (i % 150 == 0) discount = null;
-            if (i % 200 == 0) unitPrice = "";
-
-            Object orderTime = LocalDateTime
-                    .of(2025, 7, (i % 28) + 1, 10, 0)
-                    .toString();
-            if (i % 88 == 0) orderTime = "32/13/2025";
-
-            Object status = switch (i % 3) {
-                case 0 -> "PENDING";
-                case 1 -> "PAID";
-                default -> "CANCELLED";
-            };
-            if (i % 111 == 0) status = "SUCCESSFULL";
-
-            Object size = new String[]{"S", "M", "L", "XL"}[i % 4];
-            if (i % 95 == 0) size = 123;
-
-            Object color = new String[]{"Red", "Blue", "Black"}[i % 3];
-            if (i % 130 == 0) color = null;
-
-            Object voucher = (i % 4 == 0) ? "FS10K" : "";
-            if (i % 170 == 0) voucher = "###";
-
-            write(row, 0, "ORD" + (100000 + i));
-            write(row, 1, "U" + random.nextInt(3000));
-            write(row, 2, "S" + random.nextInt(200));
-            write(row, 3, "P" + random.nextInt(500));
-            write(row, 4, "V" + random.nextInt(2000));
-            write(row, 5, size);
-            write(row, 6, color);
-            write(row, 7, quantity);
-            write(row, 8, unitPrice);
-            write(row, 9, voucher);
-            write(row, 10, discount);
-            write(row, 11, orderTime);
-            write(row, 12, status);
+        for (int i = 1; i <= USER_COUNT; i++) {
+            fw.write(String.format(
+                    "U%05d,User %d,user%d@gmail.com,%s,%d\n",
+                    i,
+                    i,
+                    i,
+                    rand.nextBoolean() ? "normal" : "vip",
+                    rand.nextInt(5_000_000) + 100_000
+            ));
         }
+        fw.close();
     }
 
-    private static void write(Row row, int col, Object value) {
-        Cell cell = row.createCell(col);
+    // ================== SHOPS ==================
+    private static void generateShops() throws IOException {
+        FileWriter fw = new FileWriter("data/shops.csv");
+        fw.write("shop_id,shop_name,rating,status\n");
 
-        if (value == null) {
-            cell.setBlank();
-        } else if (value instanceof Number) {
-            cell.setCellValue(((Number) value).doubleValue());
-        } else {
-            cell.setCellValue(value.toString());
+        for (int i = 1; i <= SHOP_COUNT; i++) {
+            fw.write(String.format(
+                    "S%03d,Shop %d,%.1f,active\n",
+                    i,
+                    i,
+                    3.5 + rand.nextDouble() * 1.5
+            ));
         }
+        fw.close();
+    }
+
+    // ================== PRODUCTS ==================
+    private static void generateProducts() throws IOException {
+        FileWriter fw = new FileWriter("data/products.csv");
+        fw.write("product_id,shop_id,name,base_price\n");
+
+        for (int i = 1; i <= PRODUCT_COUNT; i++) {
+            fw.write(String.format(
+                    "P%04d,S%03d,Product %d,%d\n",
+                    i,
+                    rand.nextInt(SHOP_COUNT) + 1,
+                    i,
+                    rand.nextInt(500_000) + 100_000
+            ));
+        }
+        fw.close();
+    }
+
+    // ================== PRODUCT VARIANTS ==================
+    private static void generateVariants() throws IOException {
+        String[] sizes = {"S", "M", "L", "XL"};
+        String[] colors = {"Black", "White", "Red", "Blue"};
+
+        FileWriter fw = new FileWriter("data/product_variants.csv");
+        fw.write("variant_id,product_id,size,color,price,stock\n");
+
+        int variantId = 1;
+
+        for (int p = 1; p <= PRODUCT_COUNT; p++) {
+            for (String size : sizes) {
+                for (String color : colors) {
+                    fw.write(String.format(
+                            "V%05d,P%04d,%s,%s,%d,%d\n",
+                            variantId++,
+                            p,
+                            size,
+                            color,
+                            rand.nextInt(500_000) + 100_000,
+                            rand.nextInt(100)
+                    ));
+                }
+            }
+        }
+        fw.close();
+    }
+
+    // ================== VOUCHERS ==================
+    private static void generateVouchers() throws IOException {
+        FileWriter fw = new FileWriter("data/vouchers.csv");
+        fw.write("voucher_id,type,value,scope,min_order,max_discount,quantity\n");
+
+        fw.write("VC001,PERCENT,10,PLATFORM,200000,50000,1000\n");
+        fw.write("VC002,FIXED,50000,SHOP,300000,50000,500\n");
+        fw.write("VC003,PERCENT,20,PRODUCT,100000,70000,300\n");
+
+        fw.close();
+    }
+
+    // ================== ORDERS & ORDER ITEMS ==================
+    private static void generateOrders() throws IOException {
+        FileWriter orderWriter = new FileWriter("data/orders.csv");
+        FileWriter itemWriter = new FileWriter("data/order_items.csv");
+
+        orderWriter.write("order_id,user_id,total_price,status,created_at\n");
+        itemWriter.write("order_item_id,order_id,variant_id,price,quantity\n");
+
+        for (int i = 1; i <= ORDER_COUNT; i++) {
+            String orderId = String.format("O%06d", i);
+
+            orderWriter.write(String.format(
+                    "%s,U%05d,%d,%s,%s\n",
+                    orderId,
+                    rand.nextInt(USER_COUNT) + 1,
+                    rand.nextInt(3_000_000) + 100_000,
+                    randomStatus(),
+                    LocalDateTime.now().minusMinutes(rand.nextInt(200_000))
+            ));
+
+            int itemCount = rand.nextInt(3) + 1;
+            for (int j = 1; j <= itemCount; j++) {
+                itemWriter.write(String.format(
+                        "OI%06d_%d,%s,V%05d,%d,%d\n",
+                        i,
+                        j,
+                        orderId,
+                        rand.nextInt(PRODUCT_COUNT * 16) + 1,
+                        rand.nextInt(500_000) + 100_000,
+                        rand.nextInt(3) + 1
+                ));
+            }
+        }
+
+        orderWriter.close();
+        itemWriter.close();
+    }
+
+    private static String randomStatus() {
+        String[] statuses = {"PAID", "PENDING", "CANCEL"};
+        return statuses[rand.nextInt(statuses.length)];
     }
 }
