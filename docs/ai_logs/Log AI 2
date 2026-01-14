@@ -442,7 +442,221 @@ Nếu bạn muốn bước tiếp theo, mình làm tiếp cho bạn:
 
 👉 Chỉ cần nói: “Làm tiếp tuần 3”
 
+Voucher
+•	voucher_id
+•	code
+•	discount_type
+•	discount_value
+•	min_order_amount
+•	voucher_scope
+•	stackable
+•	priority
+ở trường voucher tôi muốn thay đổi legacy csv của nó thì làm sao 
 
+Rất đúng hướng 👍
+Việc thay đổi cấu trúc Voucher trong Legacy CSV là hoàn toàn hợp lệ và còn ăn điểm Migration nếu bạn làm đúng cách. Mình hướng dẫn từng bước – đúng logic LAB211.
+
+1️⃣ TƯ DUY CHUẨN LAB211 (GIẢNG VIÊN RẤT THÍCH)
+
+👉 Database chuẩn ≠ Legacy CSV
+
+Legacy CSV = dữ liệu hệ thống cũ
+
+Có thể:
+
+Thiếu cột
+
+Thừa cột
+
+Giá trị không đồng nhất
+
+Nhiệm vụ Tuần 3–4:
+
+Mapping
+
+Transform
+
+Clean
+
+➡️ Bạn được phép thay đổi Legacy CSV Voucher
+➡️ Miễn là:
+
+Có lý do nghiệp vụ rõ ràng
+
+Mapping được sang DB mới
+
+2️⃣ CẤU TRÚC VOUCHER MỚI (BẠN MUỐN)
+voucher_id
+code
+discount_type      (PERCENT | FIXED)
+discount_value
+min_order_amount
+voucher_scope      (GLOBAL | SHOP | PRODUCT)
+stackable          (0 | 1)
+priority           (1–10)
+
+3️⃣ CÁCH LÀM ĐÚNG: UPDATE LEGACY CSV
+✅ Bước 1: ĐỔI HEADER FILE
+legacy_vouchers.csv (MỚI)
+voucher_id,code,discount_type,discount_value,min_order_amount,voucher_scope,stackable,priority
+
+✅ Bước 2: CHO PHÉP DỮ LIỆU BẨN (CỐ TÌNH)
+VC001,SAVE10,PERCENT,10,100000,GLOBAL,1,1
+VC002,FLASH50,FIXED,50000,300000,SHOP,0,5
+VC003,ERROR,PERCENT,-20,100000,GLOBAL,1,3
+VC004,VIP20,PERCENT,20,0,UNKNOWN,1,15
+VC005,,FIXED,100000,500000,PRODUCT,1,2
+
+❌ Dữ liệu bẩn có chủ ý
+Lỗi	Mục đích
+discount_value âm	validate
+voucher_scope sai	enum mapping
+priority > 10	normalize
+code trống	reject
+4️⃣ CẬP NHẬT JAVA TOOL (RẤT QUAN TRỌNG)
+🔧 Thay hàm generateVouchers() bằng phiên bản mới
+static void generateVouchers() throws IOException {
+    FileWriter fw = new FileWriter("legacy_vouchers.csv");
+    fw.write("voucher_id,code,discount_type,discount_value,min_order_amount,voucher_scope,stackable,priority\n");
+
+    String[] types = {"PERCENT", "FIXED"};
+    String[] scopes = {"GLOBAL", "SHOP", "PRODUCT", "UNKNOWN"};
+
+    for (int i = 1; i <= 200; i++) {
+        String id = String.format("VC%03d", i);
+        String code = (i % 25 == 0) ? "" : "SALE" + i;
+        String type = types[random.nextInt(types.length)];
+        int value = (i % 20 == 0) ? -10 : (type.equals("PERCENT") ? random.nextInt(50) + 5 : random.nextInt(100000) + 20000);
+        int minOrder = random.nextInt(600000);
+        String scope = scopes[random.nextInt(scopes.length)];
+        int stackable = random.nextBoolean() ? 1 : 0;
+        int priority = (i % 30 == 0) ? 15 : random.nextInt(10) + 1;
+
+        fw.write(id + "," + code + "," + type + "," + value + "," + minOrder + "," +
+                scope + "," + stackable + "," + priority + "\n");
+    }
+    fw.close();
+}
+
+5️⃣ TUẦN 3–4: MAPPING LEGACY → DATABASE (BẠN SẼ NÓI GÌ KHI BỊ HỎI)
+
+Khi vấn đáp, bạn trả lời như sau 👇
+
+“Legacy voucher của nhóm có thêm các trường như discount_type, scope, stackable, priority để mô phỏng hệ thống cũ phức tạp.
+Khi import, nhóm thực hiện validate enum, chuẩn hóa priority về 1–10, loại bỏ voucher có discount_value âm hoặc code rỗng.”
+
+➡️ Câu này ăn điểm rất cao
+
+6️⃣ BẢNG MAPPING (NÊN BỎ VÀO /docs/analysis)
+Legacy CSV	Database	Xử lý
+discount_type	discount_type	Validate enum
+discount_value	discount_value	> 0
+voucher_scope	scope	Map UNKNOWN → GLOBAL
+stackable	stackable	0/1
+priority	priority	clamp 1–10
+7️⃣ AI LOG (BẮT BUỘC GHI)
+Vấn đề: Cần mở rộng voucher cho nghiệp vụ khuyến mãi chồng chéo
+Prompt: Design advanced voucher schema for e-commerce
+AI gợi ý các trường scope, stackable, priority
+Nhóm chỉnh sửa: Cho phép dữ liệu legacy sai để phục vụ Migration
+
+👉 Nếu bạn muốn, bước tiếp theo mình có thể:
+
+✅ Viết code import voucher + validate
+
+✅ Viết logic áp voucher chồng chéo (priority + stackable)
+
+✅ Vẽ flow áp khuyến mãi cho order
+
+Chỉ cần nói: “Làm tiếp phần import voucher”
+
+sao trong discount value vẫn có số âm
+
+Câu hỏi này rất hay 👍 và đúng tư duy LAB211.
+Mình trả lời ngắn gọn – đúng bản chất – dùng được khi vấn đáp.
+
+🔑 TRẢ LỜI NGẮN GỌN
+
+Vì đây là Legacy CSV (dữ liệu hệ thống cũ), không phải dữ liệu sạch.
+Số âm trong discount_value được cố tình tạo ra để test bước Migration & Validation ở Tuần 3–4.
+
+1️⃣ GIẢI THÍCH CHUẨN LAB211 (NÊN NÓI KHI BỊ HỎI)
+
+Bạn trả lời như sau 👇 (có thể học thuộc):
+
+“File CSV của nhóm là dữ liệu legacy từ hệ thống cũ, nên có dữ liệu sai như discount_value âm.
+Khi import vào database, nhóm sẽ validate và loại bỏ hoặc sửa các record không hợp lệ.”
+
+➡️ Câu này ăn điểm Data Migration 💯
+
+2️⃣ VÌ SAO KHÔNG NÊN LÀM CSV SẠCH NGAY TỪ ĐẦU?
+
+❌ Làm CSV sạch ngay → mất điểm
+
+Vì:
+
+LAB211 yêu cầu Migration
+
+Migration = Xử lý dữ liệu bẩn
+
+Nếu CSV hoàn hảo → giảng viên hỏi:
+
+“Vậy migration khó ở chỗ nào?”
+
+3️⃣ SỐ ÂM TRONG discount_value DÙNG ĐỂ TEST GÌ?
+Lỗi	Dùng test
+discount_value < 0	Validate dữ liệu
+Bỏ qua record	Skip khi import
+Log lỗi	Ghi file error.log
+Chuẩn hóa	set = 0 hoặc reject
+4️⃣ TUẦN 3–4: BẠN SẼ XỬ LÝ THẾ NÀO?
+Ví dụ logic import Voucher:
+if (discountValue <= 0) {
+    // skip record
+    continue;
+}
+
+
+Hoặc:
+
+discountValue = Math.max(discountValue, 0);
+
+
+👉 Có quyền chọn 1 trong 2, miễn là:
+
+Có giải thích
+
+Có log
+
+5️⃣ NẾU GIẢNG VIÊN HỎI XOÁY 😈
+
+“Sao không fix luôn trong file CSV cho sạch?”
+
+👉 Trả lời:
+
+“Vì mục tiêu của môn là Migration, nên nhóm giữ nguyên dữ liệu legacy để xử lý bằng code, giống hệ thống thực tế.”
+
+🔥 Câu này rất mạnh
+
+6️⃣ KHI NÀO THÌ KHÔNG ĐƯỢC CÓ SỐ ÂM?
+Giai đoạn	Có số âm?
+Legacy CSV	✅ Được
+Database	❌ Không
+Order tính tiền	❌ Không
+Báo cáo	❌ Không
+7️⃣ TÓM LẠI (1 DÒNG)
+
+👉 Số âm tồn tại để chứng minh nhóm có Migration thật, không phải demo giả.
+
+Nếu bạn muốn, mình có thể làm tiếp:
+
+✅ Code import Voucher + validate + log lỗi
+
+✅ Logic áp nhiều voucher (priority + stackable)
+
+✅ Case vấn đáp “bị hỏi xoáy” 😎
+
+Chỉ cần nói: “Viết code import voucher”
 
 
 No file chosenNo file chosen
