@@ -1,0 +1,247 @@
+User
+
+user_id (PK)
+
+name
+
+email
+
+password
+
+Shop
+
+shop_id (PK)
+
+shop_name
+
+owner_id (FK → User)
+
+Product
+
+product_id (PK)
+
+shop_id (FK)
+
+name
+
+price
+
+ProductVariant
+
+variant_id (PK)
+
+product_id (FK)
+
+size
+
+color
+
+stock_quantity
+
+Order
+
+order_id (PK)
+
+user_id (FK)
+
+total_amount
+
+order_date
+
+OrderItem
+
+order_item_id (PK)
+
+order_id (FK)
+
+variant_id (FK)
+
+quantity
+
+price
+
+Voucher
+
+voucher_id (PK)
+
+code
+
+discount_value
+
+min_order_amount 
+phân tích quan hệ trên
+Rất tốt Vinh 👌, bạn đã mô tả một mô hình cơ sở dữ liệu thương mại điện tử khá chuẩn. Mình sẽ phân tích quan hệ giữa các bảng để bạn thấy rõ cấu trúc và logic:
+
+🧑 User
+user_id (PK): khóa chính định danh người dùng.
+
+Một User có thể:
+
+Sở hữu nhiều Shop (quan hệ 1–N với bảng Shop).
+
+Đặt nhiều Order (quan hệ 1–N với bảng Order).
+
+🏬 Shop
+shop_id (PK): khóa chính định danh cửa hàng.
+
+owner_id (FK → User): liên kết đến người dùng sở hữu shop.
+
+Một Shop có thể:
+
+Có nhiều Product (quan hệ 1–N với bảng Product).
+
+📦 Product
+product_id (PK): khóa chính định danh sản phẩm.
+
+shop_id (FK → Shop): sản phẩm thuộc về một shop.
+
+Một Product có thể:
+
+Có nhiều ProductVariant (quan hệ 1–N với bảng ProductVariant).
+
+🎨 ProductVariant
+variant_id (PK): khóa chính định danh biến thể sản phẩm.
+
+product_id (FK → Product): biến thể thuộc về một sản phẩm.
+
+Mỗi biến thể có thuộc tính riêng: size, color, stock_quantity.
+
+Một ProductVariant có thể:
+
+Xuất hiện trong nhiều OrderItem (quan hệ 1–N với bảng OrderItem).
+
+🧾 Order
+order_id (PK): khóa chính định danh đơn hàng.
+
+user_id (FK → User): đơn hàng thuộc về một người dùng.
+
+Một Order có thể:
+
+Chứa nhiều OrderItem (quan hệ 1–N với bảng OrderItem).
+
+📑 OrderItem
+order_item_id (PK): khóa chính định danh chi tiết đơn hàng.
+
+order_id (FK → Order): chi tiết thuộc về một đơn hàng.
+
+variant_id (FK → ProductVariant): chi tiết gắn với một biến thể sản phẩm.
+
+Thể hiện mối quan hệ N–N giữa Order và ProductVariant, được giải quyết qua bảng trung gian OrderItem.
+
+🎟 Voucher
+voucher_id (PK): khóa chính định danh voucher.
+
+Thuộc tính: code, discount_value, min_order_amount.
+
+Có thể áp dụng cho Order (quan hệ tiềm năng 1–N hoặc N–N tùy thiết kế).
+
+Nếu một đơn hàng chỉ dùng 1 voucher → thêm voucher_id (FK) trong bảng Order.
+
+Nếu một đơn hàng có thể dùng nhiều voucher → cần bảng trung gian OrderVoucher.
+
+📊 Tóm tắt quan hệ
+User – Shop: 1–N
+
+Shop – Product: 1–N
+
+Product – ProductVariant: 1–N
+
+User – Order: 1–N
+
+Order – OrderItem – ProductVariant: N–N (qua OrderItem)
+
+Order – Voucher: 1–N hoặc N–N (tùy yêu cầu nghiệp vụ)
+
+👉 Đây là một ERD logic cho hệ thống e-commerce cơ bản. Nếu thầy hỏi, bạn có thể nhấn mạnh:
+
+OrderItem là bảng trung gian để giải quyết quan hệ N–N giữa Order và ProductVariant.
+
+Voucher cần xem xét nghiệp vụ: một đơn hàng có thể áp dụng một hay nhiều voucher.
+
+Bạn có muốn mình vẽ sơ đồ ERD (Entity Relationship Diagram) trực quan cho mô hình này để dễ hình dung hơn không?
+
+(FK → User) chỗ khúc này tôi vẫn chưa hiểu lắm, ở shop có owner_id nhưng ở user đâu có owner_id thì làm sao làm FK đc
+À, mình hiểu chỗ bạn đang thắc mắc rồi Vinh 👍. Để mình giải thích rõ:
+
+🔑 Nguyên tắc về Foreign Key (FK)
+Foreign Key (FK) không cần phải có cùng tên với cột ở bảng tham chiếu.
+
+FK chỉ cần tham chiếu đến Primary Key (PK) hoặc một cột duy nhất (Unique) của bảng khác.
+
+🏬 Trường hợp của bạn
+Bảng User có user_id (PK).
+
+Bảng Shop có owner_id (FK → User).
+
+👉 Điều này nghĩa là:
+
+owner_id trong bảng Shop sẽ tham chiếu đến user_id trong bảng User.
+
+Tức là mỗi shop phải có một chủ sở hữu (owner), và người đó chính là một User trong hệ thống.
+
+📊 Ví dụ minh họa
+User table
+
+user_id	name	email
+1	Vinh	vinh@email.com
+2	Lan	lan@email.com
+Shop table
+
+shop_id	shop_name	owner_id
+101	Vinh Store	1
+102	Lan Boutique	2
+👉 Ở đây:
+
+owner_id = 1 → tham chiếu đến user_id = 1 (Vinh là chủ shop 101).
+
+owner_id = 2 → tham chiếu đến user_id = 2 (Lan là chủ shop 102).
+
+✅ Kết luận
+Bạn không cần có cột owner_id trong bảng User.
+
+Chỉ cần có user_id (PK) trong bảng User, và owner_id (FK) trong bảng Shop tham chiếu đến đó.
+
+Tên cột có thể khác nhau, miễn là FK trỏ đúng về PK/Unique của bảng kia.
+
+Bạn có muốn mình vẽ sơ đồ ERD trực quan (các bảng và mũi tên quan hệ) để dễ hình dung hơn không?
+
+trong cái bảng quan hệ, theo suy đoán của tui là trường OrderItem á có mã item nè, có mã đơn và cái mã đa dạng đó để có thể suy ra mã sản phẩm nên trong đó ko cần thêm mã sản phẩm nx đúng ko
+Đúng rồi Vinh, bạn suy luận rất chuẩn 👌. Mình phân tích kỹ hơn để bạn thấy rõ:
+
+🧾 Bảng OrderItem
+order_item_id (PK) → định danh chi tiết đơn hàng.
+
+order_id (FK → Order) → biết chi tiết này thuộc đơn hàng nào.
+
+variant_id (FK → ProductVariant) → biết chi tiết này là biến thể nào của sản phẩm.
+
+quantity, price → số lượng và giá tại thời điểm đặt.
+
+🔗 Quan hệ logic
+ProductVariant đã có product_id (FK → Product).
+
+Vì vậy, khi bạn có variant_id, bạn hoàn toàn có thể truy ngược ra product_id và từ đó biết sản phẩm gốc.
+
+Do đó, trong OrderItem không cần thêm cột product_id nữa, vì sẽ bị dư thừa dữ liệu (redundant).
+
+📊 Ví dụ minh họa
+ProductVariant table
+
+variant_id	product_id	size	color
+501	1001	M	Red
+502	1001	L	Blue
+OrderItem table
+
+order_item_id	order_id	variant_id	quantity	price
+9001	7001	501	2	200
+👉 Từ variant_id = 501 → biết product_id = 1001.
+Không cần lưu thêm product_id trong OrderItem, vì đã có thể suy ra qua ProductVariant.
+
+✅ Kết luận
+Trong OrderItem, chỉ cần order_id và variant_id.
+
+product_id không cần thiết vì đã có thể truy ngược qua variant_id.
+
+Đây là cách thiết kế chuẩn hóa dữ liệu (normalization) để tránh dư thừa và đảm bảo tính nhất quán.
+
+Bạn có muốn mình giải thích thêm về chuẩn hóa dữ liệu (database normalization) và tại sao thiết kế như vậy giúp hệ thống e-commerce dễ mở rộng, tránh lỗi khi cập nhật không?
