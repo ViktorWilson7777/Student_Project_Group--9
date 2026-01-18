@@ -1,4 +1,4 @@
-variant_id,product_id,size,color,stock_quantity
+variant_id,product_id,size,color,stock
 V00001,P0002,M,Blue,152
 V00002,P0003,XL,Blue,12
 V00003,P0004,L,Black,144
