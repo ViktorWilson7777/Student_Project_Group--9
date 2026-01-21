@@ -3792,3 +3792,2454 @@ Voucher	1 ─< N OrderVoucher
 
 No file chosenNo file chosen
 ChatGPT can make mistakes. Check important info. See Cookie Preferences.
+
+từ các chức năng trên hãy tạo class diagram cho tôi
+Tốt 👍
+Dựa **trực tiếp trên ERD + các chức năng (business responsibilities)** mà ta đã chốt, dưới đây là **Class Diagram (UML)** ở mức **chuẩn backend / OOP / thuyết trình môn Phân tích & Thiết kế HTTT**.
+
+Mình sẽ làm theo 3 tầng rõ ràng:
+
+1. **Class + Attributes**
+2. **Methods (functions) đúng nghiệp vụ**
+3. **Relationships (association, multiplicity)**
+
+---
+
+# 1️⃣ USER
+
+```plaintext
+Class User
+-------------------------
+- userId: Long
+- name: String
+- email: String
+- password: String
+-------------------------
++ register()
++ login()
++ updateProfile()
++ createOrder()
++ viewOrders()
+```
+
+Quan hệ:
+
+* User 1 —— * Shop
+* User 1 —— * Order
+
+---
+
+# 2️⃣ SHOP
+
+```plaintext
+Class Shop
+-------------------------
+- shopId: Long
+- shopName: String
+- owner: User
+-------------------------
++ addProduct()
++ updateProduct()
++ viewOrders()
+```
+
+Quan hệ:
+
+* Shop 1 —— * Product
+* Shop * —— 1 User
+
+---
+
+# 3️⃣ PRODUCT
+
+```plaintext
+Class Product
+-------------------------
+- productId: Long
+- name: String
+- basePrice: Decimal
+- shop: Shop
+-------------------------
++ addVariant()
++ updateProductInfo()
++ getVariants()
+```
+
+Quan hệ:
+
+* Product 1 —— * ProductVariant
+* Product * —— 1 Shop
+
+---
+
+# 4️⃣ PRODUCT VARIANT
+
+```plaintext
+Class ProductVariant
+-------------------------
+- variantId: Long
+- size: String
+- color: String
+- stock: Int
+- product: Product
+-------------------------
++ checkStock(quantity)
++ decreaseStock(quantity)
++ increaseStock(quantity)
+```
+
+Quan hệ:
+
+* ProductVariant * —— 1 Product
+* ProductVariant 1 —— * OrderItem
+
+📌 **Stock chỉ thay đổi khi Order PAID**
+
+---
+
+# 5️⃣ ORDER
+
+```plaintext
+Class Order
+-------------------------
+- orderId: Long
+- orderDate: DateTime
+- status: OrderStatus
+- subtotalAmount: Decimal
+- totalDiscount: Decimal
+- totalAmount: Decimal
+- user: User
+-------------------------
++ calculateSubtotal()
++ applyVoucher(voucher)
++ checkout()
++ cancel()
++ complete()
+```
+
+Quan hệ:
+
+* Order * —— 1 User
+* Order 1 —— * OrderItem
+* Order 1 —— * OrderVoucher
+
+---
+
+# 6️⃣ ORDER ITEM
+
+```plaintext
+Class OrderItem
+-------------------------
+- orderItemId: Long
+- quantity: Int
+- priceSnapshot: Decimal
+- subtotal: Decimal
+- variant: ProductVariant
+- order: Order
+-------------------------
++ calculateSubtotal()
+```
+
+📌 **priceSnapshot để chống mâu thuẫn dữ liệu giá**
+
+Quan hệ:
+
+* OrderItem * —— 1 Order
+* OrderItem * —— 1 ProductVariant
+
+---
+
+# 7️⃣ VOUCHER
+
+```plaintext
+Class Voucher
+-------------------------
+- voucherId: Long
+- code: String
+- discountValue: Decimal
+- minOrderAmount: Decimal
+- startDate: Date
+- endDate: Date
+- stackable: Boolean
+-------------------------
++ isValid(orderAmount)
++ calculateDiscount(orderAmount)
+```
+
+Quan hệ:
+
+* Voucher * —— * Order (qua OrderVoucher)
+
+---
+
+# 8️⃣ ORDER VOUCHER (Association Class)
+
+```plaintext
+Class OrderVoucher
+-------------------------
+- id: Long
+- discount: Decimal
+- orderAmount: Decimal
+- order: Order
+- voucher: Voucher
+-------------------------
++ applyDiscount()
+```
+
+📌 Lưu **snapshot voucher**, tránh thay đổi về sau
+
+---
+
+# 9️⃣ ENUM – ORDER STATUS
+
+```plaintext
+Enum OrderStatus
+-------------------------
+PENDING
+PAID
+SHIPPED
+COMPLETED
+CANCELLED
+RETURNED
+```
+
+---
+
+# 🔗 TỔNG QUAN QUAN HỆ (TEXT UML)
+
+```plaintext
+User "1" --> "0..*" Shop
+User "1" --> "0..*" Order
+
+Shop "1" --> "0..*" Product
+Product "1" --> "1..*" ProductVariant
+
+Order "1" --> "1..*" OrderItem
+OrderItem "*" --> "1" ProductVariant
+
+Order "1" --> "0..*" OrderVoucher
+Voucher "1" --> "0..*" OrderVoucher
+```
+
+---
+
+# ✅ TẠI SAO CLASS DIAGRAM NÀY ĐÚNG?
+
+✔ Phù hợp ERD
+✔ Phù hợp flow frontend → backend
+✔ Không bị lỗi voucher hết hạn
+✔ Không mâu thuẫn stock & dữ liệu cũ
+✔ Scale tốt cho refund / return
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* ✏️ **Vẽ lại thành UML diagram (PlantUML)**
+* 🔄 **So sánh ERD vs Class Diagram**
+* 🧩 **Tách Service Layer (OrderService, VoucherService)**
+* 💡 **Chuyển sang Clean Architecture**
+
+👉 Bạn muốn đi tiếp **vẽ UML trực quan**, hay **chuẩn hóa code backend (Java/Spring / Node)**?
+
+khi nào thì class kế thừa abstract class và class implement abstract class
+Câu này **rất hay** 👍 và đúng trọng tâm OOP + thiết kế hệ thống.
+Mình trả lời theo **logic dễ nhớ + áp thẳng vào hệ thống Order/Voucher của bạn**.
+
+---
+
+# 1️⃣ Abstract class là gì (nói ngắn gọn)
+
+👉 **Abstract class = “khuôn mẫu có logic chung”**
+
+* Có **thuộc tính**
+* Có **method đã viết sẵn**
+* Có **method chưa có body (abstract method)**
+* **Không khởi tạo trực tiếp** (`new`)
+
+---
+
+# 2️⃣ Khi nào dùng `extends` (kế thừa abstract class)?
+
+👉 DÙNG KHI:
+
+### ✅ Các class con:
+
+* **CÓ CHUNG BẢN CHẤT (is-a)**
+* **Dùng chung dữ liệu + logic**
+* **Muốn tái sử dụng code**
+
+📌 Dấu hiệu nhận biết:
+
+> “Thằng này LÀ một dạng của thằng kia”
+
+---
+
+## 📦 Ví dụ ĐÚNG trong hệ thống của bạn
+
+### 🎟️ Voucher các loại
+
+```java
+abstract class Voucher {
+    protected String code;
+    protected double minOrderAmount;
+
+    public boolean isValid(double orderAmount) {
+        return orderAmount >= minOrderAmount;
+    }
+
+    public abstract double calculateDiscount(double orderAmount);
+}
+```
+
+### Voucher giảm %
+
+```java
+class PercentageVoucher extends Voucher {
+    private double percent;
+
+    @Override
+    public double calculateDiscount(double orderAmount) {
+        return orderAmount * percent / 100;
+    }
+}
+```
+
+### Voucher giảm tiền cố định
+
+```java
+class FixedAmountVoucher extends Voucher {
+    private double amount;
+
+    @Override
+    public double calculateDiscount(double orderAmount) {
+        return amount;
+    }
+}
+```
+
+👉 **Ở đây:**
+
+* `PercentageVoucher IS A Voucher`
+* Dùng chung `code`, `minOrderAmount`, `isValid()`
+  ➡️ **extends abstract class**
+
+---
+
+# 3️⃣ Khi nào dùng `implements` (implement interface)?
+
+👉 DÙNG KHI:
+
+### ✅ Class:
+
+* **KHÔNG chung bản chất**
+* **Chỉ chung hành vi**
+* **Muốn nhiều class khác nhau làm cùng 1 việc**
+* **Cần đa kế thừa**
+
+📌 Dấu hiệu:
+
+> “Thằng này CÓ THỂ làm việc đó”
+
+---
+
+## 🚚 Ví dụ ĐÚNG trong hệ thống Order
+
+### Interface
+
+```java
+interface Cancelable {
+    void cancel();
+}
+```
+
+### Order implement
+
+```java
+class Order implements Cancelable {
+    @Override
+    public void cancel() {
+        // logic cancel order
+    }
+}
+```
+
+### Shipment cũng implement
+
+```java
+class Shipment implements Cancelable {
+    @Override
+    public void cancel() {
+        // logic cancel shipment
+    }
+}
+```
+
+👉 Order **KHÔNG phải** là Shipment
+👉 Nhưng **đều có thể bị cancel**
+
+➡️ **implements interface**
+
+---
+
+# 4️⃣ So sánh cực nhanh (nhìn là nhớ)
+
+| Tiêu chí       | Abstract class | Interface       |
+| -------------- | -------------- | --------------- |
+| Từ khóa        | `extends`      | `implements`    |
+| Thuộc tính     | ✅ Có           | ❌ Không         |
+| Method có body | ✅ Có           | ❌ (trừ default) |
+| Đa kế thừa     | ❌              | ✅               |
+| Dùng khi       | Chung bản chất | Chung hành vi   |
+
+---
+
+# 5️⃣ Quy tắc vàng (áp dụng thực tế)
+
+### 🟢 Dùng ABSTRACT CLASS khi:
+
+* Có **logic chung**
+* Có **state (biến)**
+* Class con **là một dạng của class cha**
+
+### 🔵 Dùng INTERFACE khi:
+
+* Chỉ cần **cam kết hành vi**
+* Class con **không liên quan bản chất**
+* Muốn **đa kế thừa**
+
+---
+
+# 6️⃣ Áp thẳng vào hệ thống của bạn
+
+### ✔ NÊN dùng abstract class cho:
+
+* Voucher
+* PaymentMethod
+* DiscountPolicy
+
+### ✔ NÊN dùng interface cho:
+
+* Cancelable
+* Refundable
+* Shippable
+* Payable
+
+---
+
+# 7️⃣ Câu hỏi tự test (rất quan trọng)
+
+> ❓ *“Nếu class con có muốn dùng lại code + dữ liệu của class cha không?”*
+> 👉 **Có → abstract class**
+> 👉 **Không → interface**
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* 🔥 Refactor lại **Voucher thành abstract chuẩn**
+* 🧠 Vẽ **class diagram có abstract + interface**
+* 🧪 Cho ví dụ **sai – đúng để tránh lỗi thiết kế**
+
+👉 Bạn muốn tiếp **ở mức code**, hay **ở mức UML nâng cao**?
+
+khi làm class diagram mấy cái thuộc tính có khóa ngoại nx  ha
+
+Câu này **rất chuẩn bài UML + Database** 👍
+Và câu trả lời ngắn gọn là:
+
+> **👉 CÓ, nhưng KHÔNG vẽ giống database.**
+
+Mình giải thích **rất kỹ nhưng dễ nhớ**, bám đúng hệ thống của bạn.
+
+---
+
+# 1️⃣ Class Diagram KHÁC ERD ở điểm nào?
+
+| ERD (Database)       | Class Diagram (OOP)               |
+| -------------------- | --------------------------------- |
+| FK là **bắt buộc**   | FK **không phải lúc nào cũng vẽ** |
+| Quan hệ = khóa ngoại | Quan hệ = **association**         |
+| Tối ưu lưu trữ       | Tối ưu hành vi & logic            |
+
+👉 **Class diagram tập trung vào OBJECT & RELATIONSHIP**, không phải cột SQL.
+
+---
+
+# 2️⃣ Vậy có vẽ thuộc tính khóa ngoại không?
+
+## ❌ KHÔNG nên vẽ kiểu:
+
+```text
+order_id : Long
+user_id : Long
+product_variant_id : Long
+```
+
+👉 Vì:
+
+* Đó là **cách nghĩ của database**
+* Làm diagram rối
+* Mất ý nghĩa OOP
+
+---
+
+## ✅ NÊN vẽ kiểu OOP
+
+👉 **Dùng object reference + association**
+
+### Ví dụ: `OrderItem`
+
+❌ Sai (tư duy DB):
+
+```text
+OrderItem
+- order_id : Long
+- variant_id : Long
+```
+
+✅ Đúng (tư duy OOP):
+
+```text
+OrderItem
+- quantity : int
+- priceSnapshot : double
+-----------------------
+OrderItem "1" ---- "1" Order
+OrderItem "1" ---- "1" ProductVariant
+```
+
+---
+
+# 3️⃣ Khi nào MỚI vẽ FK như thuộc tính?
+
+👉 **Chỉ trong 3 trường hợp đặc biệt**
+
+---
+
+### 🟡 Trường hợp 1: DTO / API Request
+
+```java
+class CreateOrderItemRequest {
+    Long variantId;
+    int quantity;
+}
+```
+
+✔ Vì:
+
+* Frontend gửi **ID**
+* Backend map sang object
+
+---
+
+### 🟡 Trường hợp 2: Event / Log / History
+
+```java
+class StockHistory {
+    Long variantId;
+    int change;
+    LocalDateTime time;
+}
+```
+
+✔ Vì:
+
+* Chỉ cần snapshot
+* Không cần object đầy đủ
+
+---
+
+### 🟡 Trường hợp 3: Performance (High scale)
+
+```java
+class Order {
+    Long userId; // denormalized
+}
+```
+
+✔ Nhưng:
+
+* **Không vẽ trong class domain chính**
+* Vẽ ở diagram riêng (infrastructure)
+
+---
+
+# 4️⃣ Cách vẽ QUAN HỆ đúng trong Class Diagram
+
+### ERD của bạn:
+
+```
+Order --(1-n)-- OrderItem --(n-1)-- ProductVariant
+```
+
+### Class Diagram:
+
+```
+Order "1" o-- "1..*" OrderItem
+OrderItem "*" --> "1" ProductVariant
+```
+
+✔ Không cần `order_id`
+✔ Không cần `variant_id`
+
+---
+
+# 5️⃣ Ví dụ hoàn chỉnh (chuẩn UML)
+
+```text
+Order
+-------------------
+- id : Long
+- status : OrderStatus
+- totalAmount : double
+-------------------
++ addItem(item : OrderItem)
+
+OrderItem
+-------------------
+- quantity : int
+- priceSnapshot : double
+-------------------
++ getSubtotal()
+
+ProductVariant
+-------------------
+- sku : String
+- stock : int
+-------------------
++ decreaseStock(qty)
+```
+
+---
+
+# 6️⃣ Quy tắc VÀNG (nhớ câu này là đủ)
+
+> ❝ Class Diagram không vẽ khóa ngoại
+> mà vẽ **quan hệ giữa các object** ❞
+
+---
+
+# 7️⃣ Nếu giảng viên hỏi: *“Sao không có FK?”*
+
+👉 Trả lời chuẩn bài:
+
+> “Vì class diagram biểu diễn **mối quan hệ giữa các object**,
+> khóa ngoại chỉ là **cách cài đặt ở database layer**.”
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* 🔥 **Chuyển ERD hiện tại → Class Diagram chuẩn UML**
+* 🧠 Chỉ ra **chỗ nào NÊN / KHÔNG NÊN vẽ FK**
+* 📐 Vẽ **2 diagram song song** để bạn đi thi / nộp bài
+
+👉 Bạn đang làm **bài môn nào** (DB / OOP / SE / SAD)?
+
++ addVariant()
++ updateProductInfo()
++ getVariants()
+giải thích
+Ok, mình giải thích **rõ ràng – đúng ngữ cảnh hệ thống bán hàng của bạn**, không nói chung chung 👍
+Ba method này thường nằm trong **class `Product`**.
+
+---
+
+## 1️⃣ `+ addVariant()`
+
+### 👉 Ý nghĩa
+
+**Thêm một biến thể (ProductVariant) mới cho sản phẩm**
+
+Ví dụ:
+
+* Áo thun → thêm size **M – đỏ**
+* Giày → thêm **size 42 – đen**
+
+---
+
+### 🧠 Tại sao method này nằm trong `Product`?
+
+Vì:
+
+* Variant **thuộc về Product**
+* Product là **aggregate root**
+* Không nên cho bên ngoài tự ý thêm variant lung tung
+
+---
+
+### 📌 Ví dụ UML
+
+```text
+Product
+------------------
++ addVariant(variant : ProductVariant)
+```
+
+---
+
+### 💡 Ví dụ code
+
+```java
+public void addVariant(ProductVariant variant) {
+    variants.add(variant);
+}
+```
+
+---
+
+### 🔒 Thường kèm validate
+
+* Không trùng size + color
+* Không thêm khi product đã bị disable
+
+---
+
+## 2️⃣ `+ updateProductInfo()`
+
+### 👉 Ý nghĩa
+
+**Cập nhật thông tin chung của sản phẩm**
+
+Ví dụ:
+
+* Đổi tên sản phẩm
+* Đổi mô tả
+* Đổi giá base (nếu có)
+
+---
+
+### 🧠 Vì sao KHÔNG update trực tiếp từng field?
+
+👉 Để:
+
+* Gom logic vào 1 chỗ
+* Dễ validate
+* Dễ audit / log
+
+---
+
+### 📌 UML
+
+```text
+Product
+------------------
++ updateProductInfo(name, price, description)
+```
+
+---
+
+### 💡 Code ví dụ
+
+```java
+public void updateProductInfo(String name, double price) {
+    if (price <= 0) {
+        throw new IllegalArgumentException("Price must be positive");
+    }
+    this.name = name;
+    this.price = price;
+}
+```
+
+---
+
+## 3️⃣ `+ getVariants()`
+
+### 👉 Ý nghĩa
+
+**Lấy danh sách các ProductVariant của Product**
+
+Dùng khi:
+
+* Hiển thị trang chi tiết sản phẩm
+* User chọn size / màu
+* Kiểm tra tồn kho từng variant
+
+---
+
+### 📌 UML
+
+```text
+Product
+------------------
++ getVariants() : List<ProductVariant>
+```
+
+---
+
+### ⚠️ Lưu ý quan trọng
+
+Không nên trả về list gốc:
+
+```java
+return variants; // ❌ nguy hiểm
+```
+
+Nên:
+
+```java
+return Collections.unmodifiableList(variants); // ✅
+```
+
+---
+
+## 4️⃣ Tổng hợp ngắn gọn (dễ nhớ)
+
+| Method                | Dùng để               | Ai gọi             |
+| --------------------- | --------------------- | ------------------ |
+| `addVariant()`        | Thêm biến thể         | Shop / Admin       |
+| `updateProductInfo()` | Sửa info sản phẩm     | Shop               |
+| `getVariants()`       | Lấy danh sách variant | Frontend / Service |
+
+---
+
+## 5️⃣ Liên hệ với ERD của bạn
+
+```
+Product 1 ---- n ProductVariant
+```
+
+👉 Trong OOP:
+
+* `Product` **quản lý vòng đời** của `ProductVariant`
+* Không thao tác variant độc lập
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* ✍️ Viết **đúng chữ UML cho từng class**
+* 🔁 Chỉ ra method nào nên nằm ở **Service**, method nào nằm ở **Entity**
+* 🧩 So sánh **thiết kế sai vs đúng** (rất hay bị trừ điểm)
+
+👉 Bạn đang làm **class diagram để nộp môn gì**?
+
+- owner: User ở chỗ shop là owner là kiểu dữ liệu j mà sao ko phải là owner_id
+Câu hỏi này **rất đúng trọng tâm OOP + UML + Database** 👍
+Và cũng là chỗ **rất nhiều người bị “rối”**.
+
+Mình trả lời theo **3 tầng**: *Class Diagram → Code → Database*.
+
+---
+
+## 1️⃣ Trong **Class Diagram**: vì sao là `owner: User` ❓
+
+### 👉 Vì **Class Diagram mô tả OOP**, KHÔNG mô tả database
+
+Trong **OOP**:
+
+* Quan hệ là **object – object**
+* Không phải **id – id**
+
+📌 Nên:
+
+```text
+Shop
+------------------
+- owner : User
+```
+
+✔ Đúng
+❌ Không viết:
+
+```text
+- owner_id : int
+```
+
+---
+
+### 🧠 Hiểu đơn giản
+
+> Shop **có một Owner là một User**
+> → owner **là một object**, không phải là một số
+
+---
+
+## 2️⃣ Vậy `owner: User` là kiểu dữ liệu gì?
+
+👉 **Kiểu dữ liệu là `User` (class User)**
+
+```java
+class Shop {
+    private User owner;
+}
+```
+
+📌 Đây gọi là:
+
+* **Association**
+* **Has-a relationship**
+
+---
+
+## 3️⃣ Nhưng trong **Database** thì sao? (ERD)
+
+Ở **ERD / Database**, **KHÔNG lưu object**, chỉ lưu **ID**
+
+```text
+Shop
+------------------
+shop_id (PK)
+shop_name
+owner_id (FK → User.user_id)
+```
+
+👉 Lúc này:
+
+* `owner_id` là **foreign key**
+* Trỏ tới `User`
+
+---
+
+## 4️⃣ Vậy ánh xạ giữa Class & Database như thế nào?
+
+### 🧩 Ví dụ JPA / ORM
+
+```java
+class Shop {
+
+    @ManyToOne
+    @JoinColumn(name = "owner_id")
+    private User owner;
+}
+```
+
+📌 Mapping:
+
+| OOP            | Database        |
+| -------------- | --------------- |
+| `owner : User` | `owner_id : FK` |
+
+---
+
+## 5️⃣ Tại sao KHÔNG dùng owner_id trong class?
+
+Nếu bạn viết:
+
+```java
+class Shop {
+    private Long ownerId; ❌
+}
+```
+
+👉 Vấn đề:
+
+* Mất quan hệ object
+* Mỗi lần cần owner → phải query tay
+* Phá vỡ OOP
+
+---
+
+## 6️⃣ Khi nào thì class CÓ owner_id?
+
+👉 **Chỉ trong 2 trường hợp**
+
+### ✅ 1. DTO / Request / Response
+
+```java
+CreateShopRequest {
+    ownerId: Long
+}
+```
+
+### ✅ 2. Code SQL thuần (không ORM)
+
+---
+
+## 7️⃣ So sánh nhanh (rất quan trọng khi vẽ UML)
+
+| Nơi               | Viết gì       |
+| ----------------- | ------------- |
+| **ERD**           | `owner_id`    |
+| **Class Diagram** | `owner: User` |
+| **Entity (ORM)**  | `User owner`  |
+| **DTO**           | `ownerId`     |
+
+---
+
+## 8️⃣ Kết luận (chốt câu của bạn)
+
+> ❓ “owner là kiểu dữ liệu gì mà không phải owner_id?”
+
+✔ **owner là một OBJECT kiểu User**
+✔ **owner_id chỉ tồn tại trong database**
+✔ UML / Class Diagram **KHÔNG dùng ID để biểu diễn quan hệ**
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* ✍️ Sửa lại **class diagram cho đúng chuẩn chấm điểm**
+* 🚫 Chỉ ra **lỗi rất hay bị trừ điểm** khi vẽ UML
+* 🔁 So sánh **Class Diagram vs ERD (1–1 từng bảng)**
+
+👉 Bạn đang làm **môn Phân tích & Thiết kế hệ thống / OOP / LAB211 đúng không?**
+
++ calculateSubtotal()
+Ok, mình giải thích **đúng ngữ cảnh hệ thống Order – Cart – Voucher** mà tụi mình đang bàn 👌
+
+---
+
+## `+ calculateSubtotal()` là gì?
+
+### 📌 Ý nghĩa
+
+```text
++ calculateSubtotal()
+```
+
+👉 Là **phương thức tính tổng tiền tạm thời của đơn hàng**
+
+* **CHƯA áp voucher**
+* **CHƯA tính phí ship**
+* **CHƯA thuế (nếu có)**
+
+➡️ Chỉ là **tổng tiền hàng**
+
+---
+
+## Subtotal là tiền gì?
+
+**Subtotal = ∑ (price × quantity) của các OrderItem**
+
+Ví dụ:
+
+| Sản phẩm | Giá     | SL | Thành tiền |
+| -------- | ------- | -- | ---------- |
+| A        | 200.000 | 2  | 400.000    |
+| B        | 100.000 | 1  | 100.000    |
+
+👉 `subtotal = 500.000`
+
+---
+
+## `calculateSubtotal()` thường nằm ở đâu?
+
+### ✅ 1️⃣ Trong class `Order` (phổ biến & đúng nhất)
+
+```text
+Order
+------------------
++ calculateSubtotal()
+```
+
+### Vì:
+
+* Order **quản lý danh sách OrderItem**
+* Subtotal là thuộc về **Order**
+
+---
+
+## UML mô tả như thế nào?
+
+```text
+Order
+------------------------
+- items : List<OrderItem>
+------------------------
++ calculateSubtotal() : Money
+```
+
+---
+
+## Logic bên trong (giải thích, không phải code chi tiết)
+
+```text
+subtotal = 0
+for each item in orderItems:
+    subtotal += item.price * item.quantity
+return subtotal
+```
+
+📌 **Không phụ thuộc voucher**
+
+---
+
+## Phân biệt với các hàm khác (rất hay nhầm)
+
+| Method                | Tác dụng                   |
+| --------------------- | -------------------------- |
+| `calculateSubtotal()` | Tổng tiền hàng             |
+| `applyVoucher()`      | Tính giảm giá              |
+| `calculateDiscount()` | Tổng tiền giảm             |
+| `calculateTotal()`    | Subtotal − discount + ship |
+
+---
+
+## Vì sao KHÔNG lưu subtotal cố định trong DB?
+
+👉 Vì:
+
+* Giá có thể thay đổi khi update
+* Voucher có thể đổi
+* Dễ gây **mâu thuẫn dữ liệu**
+
+📌 Thường:
+
+* Subtotal **tính bằng logic**
+* Chỉ lưu **final_total / paid_amount**
+
+---
+
+## Subtotal có dùng khi nào?
+
+✔ Hiển thị trong:
+
+* Cart
+* Checkout
+* Xem trước khi thanh toán
+
+✔ Dùng để:
+
+* Check `min_order_amount` của voucher
+* Tính phần trăm giảm
+
+---
+
+## Tóm tắt ngắn gọn
+
+> `calculateSubtotal()`
+> 👉 Tính **tổng tiền hàng trước khi giảm giá**
+> 👉 Thuộc về **Order**
+> 👉 Không lưu DB, chỉ tính khi cần
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* Gắn method này vào **class diagram hoàn chỉnh**
+* Chỉ ra **method nào nên có / không nên có**
+* So sánh **Subtotal – Discount – Total** bằng sơ đồ dòng tiền 💸
+
+status: OrderStatus tui ko có class OrderStatus
+Câu hỏi này **rất đúng trọng tâm UML + thiết kế hệ thống** 👍
+Mình giải thích **cặn kẽ nhưng gọn**, để bạn thấy là **KHÔNG SAI**, chỉ là **thiếu 1 mảnh**.
+
+---
+
+## 1️⃣ `status: OrderStatus` nghĩa là gì?
+
+Trong class diagram:
+
+```text
+Order
+------------------
+- status : OrderStatus
+```
+
+👉 Nghĩa là:
+
+* `status` **không phải string**
+* `status` có **kiểu dữ liệu là OrderStatus**
+
+Nhưng bạn **chưa vẽ OrderStatus** ⇒ nhìn thì thấy “thiếu class”.
+
+---
+
+## 2️⃣ OrderStatus là gì nếu không phải class?
+
+### ✅ Có 2 cách hợp lệ trong UML
+
+---
+
+## 🔵 CÁCH 1 (ĐÚNG NHẤT): `OrderStatus` là **ENUM** (không phải class)
+
+Trong thực tế hệ thống **99% dùng enum**
+
+```text
+<<enumeration>> OrderStatus
+--------------------------------
+CREATED
+PENDING_PAYMENT
+PAID
+SHIPPING
+COMPLETED
+CANCELLED
+RETURNED
+```
+
+➡️ Khi đó:
+
+```text
+Order.status : OrderStatus
+```
+
+📌 **Enum KHÔNG phải class**
+
+* Không có method
+* Không có thuộc tính
+* Chỉ là tập giá trị hợp lệ
+
+---
+
+### Khi nào dùng ENUM?
+
+✔ Trạng thái cố định
+✔ Không có logic riêng
+✔ Không cần mở rộng hành vi
+
+➡️ **Status của order chính xác là trường hợp này**
+
+---
+
+## 🔴 CÁCH 2: OrderStatus là **class riêng** (ít dùng hơn)
+
+Chỉ dùng khi:
+
+* Status có logic riêng
+* Có lịch sử chuyển trạng thái
+* Có rule phức tạp
+
+Ví dụ:
+
+```text
+OrderStatus
+------------------
+- code
+- name
+- description
+```
+
+Nhưng ❌ **KHÔNG cần cho đồ án này**
+→ làm rối thiết kế
+
+---
+
+## 3️⃣ Vì sao KHÔNG dùng `status: String`?
+
+❌ RẤT DỄ LỖI
+
+```text
+"paid"
+"Paid"
+"PAID "
+"payed"
+```
+
+✔ Enum thì:
+
+```text
+OrderStatus.PAID
+```
+
+👉 An toàn – rõ nghĩa – đúng nghiệp vụ
+
+---
+
+## 4️⃣ Vẽ lại UML cho đúng (bạn nên làm thế này)
+
+```text
+Order
+------------------------
+- id
+- status : OrderStatus
+- orderDate
+------------------------
++ calculateSubtotal()
+```
+
+```text
+<<enumeration>> OrderStatus
+--------------------------------
+CREATED
+PENDING_PAYMENT
+PAID
+SHIPPING
+COMPLETED
+CANCELLED
+RETURNED
+```
+
+📌 **Enum vẽ riêng, không nối association**
+
+---
+
+## 5️⃣ Mapping sang database thế nào?
+
+### DB
+
+```sql
+status VARCHAR(20)
+```
+
+### Code
+
+```java
+enum OrderStatus { CREATED, PAID, SHIPPING, COMPLETED }
+```
+
+👉 DB lưu string
+👉 Code dùng enum
+👉 Mapping qua ORM
+
+---
+
+## 6️⃣ Kết luận cực quan trọng
+
+> ❗ Bạn **KHÔNG CẦN class OrderStatus**
+> ✔ Bạn cần **ENUM OrderStatus**
+> ✔ UML cho phép kiểu dữ liệu là enum
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* vẽ **class diagram đầy đủ có enum**
+* chỉ ra **status nào chuyển sang status nào hợp lệ**
+* giúp bạn viết **bảng state transition (rất ghi điểm)**
+
+👉 Nói mình chọn hướng nào 👍
+
+Enum là gì
+Ok, mình giải thích **ENUM từ gốc → tới khi dùng trong hệ thống Order** cho bạn luôn 👌
+
+---
+
+## 1️⃣ ENUM là gì? (hiểu đơn giản)
+
+**ENUM (Enumeration)** = **kiểu dữ liệu liệt kê**
+
+👉 Nghĩa là:
+
+> Một biến **chỉ được phép nhận MỘT trong các giá trị đã được định nghĩa sẵn**
+
+---
+
+### Ví dụ đời thường
+
+🚦 Đèn giao thông chỉ có:
+
+* ĐỎ
+* VÀNG
+* XANH
+
+❌ Không thể là “xanh lá đậm” hay “đỏ nhạt”
+
+➡️ Đó chính là **ENUM**
+
+---
+
+## 2️⃣ ENUM trong lập trình là gì?
+
+Thay vì:
+
+```text
+status = "paid"
+```
+
+Ta dùng:
+
+```text
+status = OrderStatus.PAID
+```
+
+📌 `OrderStatus` là ENUM
+📌 `PAID` là 1 giá trị của ENUM
+
+---
+
+## 3️⃣ Ví dụ ENUM trong hệ thống bán hàng
+
+### OrderStatus (trạng thái đơn hàng)
+
+```text
+<<enumeration>> OrderStatus
+--------------------------------
+CREATED
+PENDING_PAYMENT
+PAID
+SHIPPING
+COMPLETED
+CANCELLED
+RETURNED
+```
+
+➡️ Order **chỉ được nằm trong 1 trạng thái này**
+
+---
+
+## 4️⃣ So sánh ENUM vs String (rất quan trọng)
+
+| String                     | ENUM             |
+| -------------------------- | ---------------- |
+| Dễ gõ sai                  | Không thể gõ sai |
+| Không kiểm soát            | Kiểm soát chặt   |
+| Không có ý nghĩa nghiệp vụ | Rõ nghiệp vụ     |
+| Dễ bug                     | An toàn          |
+
+❌ `"payd"`
+❌ `"Paid "`
+
+✔ `OrderStatus.PAID`
+
+---
+
+## 5️⃣ ENUM trong UML vẽ thế nào?
+
+```text
+<<enumeration>> OrderStatus
+----------------------------
+CREATED
+PAID
+SHIPPING
+COMPLETED
+CANCELLED
+```
+
+Và dùng trong class:
+
+```text
+Order
+--------------------
+- status : OrderStatus
+```
+
+📌 Enum **KHÔNG có method**
+📌 Enum **KHÔNG kế thừa class**
+
+---
+
+## 6️⃣ ENUM trong Database có không?
+
+### 👉 Database **KHÔNG bắt buộc** có ENUM
+
+Thường:
+
+```sql
+status VARCHAR(20)
+```
+
+Nhưng:
+
+* Code dùng ENUM
+* ORM map ENUM ↔ VARCHAR
+
+📌 DB chỉ lưu giá trị, logic nằm ở code
+
+---
+
+## 7️⃣ ENUM dùng khi nào?
+
+✔ Trạng thái (status)
+✔ Loại (type)
+✔ Vai trò (role)
+✔ Phân loại cố định
+
+### Ví dụ khác
+
+```text
+PaymentStatus: PENDING, SUCCESS, FAILED
+VoucherType: PERCENT, FIXED
+UserRole: ADMIN, SELLER, CUSTOMER
+```
+
+---
+
+## 8️⃣ Khi KHÔNG nên dùng ENUM?
+
+❌ Dữ liệu thay đổi liên tục
+❌ Người dùng có thể thêm mới
+❌ Cần CRUD
+
+➡️ Khi đó dùng **table/class**
+
+---
+
+## 9️⃣ Tóm tắt 1 câu (rất quan trọng)
+
+> **ENUM là tập giá trị cố định, giúp hệ thống an toàn, rõ ràng và đúng nghiệp vụ**
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* gắn ENUM vào **class diagram hoàn chỉnh**
+* chỉ bạn **ENUM nào nên có trong hệ thống này**
+* vẽ **state transition diagram cho OrderStatus**
+
+👉 Bạn muốn tiếp theo phần nào?
+
+làm sao xây dựng enum class
+Ok, mình hướng dẫn **từ tư duy → UML → code**, để bạn **tự xây được enum class đúng chuẩn**, không bị nhầm với class thường.
+
+---
+
+# 1️⃣ TƯ DUY TRƯỚC KHI TẠO ENUM (QUAN TRỌNG NHẤT)
+
+👉 Trước khi tạo enum, hãy hỏi 3 câu:
+
+### ✅ Câu 1: Giá trị có **cố định** không?
+
+* Có → enum
+* Không → table / class
+
+### ✅ Câu 2: Người dùng có được **tạo thêm giá trị mới** không?
+
+* Không → enum
+* Có → table
+
+### ✅ Câu 3: Giá trị này có **logic phức tạp riêng** không?
+
+* Không → enum
+* Có → class
+
+📌 **Status, Type, Role → ENUM**
+
+---
+
+# 2️⃣ XÂY DỰNG ENUM TỪ NGHIỆP VỤ (ví dụ Order)
+
+## Bước 1: Liệt kê trạng thái thực tế
+
+Từ flow của bạn:
+
+* CREATED
+* PENDING_PAYMENT
+* PAID
+* SHIPPING
+* COMPLETED
+* CANCELLED
+* RETURNED
+
+👉 Đây chính là các **giá trị enum**
+
+---
+
+## Bước 2: Đặt tên enum (quy ước)
+
+✔ Tên enum:
+
+* PascalCase
+* Danh từ số ít
+
+```text
+OrderStatus
+```
+
+✔ Giá trị enum:
+
+* IN HOA
+* Không dấu
+* Không khoảng trắng
+
+---
+
+# 3️⃣ ENUM TRONG UML (CHUẨN)
+
+```text
+<<enumeration>> OrderStatus
+--------------------------------
+CREATED
+PENDING_PAYMENT
+PAID
+SHIPPING
+COMPLETED
+CANCELLED
+RETURNED
+```
+
+Và dùng trong class:
+
+```text
+Order
+------------------------
+- status : OrderStatus
+```
+
+📌 Enum **không vẽ association**
+📌 Chỉ dùng làm kiểu dữ liệu
+
+---
+
+# 4️⃣ ENUM TRONG CODE (PHỔ BIẾN NHẤT: JAVA)
+
+### 🔹 Enum đơn giản
+
+```java
+public enum OrderStatus {
+    CREATED,
+    PENDING_PAYMENT,
+    PAID,
+    SHIPPING,
+    COMPLETED,
+    CANCELLED,
+    RETURNED
+}
+```
+
+---
+
+### 🔹 Enum có mô tả (xịn hơn – ghi điểm đồ án)
+
+```java
+public enum OrderStatus {
+    CREATED("Đã tạo đơn"),
+    PENDING_PAYMENT("Chờ thanh toán"),
+    PAID("Đã thanh toán"),
+    SHIPPING("Đang giao"),
+    COMPLETED("Hoàn tất"),
+    CANCELLED("Đã hủy"),
+    RETURNED("Hoàn hàng");
+
+    private final String description;
+
+    OrderStatus(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+}
+```
+
+📌 Enum **VẪN là enum**, không phải class thường
+
+---
+
+# 5️⃣ ENUM TRONG DATABASE (THỰC TẾ)
+
+### DB KHÔNG cần enum class
+
+```sql
+status VARCHAR(20)
+```
+
+Ví dụ:
+
+```text
+PAID
+SHIPPING
+```
+
+📌 Mapping:
+
+* DB: string
+* Code: enum
+
+---
+
+# 6️⃣ ENUM KHÁC TRONG HỆ THỐNG CỦA BẠN
+
+### VoucherType
+
+```text
+PERCENT
+FIXED
+```
+
+### VoucherScope
+
+```text
+GLOBAL
+SHOP
+```
+
+### PaymentStatus
+
+```text
+PENDING
+SUCCESS
+FAILED
+```
+
+### OrderItemStatus (nếu cần)
+
+```text
+ACTIVE
+RETURNED
+CANCELLED
+```
+
+---
+
+# 7️⃣ NHỮNG LỖI RẤT HAY GẶP ❌
+
+❌ Dùng enum cho dữ liệu CRUD
+❌ Để enum có quá nhiều logic
+❌ Nhầm enum với table
+❌ Dùng string thay enum trong code
+
+---
+
+# 8️⃣ TÓM TẮT 1 BẢNG NHỚ NHANH
+
+| Khi nào         | Dùng          |
+| --------------- | ------------- |
+| Trạng thái      | ENUM          |
+| Loại            | ENUM          |
+| Giá trị cố định | ENUM          |
+| Có CRUD         | TABLE         |
+| Có FK           | CLASS / TABLE |
+
+---
+
+Nếu bạn muốn, bước tiếp theo mình có thể:
+
+* giúp bạn **liệt kê toàn bộ enum cần có cho đồ án**
+* kiểm tra enum nào **đang dùng sai**
+* vẽ lại **class diagram có enum đầy đủ**
+* làm **state transition table** (rất ăn điểm)
+
+👉 Bạn muốn đi tiếp phần nào?
+
++ calculateSubtotal()
++ applyVoucher(voucher)
++ checkout()
++ cancel()
++ complete()giải thich
+Ok 👍 mình sẽ **giải thích từng method đúng nghiệp vụ e-commerce**, gắn chặt với **Order – Voucher – Flow checkout** mà tụi mình đã bàn, **không nói chung chung**.
+
+---
+
+# 1️⃣ `+ calculateSubtotal()`
+
+### 👉 Làm gì?
+
+Tính **tổng tiền hàng ban đầu** của đơn hàng.
+
+### 📌 Công thức:
+
+```
+Subtotal = Σ (OrderItem.price × OrderItem.quantity)
+```
+
+### ❗ Lưu ý:
+
+* ❌ **Chưa áp voucher**
+* ❌ **Chưa phí ship**
+* ❌ **Chưa thuế**
+
+### 🧠 Dùng khi nào?
+
+* Xem giỏ hàng
+* Kiểm tra `min_order_amount` của voucher
+* Trước khi checkout
+
+---
+
+# 2️⃣ `+ applyVoucher(voucher)`
+
+### 👉 Làm gì?
+
+Áp **1 voucher** vào đơn hàng.
+
+### Bên trong method này sẽ:
+
+1. Kiểm tra voucher còn hạn
+2. Kiểm tra `min_order_amount`
+3. Kiểm tra `stackable`
+4. Tính tiền giảm
+5. Lưu vào `OrderVoucher`
+
+### 📌 Ví dụ:
+
+* Subtotal: 1.000.000
+* Voucher: giảm 10%
+  ➡️ Discount = 100.000
+
+---
+
+# 3️⃣ `+ checkout()`
+
+### 👉 Là bước **CHỐT ĐƠN**
+
+### Method này thường làm RẤT NHIỀU việc:
+
+1. Kiểm tra tồn kho lần cuối
+2. Kiểm tra voucher còn hợp lệ
+3. Tính subtotal
+4. Áp toàn bộ voucher đã chọn
+5. Tính **final_total**
+6. Tạo `Order`
+7. Tạo `OrderItem`
+8. Tạo `OrderVoucher`
+9. Set `status = PENDING_PAYMENT`
+
+📌 Đây là **điểm chuyển từ dữ liệu tạm → dữ liệu chính thức**
+
+---
+
+# 4️⃣ `+ cancel()`
+
+### 👉 Hủy đơn hàng
+
+### Khi nào được hủy?
+
+✔ `CREATED`
+✔ `PENDING_PAYMENT`
+✔ `PAID` (tùy chính sách)
+
+### Method này sẽ:
+
+1. Set `status = CANCELLED`
+2. Hoàn lại stock (nếu đã trừ)
+3. Hủy voucher (nếu cần)
+
+📌 **KHÔNG được hủy khi `SHIPPING` hoặc `COMPLETED`**
+
+---
+
+# 5️⃣ `+ complete()`
+
+### 👉 Đánh dấu **đơn hàng đã hoàn tất**
+
+### Khi nào gọi?
+
+* Sau khi giao hàng thành công
+* Sau X ngày kể từ `SHIPPING`
+
+### Method này:
+
+1. Set `status = COMPLETED`
+2. Khóa đơn (không chỉnh sửa)
+3. Cho phép đánh giá / review
+
+---
+
+# 6️⃣ Đặt các method này ở đâu cho đúng?
+
+### ✅ Trong class `Order`
+
+```text
+Order
+-------------------------
++ calculateSubtotal()
++ applyVoucher(voucher)
++ checkout()
++ cancel()
++ complete()
+```
+
+📌 Vì:
+
+* Order là **aggregate root**
+* Order quản lý OrderItem & Voucher
+
+---
+
+# 7️⃣ So sánh nhanh cho dễ nhớ
+
+| Method            | Mục đích       |
+| ----------------- | -------------- |
+| calculateSubtotal | Tính tiền hàng |
+| applyVoucher      | Giảm giá       |
+| checkout          | Chốt đơn       |
+| cancel            | Hủy đơn        |
+| complete          | Hoàn tất       |
+
+---
+
+# 8️⃣ TÓM TẮT 1 CÂU (rất quan trọng)
+
+> `Order` không chỉ là data, **nó là một đối tượng có hành vi**
+
+---
+
+Nếu bạn muốn, bước tiếp theo mình có thể:
+
+* viết **sequence diagram cho checkout**
+* kiểm tra **method nào KHÔNG nên để trong Order**
+* vẽ **class diagram hoàn chỉnh có method**
+
+👉 Bạn muốn đi tiếp phần nào?
+
+isValid(orderAmount)
++ calculateDiscount(orderAmount) giải thích
+Ok 👍 mình sẽ **giải thích từng method đúng nghiệp vụ e-commerce**, gắn chặt với **Order – Voucher – Flow checkout** mà tụi mình đã bàn, **không nói chung chung**.
+
+---
+
+# 1️⃣ `+ calculateSubtotal()`
+
+### 👉 Làm gì?
+
+Tính **tổng tiền hàng ban đầu** của đơn hàng.
+
+### 📌 Công thức:
+
+```
+Subtotal = Σ (OrderItem.price × OrderItem.quantity)
+```
+
+### ❗ Lưu ý:
+
+* ❌ **Chưa áp voucher**
+* ❌ **Chưa phí ship**
+* ❌ **Chưa thuế**
+
+### 🧠 Dùng khi nào?
+
+* Xem giỏ hàng
+* Kiểm tra `min_order_amount` của voucher
+* Trước khi checkout
+
+---
+
+# 2️⃣ `+ applyVoucher(voucher)`
+
+### 👉 Làm gì?
+
+Áp **1 voucher** vào đơn hàng.
+
+### Bên trong method này sẽ:
+
+1. Kiểm tra voucher còn hạn
+2. Kiểm tra `min_order_amount`
+3. Kiểm tra `stackable`
+4. Tính tiền giảm
+5. Lưu vào `OrderVoucher`
+
+### 📌 Ví dụ:
+
+* Subtotal: 1.000.000
+* Voucher: giảm 10%
+  ➡️ Discount = 100.000
+
+---
+
+# 3️⃣ `+ checkout()`
+
+### 👉 Là bước **CHỐT ĐƠN**
+
+### Method này thường làm RẤT NHIỀU việc:
+
+1. Kiểm tra tồn kho lần cuối
+2. Kiểm tra voucher còn hợp lệ
+3. Tính subtotal
+4. Áp toàn bộ voucher đã chọn
+5. Tính **final_total**
+6. Tạo `Order`
+7. Tạo `OrderItem`
+8. Tạo `OrderVoucher`
+9. Set `status = PENDING_PAYMENT`
+
+📌 Đây là **điểm chuyển từ dữ liệu tạm → dữ liệu chính thức**
+
+---
+
+# 4️⃣ `+ cancel()`
+
+### 👉 Hủy đơn hàng
+
+### Khi nào được hủy?
+
+✔ `CREATED`
+✔ `PENDING_PAYMENT`
+✔ `PAID` (tùy chính sách)
+
+### Method này sẽ:
+
+1. Set `status = CANCELLED`
+2. Hoàn lại stock (nếu đã trừ)
+3. Hủy voucher (nếu cần)
+
+📌 **KHÔNG được hủy khi `SHIPPING` hoặc `COMPLETED`**
+
+---
+
+# 5️⃣ `+ complete()`
+
+### 👉 Đánh dấu **đơn hàng đã hoàn tất**
+
+### Khi nào gọi?
+
+* Sau khi giao hàng thành công
+* Sau X ngày kể từ `SHIPPING`
+
+### Method này:
+
+1. Set `status = COMPLETED`
+2. Khóa đơn (không chỉnh sửa)
+3. Cho phép đánh giá / review
+
+---
+
+# 6️⃣ Đặt các method này ở đâu cho đúng?
+
+### ✅ Trong class `Order`
+
+```text
+Order
+-------------------------
++ calculateSubtotal()
++ applyVoucher(voucher)
++ checkout()
++ cancel()
++ complete()
+```
+
+📌 Vì:
+
+* Order là **aggregate root**
+* Order quản lý OrderItem & Voucher
+
+---
+
+# 7️⃣ So sánh nhanh cho dễ nhớ
+
+| Method            | Mục đích       |
+| ----------------- | -------------- |
+| calculateSubtotal | Tính tiền hàng |
+| applyVoucher      | Giảm giá       |
+| checkout          | Chốt đơn       |
+| cancel            | Hủy đơn        |
+| complete          | Hoàn tất       |
+
+---
+
+# 8️⃣ TÓM TẮT 1 CÂU (rất quan trọng)
+
+> `Order` không chỉ là data, **nó là một đối tượng có hành vi**
+
+---
+
+Nếu bạn muốn, bước tiếp theo mình có thể:
+
+* viết **sequence diagram cho checkout**
+* kiểm tra **method nào KHÔNG nên để trong Order**
+* vẽ **class diagram hoàn chỉnh có method**
+
+👉 Bạn muốn đi tiếp phần nào?
+
++ applyDiscount() dùng làm gì
+Câu này hỏi **rất chuẩn bản chất thiết kế** 👍
+Vì `applyDiscount()` **dễ bị nhầm** với `calculateDiscount()` nếu không hiểu rõ.
+
+Mình giải thích **ngắn – đúng – phân vai rõ ràng**.
+
+---
+
+# 1️⃣ `applyDiscount()` dùng để làm gì?
+
+👉 **Áp giảm giá vào Order**
+👉 Tức là **THAY ĐỔI trạng thái của Order**
+
+📌 Khác với `calculateDiscount()`:
+
+* `calculateDiscount()` 👉 **chỉ tính**
+* `applyDiscount()` 👉 **thực sự áp dụng**
+
+---
+
+# 2️⃣ So sánh 3 method (cực kỳ quan trọng)
+
+| Method                | Ở đâu   | Làm gì             |
+| --------------------- | ------- | ------------------ |
+| `isValid()`           | Voucher | Có dùng được không |
+| `calculateDiscount()` | Voucher | Giảm bao nhiêu     |
+| `applyDiscount()`     | Order   | Ghi nhận giảm giá  |
+
+---
+
+# 3️⃣ `applyDiscount()` làm những việc gì?
+
+Giả sử gọi:
+
+```text
+order.applyDiscount(voucher)
+```
+
+### Bên trong sẽ:
+
+1. Gọi `voucher.isValid(subtotal)`
+2. Gọi `voucher.calculateDiscount(subtotal)`
+3. Trừ tiền vào order
+4. Lưu record vào `OrderVoucher`
+5. Cập nhật `total_discount`
+6. Cập nhật `final_total`
+
+📌 Đây là **bước thay đổi dữ liệu**
+
+---
+
+# 4️⃣ Vì sao KHÔNG để Voucher tự apply?
+
+❌ Sai thiết kế:
+
+```text
+voucher.apply(order)
+```
+
+👉 Voucher **không sở hữu Order**
+👉 Voucher chỉ là công cụ tính
+
+✔ Đúng:
+
+```text
+order.applyDiscount(voucher)
+```
+
+---
+
+# 5️⃣ `applyDiscount()` nằm ở đâu?
+
+### ✅ Trong class `Order`
+
+```text
+Order
+-------------------------
++ applyDiscount(voucher)
+```
+
+📌 Vì Order:
+
+* Quản lý OrderVoucher
+* Quản lý tổng tiền
+* Quản lý trạng thái đơn
+
+---
+
+# 6️⃣ Ví dụ luồng thực tế
+
+```text
+subtotal = order.calculateSubtotal()
+
+voucher1 -> discount = 10%
+order.applyDiscount(voucher1)
+=> total = 900.000
+
+voucher2 -> discount = 5%
+order.applyDiscount(voucher2)
+=> total = 855.000
+```
+
+---
+
+# 7️⃣ Khi áp nhiều voucher (stack)
+
+* `applyDiscount()` gọi **nhiều lần**
+* Mỗi lần dùng **orderAmount mới**
+
+📌 Nên có:
+
+* `voucher.stackable`
+* `voucher.priority`
+
+---
+
+# 8️⃣ `applyDiscount()` KHÔNG nên làm gì?
+
+❌ Không check tồn kho
+❌ Không đổi status order
+❌ Không thanh toán
+
+---
+
+# 9️⃣ Tóm tắt 1 câu (rất đáng nhớ)
+
+> `calculateDiscount()` **tính**,
+> `applyDiscount()` **áp và ghi nhận**.
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* vẽ **sequence diagram apply voucher**
+* chỉ ra **method nào thừa / thiếu**
+* chỉnh lại **class diagram cho gọn và đúng SOLID**
+
+👉 Muốn tiếp tục phần nào?
+
+giải thích lại cái checkout
+Ok 👍 mình **giải thích lại `checkout()` từ đầu cho đúng bản chất**, vì đây là chỗ **dễ hiểu sai nhất** (rất nhiều người nhầm checkout = thanh toán).
+
+---
+
+# 1️⃣ `checkout()` KHÔNG phải là thanh toán
+
+> **Checkout = chốt đơn**
+> **Payment = trả tiền**
+
+📌 Đây là 2 bước **khác nhau**
+
+---
+
+## 2️⃣ Vậy `checkout()` thực sự làm gì?
+
+👉 `checkout()` là **bước chuyển từ dữ liệu tạm → dữ liệu chính thức**
+
+Trước checkout:
+
+* Cart (frontend / session)
+* Chưa có Order thật trong DB
+* Chưa trừ kho
+
+Sau checkout:
+
+* Có Order trong DB
+* Có OrderItem
+* Có OrderVoucher
+* Order sẵn sàng để thanh toán
+
+---
+
+# 3️⃣ Các bước bên trong `checkout()` (đúng flow tụi mình bàn)
+
+### 🔹 Bước 1: Validate dữ liệu
+
+* Cart không rỗng
+* User đăng nhập
+* Địa chỉ hợp lệ
+
+---
+
+### 🔹 Bước 2: Check tồn kho LẦN CUỐI
+
+> (đã check khi add to cart rồi, đây là check quyết định)
+
+* Nếu thiếu → fail checkout
+* Chưa trừ kho
+
+---
+
+### 🔹 Bước 3: Tính tiền
+
+1. `subtotal = calculateSubtotal()`
+2. Áp voucher đã chọn
+3. `final_total = subtotal - total_discount`
+
+---
+
+### 🔹 Bước 4: Tạo dữ liệu chính thức
+
+* Tạo `Order`
+* Tạo `OrderItem`
+* Tạo `OrderVoucher`
+
+📌 Lúc này **mới insert DB**
+
+---
+
+### 🔹 Bước 5: Set trạng thái
+
+```text
+status = PENDING_PAYMENT
+```
+
+📌 Chưa trừ kho
+📌 Chưa trả tiền
+
+---
+
+# 4️⃣ Checkout KHÔNG làm gì?
+
+❌ Không thanh toán
+❌ Không trừ kho
+❌ Không giao hàng
+
+---
+
+# 5️⃣ Khi nào trừ kho?
+
+### 👉 Khi thanh toán thành công (`pay()`)
+
+```text
+PENDING_PAYMENT → PAID
+```
+
+➡️ Lúc đó mới:
+
+* Trừ stock của ProductVariant
+
+---
+
+# 6️⃣ Ví dụ dòng thời gian
+
+```text
+Add to cart
+↓
+Select voucher
+↓
+Checkout()
+↓
+Order(PENDING_PAYMENT)
+↓
+Pay()
+↓
+Order(PAID) → Trừ kho
+```
+
+---
+
+# 7️⃣ Vì sao không tạo Order ngay khi add to cart?
+
+👉 Vì:
+
+* User có thể bỏ giỏ
+* Có timeout
+* Voucher hết hạn
+* Tránh tạo order rác
+
+➡️ Cart = dữ liệu tạm
+➡️ Order = dữ liệu chính thức
+
+---
+
+# 8️⃣ UML mô tả đúng `checkout()`
+
+```text
+Order
+-------------------------
++ checkout()
+```
+
+📌 Nhưng thực tế:
+
+* `checkout()` thường nằm trong `OrderService`
+* Order chỉ giữ logic lõi
+
+(đồ án cho trong Order là ok)
+
+---
+
+# 9️⃣ Tóm tắt 1 câu (rất quan trọng)
+
+> **Checkout = tạo Order hợp lệ để chuẩn bị thanh toán**
+
+---
+
+Nếu bạn muốn, bước tiếp theo mình có thể:
+
+* vẽ **sequence diagram checkout**
+* phân biệt **checkout vs payment**
+* chỉ ra **logic nào nên ở Service**
+
+👉 Bạn muốn đi tiếp phần nào?
+
+createOrders()ở user là làm gì
+Câu này hỏi **rất đúng chỗ “dễ gây hiểu lầm” trong class diagram** 👍
+Mình trả lời **thẳng – rõ – đúng kiến trúc**.
+
+---
+
+# 1️⃣ `createOrders()` ở `User` dùng để làm gì?
+
+👉 **Về mặt NGHIỆP VỤ**:
+User là **người khởi tạo đơn hàng**
+
+👉 **Về mặt KỸ THUẬT**:
+`createOrders()` **KHÔNG nên chứa logic tạo Order**
+
+---
+
+## 2️⃣ Ý nghĩa đúng của `createOrders()` nếu nó xuất hiện trong User
+
+```text
+User
+------------------
++ createOrders()
+```
+
+👉 Method này chỉ nên:
+
+* **Khởi xướng hành động**
+* Gọi sang **OrderService / CheckoutService**
+
+📌 Nó giống như:
+
+> “User yêu cầu hệ thống tạo đơn hàng”
+
+---
+
+## 3️⃣ Vì sao KHÔNG nên để logic tạo Order trong User?
+
+❌ Sai thiết kế nếu User làm thế này:
+
+* Tính tiền
+* Áp voucher
+* Check tồn kho
+* Insert DB
+
+👉 Vi phạm:
+
+* **SRP (Single Responsibility Principle)**
+* **DDD Aggregate**
+
+---
+
+## 4️⃣ Thiết kế ĐÚNG (rất quan trọng)
+
+### 🔹 Cách 1 (ĐÚNG NHẤT – thực tế)
+
+```text
+User
++ requestCheckout()
+
+OrderService
++ createOrderFromCart(user, cart)
+```
+
+📌 User chỉ **gọi**
+📌 Service **xử lý**
+
+---
+
+### 🔹 Cách 2 (Đồ án – chấp nhận được)
+
+```text
+User
++ createOrder(cart)
+```
+
+📌 Nhưng:
+
+* Method này **chỉ gọi service**
+* Không có logic nặng
+
+---
+
+## 5️⃣ Vậy `createOrders()` thực sự làm gì?
+
+### Tóm gọn:
+
+* Lấy cart hiện tại của user
+* Gửi cart lên backend
+* Gọi `checkout()`
+
+📌 Nó là **entry point**, không phải processor
+
+---
+
+## 6️⃣ Đổi tên cho đúng hơn (gợi ý)
+
+❌ `createOrders()` (số nhiều, dễ hiểu sai)
+
+✔ Nên dùng:
+
+* `requestCheckout()`
+* `placeOrder()`
+* `submitOrder()`
+
+---
+
+## 7️⃣ Ví dụ mô tả logic (không code chi tiết)
+
+```text
+User bấm "Thanh toán"
+↓
+User.requestCheckout()
+↓
+OrderService.checkout(user, cart)
+↓
+Order(PENDING_PAYMENT)
+```
+
+---
+
+## 8️⃣ Kết luận cực quan trọng
+
+> ❗ `createOrders()` **không phải là nơi tạo Order thật**
+>
+> ✔ Nó chỉ đại diện cho **hành động của User**
+
+---
+
+Nếu bạn muốn, mình có thể:
+
+* chỉnh lại **class diagram cho đúng kiến trúc**
+* chỉ ra **method nào nên chuyển sang Service**
+* giúp bạn **đổi tên method cho đẹp và đúng nghiệp vụ**
+
+👉 Bạn muốn chỉnh lại class diagram không?
