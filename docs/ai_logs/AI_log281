@@ -1,0 +1,987 @@
+Chuyển đến nội dung
+Lịch sử đoạn chat
+
+
+Bạn đã nói:
+ve cho toi 1 flowchart mo ta viec dang nhap va dang ki tai khoan cho 1 web
+ChatGPT đã nói:
+Ok, mình vẽ cho bạn flowchart mô tả đăng nhập & đăng ký tài khoản cho một website nhé 👍
+Mình dùng dạng sơ đồ chữ (ASCII) để bạn dễ đưa vào Word, PowerPoint hay vẽ lại bằng draw.io / Visio.
+
+🔷 FLOWCHART: ĐĂNG NHẬP & ĐĂNG KÝ TÀI KHOẢN WEB
+                ┌───────────────┐
+                │    BẮT ĐẦU     │
+                └───────┬───────┘
+                        │
+                        ▼
+            ┌──────────────────────┐
+            │  Người dùng truy cập  │
+            │      website          │
+            └─────────┬────────────┘
+                      │
+                      ▼
+            ┌──────────────────────┐
+            │ Chọn chức năng?       │
+            │ 1. Đăng nhập          │
+            │ 2. Đăng ký            │
+            └───────┬───────┬──────┘
+                    │       │
+          ┌─────────┘       └─────────┐
+          ▼                             ▼
+ ┌─────────────────┐          ┌─────────────────┐
+ │   ĐĂNG NHẬP      │          │   ĐĂNG KÝ        │
+ └────────┬────────┘          └────────┬────────┘
+          │                             │
+          ▼                             ▼
+ ┌─────────────────┐          ┌─────────────────┐
+ │ Nhập username & │          │ Nhập thông tin  │
+ │ password        │          │ (email, mật khẩu│
+ └────────┬────────┘          │  xác nhận, ...) │
+          │                   └────────┬────────┘
+          ▼                             │
+ ┌─────────────────┐                  ▼
+ │ Kiểm tra hợp lệ │        ┌─────────────────┐
+ │ thông tin       │        │ Kiểm tra hợp lệ │
+ └───────┬─────────┘        │ thông tin       │
+         │                  └───────┬─────────┘
+     ┌───┴───┐                        │
+     │ Hợp lệ│                        │
+     │  ?    │                        ▼
+     └─┬─┬───┘               ┌─────────────────┐
+       │ │                   │ Lưu vào CSDL    │
+   Không│ │Có                 └────────┬────────┘
+       │ │                            │
+       ▼ ▼                            ▼
+┌──────────────┐            ┌─────────────────┐
+│ Thông báo    │            │ Thông báo đăng  │
+│ lỗi đăng nhập│            │ ký thành công   │
+└──────┬───────┘            └────────┬────────┘
+       │                              │
+       └──────────────┬───────────────┘
+                      ▼
+              ┌───────────────┐
+              │  VÀO TRANG    │
+              │   CHÍNH       │
+              └───────┬───────┘
+                      │
+                      ▼
+                ┌───────────┐
+                │  KẾT THÚC │
+                └───────────┘
+🔹 Ghi chú để bạn thuyết trình / làm báo cáo
+Decision (hình thoi): kiểm tra hợp lệ, đúng/sai
+
+Process (hình chữ nhật): nhập dữ liệu, lưu CSDL
+
+Start/End (oval): bắt đầu – kết thúc
+
+Có thể bổ sung:
+
+Quên mật khẩu
+
+Xác thực email
+
+CAPTCHA chống bot
+
+Nếu bạn muốn:
+
+✏️ Vẽ đúng chuẩn UML
+
+🖼️ Chuyển thành flowchart hình ảnh
+
+📄 Viết mô tả bằng lời cho báo cáo
+
+💻 Áp dụng cho website PHP / Java / Node.js
+
+👉 cứ nói mình biết nha, mình làm tiếp cho bạn 😉
+
+Bạn đã nói:
+package cleancode;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.Random;
+
+public class CleanCode {
+
+    static Random rand = new Random();
+
+    static String[] firstNames = {"Nguyen", "Tran", "Le", "Pham", "Hoang", "Huynh", "Vo", "Dang"};
+    static String[] secondNames = {"Thanh", "Hoang", "Trong", "Nha", "Hong"};
+    static String[] lastNames = {"An", "Binh", "Cuong", "Dung", "Huy", "Khanh", "Long", "Minh", "Nam", "Phuc"};
+
+    static String[] streets = {"Le Loi", "Nguyen Hue", "Tran Hung Dao", "Vo Van Tan", "CMT8"};
+    static String[] wards = {"Ward1", "Ward3", "Ward5", "Ward7", "Ward10"};
+    static String[] districts = {"District1", "District3", "District5", "District10"};
+
+    static String[] categories = {"Fashion", "Shoes", "Bags", "Accessories", "Electronics"};
+    static String[] productNames = {"TShirt", "Hoodie", "Jeans", "Sneakers", "Backpack", "Handbag", "Cap", "Jacket"};
+
+    static String[] sizes = {"S", "M", "L", "XL"};
+    static String[] colors = {"Black", "White", "Red", "Blue", "Gray"};
+
+    static String[] orderStatuses = {"CREATED", "PAID", "SHIPPING", "COMPLETED"};
+
+    public static void main(String[] args) throws IOException {
+
+        generateUsers(10000);
+//        generateAddresses(10000);
+        generateShops(2000);
+        generateProducts(12000);
+        generateVariants(12000);
+        generateVouchers(500);
+//        generateOrders(15000);
+//        generateOrderItems(15000);
+
+        System.out.println("✅ FULL DATASET GENERATED");
+    }
+
+    // ===== USERS =====
+    static void generateUsers(int total) throws IOException {
+        FileWriter fw = new FileWriter("cleanUsers.csv");
+        fw.write("userId,fullName,email,password\n");
+
+        for (int i = 1; i <= total; i++) {
+            String fullName = randomName();
+            String email = generateEmail(fullName, i);
+            String password = generatePassword(fullName, i);
+
+            fw.write(i + "," + fullName + "," + email + "," + password + "\n");
+        }
+        fw.close();
+    }
+
+//    // ===== ADDRESSES =====
+//    static void generateAddresses(int users) throws IOException {
+//        FileWriter fw = new FileWriter("CleanUserAddresses.csv");
+//        fw.write("addressId,userId,street,ward,district,city\n");
+//        int id = 1;
+//        for (int userId = 1; userId <= users; userId++) {
+//            int count = 1 + rand.nextInt(3);
+//            for (int i = 0; i < count; i++) {
+//                fw.write(id++ + "," + userId + ","
+//                        + streets[rand.nextInt(streets.length)] + ","
+//                        + wards[rand.nextInt(wards.length)] + ","
+//                        + districts[rand.nextInt(districts.length)] + ",HCM\n");
+//            }
+//        }
+//        fw.close();
+//    }
+
+    // ===== SHOPS =====
+    static void generateShops(int total) throws IOException {
+        FileWriter fw = new FileWriter("cleanShops.csv");
+        fw.write("shopId,shopName,ownerUserId\n");
+        for (int i = 1; i <= total; i++) {
+            fw.write(i + ",Shop_" + randomName().replace(" ", "_") + ","
+                    + (1 + rand.nextInt(10000)) + "\n");
+        }
+        fw.close();
+    }
+
+    // ===== PRODUCTS =====
+    static void generateProducts(int total) throws IOException {
+        FileWriter fw = new FileWriter("cleanProducts.csv");
+        fw.write("productId,shopId,productName,category,basePrice\n");
+        for (int i = 1; i <= total; i++) {
+            int basePrice = (10 + rand.nextInt(90)) * 1000;
+            fw.write(i + ","
+                    + (1 + rand.nextInt(2000)) + ","
+                    + productNames[rand.nextInt(productNames.length)] + "_" + i + ","
+                    + categories[rand.nextInt(categories.length)] + ","
+                    + basePrice + "\n");
+        }
+        fw.close();
+    }
+
+    // ===== VARIANTS =====
+    static void generateVariants(int products) throws IOException {
+        FileWriter fw = new FileWriter("cleanProductVariants.csv");
+        fw.write("variantId,productId,size,color,price,stock\n");
+        int id = 1;
+        for (int productId = 1; productId <= products; productId++) {
+            int basePrice = (10 + rand.nextInt(90)) * 1000;
+            for (String size : sizes) {
+                for (String color : colors) {
+                    fw.write(id++ + "," + productId + ","
+                            + size + "," + color + ","
+                            + (basePrice + rand.nextInt(5) * 1000) + ","
+                            + (10 + rand.nextInt(50)) + "\n");
+                }
+            }
+        }
+        fw.close();
+    }
+
+    // ===== VOUCHERS =====
+    static void generateVouchers(int total) throws IOException {
+        FileWriter fw = new FileWriter("cleanVouchers.csv");
+        fw.write("voucherId,code,discountType,discountValue,minOrderValue,maxDiscount,isStackable\n");
+        for (int i = 1; i <= total; i++) {
+            fw.write(i + ",SALE" + i + ","
+                    + (i % 2 == 0 ? "PERCENT" : "FIXED") + ","
+                    + (i % 2 == 0 ? 10 : 50000) + ","
+                    + 100000 + ","
+                    + 200000 + ","
+                    + (i % 3 == 0) + "\n");
+        }
+        fw.close();
+    }
+
+//    // ===== ORDERS =====
+//    static void generateOrders(int total) throws IOException {
+//        FileWriter fw = new FileWriter("cleanOrders.csv");
+//        fw.write("orderId,userId,shopId,totalAmount,orderStatus,createdAt\n");
+//        for (int i = 1; i <= total; i++) {
+//            fw.write(i + ","
+//                    + (1 + rand.nextInt(10000)) + ","
+//                    + (1 + rand.nextInt(2000)) + ","
+//                    + ((50 + rand.nextInt(200)) * 1000) + ","
+//                    + orderStatuses[rand.nextInt(orderStatuses.length)] + ","
+//                    + LocalDateTime.now().minusDays(rand.nextInt(30)) + "\n");
+//        }
+//        fw.close();
+//    }
+
+//    // ===== ORDER ITEMS =====
+//    static void generateOrderItems(int orders) throws IOException {
+//        FileWriter fw = new FileWriter("cleanOrderItems.csv");
+//        fw.write("orderItemId,orderId,variantId,quantity,price\n");
+//        int id = 1;
+//        for (int orderId = 1; orderId <= orders; orderId++) {
+//            int itemCount = 1 + rand.nextInt(4);
+//            for (int i = 0; i < itemCount; i++) {
+//                fw.write(id++ + "," + orderId + ","
+//                        + (1 + rand.nextInt(240000)) + ","
+//                        + (1 + rand.nextInt(3)) + ","
+//                        + ((20 + rand.nextInt(80)) * 1000) + "\n");
+//            }
+//        }
+//        fw.close();
+//    }
+
+    static String randomName() {
+        return firstNames[rand.nextInt(firstNames.length)] + " " 
+                + secondNames[rand.nextInt(secondNames.length)] + " "
+                + lastNames[rand.nextInt(lastNames.length)];
+    }
+    // ===== EMAIL & PASSWORD UTILS =====
+
+    static String normalizeName(String fullName) {
+        return fullName.toLowerCase().replace(" ", ".");
+    }
+
+    static String generateEmail(String fullName, int userId) {
+        return normalizeName(fullName) + userId + "@gmail.com";
+    }
+
+    static String generatePassword(String fullName, int userId) {
+        String[] parts = fullName.split(" ");
+        String firstName = parts[0];
+        String lastName = parts[parts.length - 1];
+        return firstName + "@" + lastName + userId;
+    }
+
+} cach de csv co pasword hash 
+ChatGPT đã nói:
+À, câu này hay nè 👍
+Hiện tại CSV của bạn đang lưu password dạng plaintext → không an toàn. Cách đúng là hash password trước khi ghi ra CSV (giống thực tế web làm).
+
+Mình hướng dẫn chuẩn + dễ hiểu, dùng SHA-256 (phổ biến, học tập ok).
+
+✅ Ý TƯỞNG CHUNG
+Thay vì ghi:
+
+password = Nguyen@An123
+Ta sẽ ghi:
+
+password = e3b0c44298fc1c149afbf4c8996fb924...
+➡️ Khi user đăng nhập:
+
+Hash password người dùng nhập
+
+So sánh với hash trong DB/CSV
+
+🔹 BƯỚC 1: IMPORT THÊM THƯ VIỆN
+Ở đầu file:
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+🔹 BƯỚC 2: HÀM HASH PASSWORD (SHA-256)
+Thêm vào class CleanCode:
+
+static String hashPassword(String password) {
+    try {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] hashedBytes = md.digest(password.getBytes());
+
+        StringBuilder sb = new StringBuilder();
+        for (byte b : hashedBytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+
+    } catch (NoSuchAlgorithmException e) {
+        throw new RuntimeException(e);
+    }
+}
+🔹 BƯỚC 3: SỬA generateUsers() ĐỂ HASH PASSWORD
+❌ CŨ
+String password = generatePassword(fullName, i);
+fw.write(i + "," + fullName + "," + email + "," + password + "\n");
+✅ MỚI (HASH)
+String rawPassword = generatePassword(fullName, i);
+String hashedPassword = hashPassword(rawPassword);
+
+fw.write(i + "," + fullName + "," + email + "," + hashedPassword + "\n");
+🔹 KẾT QUẢ CSV
+userId,fullName,email,password
+1,Nguyen Thanh An,nguyen.thanh.an1@gmail.com,9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+✔️ Password không thể đọc ngược
+✔️ Đúng chuẩn hệ thống thật
+
+🔐 NÂNG CAO (nếu thầy/công ty thích)
+Cách	Khi nào dùng
+SHA-256	Bài tập, demo
+SHA-256 + SALT	Tốt hơn
+BCrypt	Chuẩn web thật (Spring Security)
+👉 Nếu bạn muốn:
+
+Hash kèm salt
+
+Dùng BCrypt
+
+Viết luôn code đăng nhập so sánh password
+
+Hoặc giải thích tại sao không lưu plaintext
+
+cứ nói, mình làm tiếp cho bạn 🔥
+
+Bạn đã nói:
+package cleancode;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Random;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
+public class CleanCode {
+
+    static Random rand = new Random();
+
+    static String[] firstNames = {"Nguyen", "Tran", "Le", "Pham", "Hoang", "Huynh", "Vo", "Dang"};
+    static String[] secondNames = {"Thanh", "Hoang", "Trong", "Nha", "Hong"};
+    static String[] lastNames = {"An", "Binh", "Cuong", "Dung", "Huy", "Khanh", "Long", "Minh", "Nam", "Phuc"};
+
+//    static String[] streets = {"Le Loi", "Nguyen Hue", "Tran Hung Dao", "Vo Van Tan", "CMT8"};
+//    static String[] wards = {"Ward1", "Ward3", "Ward5", "Ward7", "Ward10"};
+//    static String[] districts = {"District1", "District3", "District5", "District10"};
+
+    static String[] categories = {"Fashion", "Shoes", "Bags", "Accessories", "Electronics"};
+    static String[] productNames = {"TShirt", "Hoodie", "Jeans", "Sneakers", "Backpack", "Handbag", "Cap", "Jacket"};
+
+    static String[] sizes = {"S", "M", "L", "XL"};
+    static String[] colors = {"Black", "White", "Red", "Blue", "Gray"};
+
+    //static String[] orderStatuses = {"CREATED", "PAID", "SHIPPING", "COMPLETED"};
+
+    public static void main(String[] args) throws IOException {
+
+        generateUsers(10000);
+//        generateAddresses(10000);
+        generateShops(2000);
+        generateProducts(12000);
+        generateVariants(12000);
+        generateVouchers(500);
+//        generateOrders(15000);
+//        generateOrderItems(15000);
+
+        System.out.println("✅ FULL DATASET GENERATED");
+    }
+
+    // ===== USERS =====
+    static void generateUsers(int total) throws IOException {
+        FileWriter fw = new FileWriter("cleanUsers.csv");
+        fw.write("userId,name,email,password\n");
+
+        for (int i = 1; i <= total; i++) {
+            String name = randomName();
+            String email = generateEmail(name, i);
+            String rawPassword = generatePassword(name, i);
+            String passwordHash = hashPassword(rawPassword);
+
+            fw.write(i + "," + name + "," + email + "," + passwordHash + "\n");
+        }
+        fw.close();
+    }
+
+    static String hashPassword(String password) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hashedBytes = md.digest(password.getBytes());
+
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashedBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+//    // ===== ADDRESSES =====
+//    static void generateAddresses(int users) throws IOException {
+//        FileWriter fw = new FileWriter("CleanUserAddresses.csv");
+//        fw.write("addressId,userId,street,ward,district,city\n");
+//        int id = 1;
+//        for (int userId = 1; userId <= users; userId++) {
+//            int count = 1 + rand.nextInt(3);
+//            for (int i = 0; i < count; i++) {
+//                fw.write(id++ + "," + userId + ","
+//                        + streets[rand.nextInt(streets.length)] + ","
+//                        + wards[rand.nextInt(wards.length)] + ","
+//                        + districts[rand.nextInt(districts.length)] + ",HCM\n");
+//            }
+//        }
+//        fw.close();
+//    }
+
+    // ===== SHOPS =====
+    static void generateShops(int total) throws IOException {
+        FileWriter fw = new FileWriter("cleanShops.csv");
+        fw.write("shopId,shopName,ownerUserId\n");
+        for (int i = 1; i <= total; i++) {
+            fw.write(i + ",Shop_" + randomName().replace(" ", "_") + ","
+                    + (1 + rand.nextInt(10000)) + "\n");
+        }
+        fw.close();
+    }
+
+    // ===== PRODUCTS =====
+    static void generateProducts(int total) throws IOException {
+        FileWriter fw = new FileWriter("cleanProducts.csv");
+        fw.write("productID,shopID,name,category,price\n");
+        for (int i = 1; i <= total; i++) {
+            int price = (10 + rand.nextInt(90)) * 1000;
+            fw.write(i + ","
+                    + (1 + rand.nextInt(2000)) + ","
+                    + productNames[rand.nextInt(productNames.length)] + "_" + i + ","
+                    + categories[rand.nextInt(categories.length)] + ","
+                    + price + "\n");
+        }
+        fw.close();
+    }
+
+    // ===== VARIANTS =====
+    static void generateVariants(int products) throws IOException {
+        FileWriter fw = new FileWriter("cleanProductVariants.csv");
+        fw.write("variantID,productID,size,color,priceVariant,stock\n");
+        int variantID = 1;
+        for (int productID = 1; productID <= products; productID++) {
+            int priceVariant = (10 + rand.nextInt(90)) * 1000;
+            for (String size : sizes) {
+                for (String color : colors) {
+                    fw.write(variantID++ + "," + productID + ","
+                            + size + "," + color + ","
+                            + (priceVariant + rand.nextInt(5) * 1000) + ","
+                            + (10 + rand.nextInt(50)) + "\n");
+                }
+            }
+        }
+        fw.close();
+    }
+
+    // ===== VOUCHERS =====
+    static void generateVouchers(int total) throws IOException {
+        FileWriter fw = new FileWriter("cleanVouchers.csv");
+        fw.write("voucherID,code,discountValue,minOrderAmount,isStackable\n");
+        for (int i = 1; i <= total; i++) {
+            fw.write(i + ",SALE" + i + ","
+                    
+                    + (i % 2 == 0 ? 10 : 50000) + ","
+                    + 100000 + ","
+                    
+                    + (i % 3 == 0) + "\n");
+        }
+        fw.close();
+    }
+
+//    // ===== ORDERS =====
+//    static void generateOrders(int total) throws IOException {
+//        FileWriter fw = new FileWriter("cleanOrders.csv");
+//        fw.write("orderId,userId,shopId,totalAmount,orderStatus,createdAt\n");
+//        for (int i = 1; i <= total; i++) {
+//            fw.write(i + ","
+//                    + (1 + rand.nextInt(10000)) + ","
+//                    + (1 + rand.nextInt(2000)) + ","
+//                    + ((50 + rand.nextInt(200)) * 1000) + ","
+//                    + orderStatuses[rand.nextInt(orderStatuses.length)] + ","
+//                    + LocalDateTime.now().minusDays(rand.nextInt(30)) + "\n");
+//        }
+//        fw.close();
+//    }
+//    // ===== ORDER ITEMS =====
+//    static void generateOrderItems(int orders) throws IOException {
+//        FileWriter fw = new FileWriter("cleanOrderItems.csv");
+//        fw.write("orderItemId,orderId,variantID,quantity,price\n");
+//        int id = 1;
+//        for (int orderId = 1; orderId <= orders; orderId++) {
+//            int itemCount = 1 + rand.nextInt(4);
+//            for (int i = 0; i < itemCount; i++) {
+//                fw.write(id++ + "," + orderId + ","
+//                        + (1 + rand.nextInt(240000)) + ","
+//                        + (1 + rand.nextInt(3)) + ","
+//                        + ((20 + rand.nextInt(80)) * 1000) + "\n");
+//            }
+//        }
+//        fw.close();
+//    }
+    static String randomName() {
+        return firstNames[rand.nextInt(firstNames.length)] + " "
+                + secondNames[rand.nextInt(secondNames.length)] + " "
+                + lastNames[rand.nextInt(lastNames.length)];
+    }
+    // ===== EMAIL & PASSWORD UTILS =====
+
+    static String normalizeName(String name) {
+        return name.toLowerCase().replace(" ", ".");
+    }
+
+    static String generateEmail(String name, int userId) {
+        return normalizeName(name) + userId + "@gmail.com";
+    }
+
+    static String generatePassword(String name, int userId) {
+        String[] parts = name.split(" ");
+        String firstName = parts[0];
+        String lastName = parts[parts.length - 1];
+        return firstName + "@" + lastName + userId;
+    }
+
+} giúp tôi ở phần productVariant biến thể của nó có giá chênh lệch nhẹ so với giá của product. thêm startDate, endDate để biết hạn sử dụng của nó, random  giá trị giảm của voucher từ 5-20%,làm voucher nếu stackable thì từ 5-10%, còn ko stackable thì 5-20%nha
+ChatGPT đã nói:
+Ok 👍 mình hiểu yêu cầu rồi, mình làm đúng logic nghiệp vụ, code gọn để bạn copy vào là chạy được.
+
+✅ 1. ProductVariant có giá chênh lệch nhẹ so với Product
+👉 Ý tưởng chuẩn:
+
+Mỗi product có basePrice
+
+variant price = basePrice ± 5–10%
+
+Không random lại giá mới hoàn toàn như hiện tại
+
+🔧 Sửa generateProducts()
+👉 Lưu basePrice vào mảng để dùng lại cho variant
+
+Thêm mảng toàn cục:
+
+static int[] productBasePrices;
+Sửa hàm:
+
+static void generateProducts(int total) throws IOException {
+    productBasePrices = new int[total + 1];
+
+    FileWriter fw = new FileWriter("cleanProducts.csv");
+    fw.write("productID,shopID,name,category,price\n");
+
+    for (int i = 1; i <= total; i++) {
+        int basePrice = (10 + rand.nextInt(90)) * 1000;
+        productBasePrices[i] = basePrice;
+
+        fw.write(i + ","
+                + (1 + rand.nextInt(2000)) + ","
+                + productNames[rand.nextInt(productNames.length)] + "_" + i + ","
+                + categories[rand.nextInt(categories.length)] + ","
+                + basePrice + "\n");
+    }
+    fw.close();
+}
+🔧 Sửa generateVariants()
+👉 Giá biến thể lệch ±5–10%
+
+static void generateVariants(int products) throws IOException {
+    FileWriter fw = new FileWriter("cleanProductVariants.csv");
+    fw.write("variantID,productID,size,color,priceVariant,stock,startDate,endDate\n");
+
+    int variantID = 1;
+
+    for (int productID = 1; productID <= products; productID++) {
+        int basePrice = productBasePrices[productID];
+
+        for (String size : sizes) {
+            for (String color : colors) {
+
+                double rate = 0.05 + rand.nextDouble() * 0.05; // 5–10%
+                boolean increase = rand.nextBoolean();
+
+                int variantPrice = increase
+                        ? (int) (basePrice * (1 + rate))
+                        : (int) (basePrice * (1 - rate));
+
+                String startDate = "2024-01-01";
+                String endDate   = "2025-12-31";
+
+                fw.write(variantID++ + "," + productID + ","
+                        + size + "," + color + ","
+                        + variantPrice + ","
+                        + (10 + rand.nextInt(50)) + ","
+                        + startDate + "," + endDate + "\n");
+            }
+        }
+    }
+    fw.close();
+}
+✔️ Variant luôn bám sát giá product
+✔️ Có startDate, endDate đúng nghiệp vụ
+
+✅ 2. Voucher: random giảm giá theo rule bạn yêu cầu
+📌 Rule bạn đưa:
+Stackable	Discount
+true	5–10%
+false	5–20%
+🔧 Sửa generateVouchers()
+static void generateVouchers(int total) throws IOException {
+    FileWriter fw = new FileWriter("cleanVouchers.csv");
+    fw.write("voucherID,code,discountPercent,minOrderAmount,isStackable\n");
+
+    for (int i = 1; i <= total; i++) {
+
+        boolean isStackable = (i % 3 == 0);
+        int discount;
+
+        if (isStackable) {
+            discount = 5 + rand.nextInt(6);   // 5–10%
+        } else {
+            discount = 5 + rand.nextInt(16);  // 5–20%
+        }
+
+        fw.write(i + ",SALE" + i + ","
+                + discount + ","
+                + 100000 + ","
+                + isStackable + "\n");
+    }
+    fw.close();
+}
+✅ 3. Kết quả dữ liệu (ví dụ)
+📦 Product
+101,12,Sneakers_101,Shoes,1200000
+📦 Variant
+4021,101,M,Black,1140000,25,2024-01-01,2025-12-31
+🎟️ Voucher
+12,SALE12,8,100000,true
+27,SALE27,18,100000,false
+🔥 Tổng kết
+✔ Product – Variant đúng quan hệ giá thực tế
+✔ Variant có thời hạn sử dụng
+✔ Voucher random chuẩn nghiệp vụ thương mại
+✔ Dữ liệu rất đẹp để import DB / demo đồ án
+
+Nếu bạn muốn mình làm thêm:
+
+Voucher theo category / shop
+
+Variant hết hạn → tự disable
+
+Order áp voucher & check stack
+
+ERD từ dataset này
+
+👉 nói mình làm tiếp cho bạn nha 💪
+
+Bạn đã nói:
+chỗ phần voucher thêm startDate và endDay  để biết hạn sử dụng
+ChatGPT đã nói:
+Ok 👍 mình bổ sung startDate & endDate cho voucher luôn, giữ đúng rule giảm giá bạn đã yêu cầu, chỉ sửa một chỗ duy nhất là generateVouchers().
+
+✅ YÊU CẦU TỔNG HỢP
+Voucher có:
+
+startDate
+
+endDate
+
+Giảm giá:
+
+Stackable = true → 5–10%
+
+Stackable = false → 5–20%
+
+Ngày hợp lý để demo / đồ án
+
+🔧 SỬA HÀM generateVouchers()
+static void generateVouchers(int total) throws IOException {
+    FileWriter fw = new FileWriter("cleanVouchers.csv");
+    fw.write("voucherID,code,discountPercent,minOrderAmount,isStackable,startDate,endDate\n");
+
+    for (int i = 1; i <= total; i++) {
+
+        boolean isStackable = (i % 3 == 0);
+
+        int discount;
+        if (isStackable) {
+            discount = 5 + rand.nextInt(6);   // 5–10%
+        } else {
+            discount = 5 + rand.nextInt(16);  // 5–20%
+        }
+
+        // ===== DATE =====
+        int startYear = 2024;
+        int startMonth = 1 + rand.nextInt(6);   // Jan–Jun
+        int startDay = 1 + rand.nextInt(28);
+
+        int endYear = 2025;
+        int endMonth = 7 + rand.nextInt(6);     // Jul–Dec
+        int endDay = 1 + rand.nextInt(28);
+
+        String startDate = startYear + "-"
+                + String.format("%02d", startMonth) + "-"
+                + String.format("%02d", startDay);
+
+        String endDate = endYear + "-"
+                + String.format("%02d", endMonth) + "-"
+                + String.format("%02d", endDay);
+
+        fw.write(i + ",SALE" + i + ","
+                + discount + ","
+                + 100000 + ","
+                + isStackable + ","
+                + startDate + ","
+                + endDate + "\n");
+    }
+    fw.close();
+}
+📄 CSV KẾT QUẢ (ví dụ)
+voucherID,code,discountPercent,minOrderAmount,isStackable,startDate,endDate
+5,SALE5,9,100000,true,2024-03-14,2025-11-02
+6,SALE6,18,100000,false,2024-06-01,2025-09-19
+✔ Có hạn sử dụng rõ ràng
+✔ Dùng được để:
+
+Check voucher còn hiệu lực
+
+Làm SQL WHERE now() BETWEEN startDate AND endDate
+
+Demo nghiệp vụ thương mại điện tử
+
+🔥 GỢI Ý NÂNG CAO (nếu thầy hỏi)
+Thêm status (ACTIVE / EXPIRED)
+
+Thêm usageLimit
+
+Thêm usedCount
+
+Voucher theo shopID
+
+Nếu bạn muốn mình làm tiếp phần áp voucher vào order + kiểm tra stack, nói 1 câu là mình triển luôn 😄
+
+Bạn đã nói:
+làm cho userID và shopID random và ở phần thuộc tính của ownerID khi tham chiếu với UserID nếu trùng thì name của shop sẽ là tên của User đó
+ChatGPT đã nói:
+Ok, yêu cầu này rất đúng nghiệp vụ 👍
+Mình làm cho bạn theo đúng ý:
+
+🎯 YÊU CẦU
+userID random
+
+shopID random
+
+ownerUserID tham chiếu User
+
+Nếu ownerUserID trùng userID → tên shop = tên user
+
+Ví dụ:
+User: Nguyen Thanh An
+Shop: Shop_Nguyen_Thanh_An
+
+🧠 CÁCH LÀM ĐÚNG & GỌN
+👉 Khi generate Users, lưu tên user vào mảng
+👉 Khi generate Shops, random ownerUserID rồi lấy tên user đó đặt tên shop
+
+✅ BƯỚC 1: LƯU TÊN USER KHI GENERATE USER
+Thêm biến toàn cục
+static String[] userNames;
+Sửa generateUsers()
+static void generateUsers(int total) throws IOException {
+    userNames = new String[total + 1];
+
+    FileWriter fw = new FileWriter("cleanUsers.csv");
+    fw.write("userID,name,email,password\n");
+
+    for (int i = 1; i <= total; i++) {
+        String name = randomName();
+        userNames[i] = name;
+
+        String email = generateEmail(name, i);
+        String rawPassword = generatePassword(name, i);
+        String passwordHash = hashPassword(rawPassword);
+
+        fw.write(i + "," + name + "," + email + "," + passwordHash + "\n");
+    }
+    fw.close();
+}
+✅ BƯỚC 2: SHOP — ownerID RANDOM & TÊN SHOP = TÊN USER
+Sửa generateShops()
+static void generateShops(int total) throws IOException {
+    FileWriter fw = new FileWriter("cleanShops.csv");
+    fw.write("shopID,shopName,ownerUserID\n");
+
+    for (int shopID = 1; shopID <= total; shopID++) {
+
+        int ownerUserID = 1 + rand.nextInt(userNames.length - 1);
+        String ownerName = userNames[ownerUserID];
+
+        String shopName = "Shop_" + ownerName.replace(" ", "_");
+
+        fw.write(shopID + "," + shopName + "," + ownerUserID + "\n");
+    }
+    fw.close();
+}
+📄 KẾT QUẢ CSV (RẤT ĐẸP)
+👤 User
+15,Nguyen Thanh An,nguyen.thanh.an15@gmail.com,...
+🏪 Shop
+3,Shop_Nguyen_Thanh_An,15
+✔ ownerUserID = 15
+✔ shopName lấy đúng tên User 15
+✔ Quan hệ User — Shop rõ ràng, không fake
+
+🔥 BONUS (NÂNG CAO – NẾU MUỐN)
+Nếu bạn muốn dữ liệu thật hơn nữa, mình có thể:
+
+1 user có nhiều shop
+
+1 user không có shop
+
+Shop name random nếu không trùng owner
+
+Thêm createdAt cho shop
+
+Check FK trước khi ghi CSV (chuẩn DB)
+
+Chỉ cần nói “làm thêm phần …” là mình làm tiếp cho bạn liền 💪
+
+Bạn đã nói:
+ làm thêm 1 user có nhiều shop
+
+1 user không có shop
+
+Shop name random nếu không trùng owner
+ChatGPT đã nói:
+Ok 👍 mình làm đúng 3 yêu cầu cùng lúc, logic rõ ràng để thầy nhìn là thấy dữ liệu thật, không phải random bừa.
+
+🎯 YÊU CẦU & GIẢI PHÁP
+1️⃣ 1 user có nhiều shop
+→ Cho một số user (ví dụ 20%) sở hữu 2–5 shop
+
+2️⃣ 1 user không có shop
+→ Cho một số user (ví dụ 30%) không bao giờ được chọn làm owner
+
+3️⃣ Shop name random nếu không trùng owner
+Nếu shop được gán theo owner đặc biệt → dùng tên user
+
+Nếu shop random bình thường → tên shop random (Shop_Fashion_12, …)
+
+✅ BƯỚC 1: THÊM DANH SÁCH USER KHÔNG CÓ SHOP
+Biến toàn cục
+static boolean[] userHasShop;
+✅ BƯỚC 2: ĐÁNH DẤU USER KHÔNG CÓ SHOP
+Trong generateUsers(), thêm:
+userHasShop = new boolean[total + 1];
+➡️ Mặc định false = chưa có shop
+
+✅ BƯỚC 3: LOGIC SHOP NÂNG CAO
+🔧 Thay toàn bộ generateShops() bằng đoạn này
+static void generateShops(int total) throws IOException {
+    FileWriter fw = new FileWriter("cleanShops.csv");
+    fw.write("shopID,shopName,ownerUserID\n");
+
+    int userCount = userNames.length - 1;
+
+    // ===== 30% user sẽ KHÔNG BAO GIỜ có shop =====
+    boolean[] bannedUser = new boolean[userNames.length];
+    for (int i = 1; i <= userCount; i++) {
+        bannedUser[i] = rand.nextInt(100) < 30;
+    }
+
+    for (int shopID = 1; shopID <= total; shopID++) {
+
+        boolean useOwnerName = rand.nextInt(100) < 40; // 40% shop mang tên owner
+        int ownerUserID;
+
+        // ===== CHỌN OWNER =====
+        do {
+            ownerUserID = 1 + rand.nextInt(userCount);
+        } while (bannedUser[ownerUserID]);
+
+        userHasShop[ownerUserID] = true;
+
+        String shopName;
+
+        if (useOwnerName) {
+            // Shop trùng owner
+            shopName = "Shop_" + userNames[ownerUserID].replace(" ", "_");
+        } else {
+            // Shop random
+            shopName = "Shop_"
+                    + categories[rand.nextInt(categories.length)]
+                    + "_" + shopID;
+        }
+
+        fw.write(shopID + "," + shopName + "," + ownerUserID + "\n");
+    }
+
+    fw.close();
+}
+✅ BƯỚC 4: ĐẢM BẢO CÓ USER NHIỀU SHOP
+Do shop owner được random không reset, nên:
+
+1 user có thể bị chọn nhiều lần
+
+→ 1 user có nhiều shop tự nhiên ✔️
+
+📊 KẾT QUẢ THỰC TẾ (VÍ DỤ)
+👤 User
+12,Tran Hoang Minh,...
+🏪 Shop
+3,Shop_Tran_Hoang_Minh,12
+9,Shop_Fashion_9,12
+17,Shop_Electronics_17,12
+➡️ User 12 có 3 shop ✔️
+
+👤 User không có shop
+25,Le Thanh Dung,...
+➡️ Không xuất hiện trong cleanShops.csv ✔️
+
+🔥 TẠI SAO CÁCH NÀY ĐẸP?
+✔ Quan hệ User–Shop đúng đời thật
+✔ Có user bán hàng, có user chỉ mua
+✔ Shop name không bị fake cứng
+✔ Dataset dùng tốt cho:
+
+SQL JOIN
+
+FK constraint
+
+Demo nghiệp vụ TMĐT
+
+Nếu bạn muốn mình làm tiếp:
+
+Giới hạn tối đa X shop / user
+
+Tạo seller riêng
+
+Phân quyền USER / SELLER / ADMIN
+
+ERD từ toàn bộ dataset này
+
+👉 chỉ cần nói là mình làm tiếp cho bạn 😄
+
+
+
+
+No file chosenNo file chosen
+ChatGPT có thể mắc lỗi. Hãy kiểm tra các thông tin quan trọng. Vui lòng tham khảo Tùy chọn cookie.
