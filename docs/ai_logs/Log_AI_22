@@ -1,0 +1,1787 @@
+Chuyển đến nội dung
+Lịch sử đoạn chat
+
+
+
+Đây là bản sao của cuộc trò chuyện giữa ChatGPT và Người ẩn danh.
+
+Báo cáo cuộc trò chuyện
+Bạn đã nói:
+Xây dựng khung Web App trên Tomcat. Kết nối Database. Làm giao diện Login/Register/CRUD cơ bản bằng html, có thể thì thiết kế css cho đẹp luôn
+ChatGPT đã nói:
+Ok Nguyên, mình làm từ A → Z, đúng kiểu Web App Java chạy Tomcat + JDBC + Login / Register / CRUD, giao diện HTML + CSS gọn gàng, dễ hiểu (chuẩn cho môn Web / Java Web ở FPT luôn).
+
+🧱 1. Kiến trúc tổng thể (cực quan trọng)
+WebApp/
+│
+├── src/
+│   ├── controller/        (Servlet)
+│   │    ├── LoginServlet.java
+│   │    ├── RegisterServlet.java
+│   │    └── UserServlet.java   (CRUD)
+│   │
+│   ├── dao/
+│   │    └── UserDAO.java
+│   │
+│   ├── model/
+│   │    └── User.java
+│   │
+│   └── util/
+│        └── DBConnection.java
+│
+├── web/
+│   ├── login.html
+│   ├── register.html
+│   ├── users.html
+│   ├── css/
+│   │    └── style.css
+│   └── WEB-INF/
+│        └── web.xml
+│
+└── lib/
+     └── mysql-connector-j.jar
+🛢️ 2. Database (MySQL)
+CREATE DATABASE webapp;
+USE webapp;
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE,
+    password VARCHAR(100),
+    email VARCHAR(100)
+);
+🔌 3. Kết nối Database (JDBC)
+DBConnection.java
+package util;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class DBConnection {
+    public static Connection getConnection() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            return DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/webapp",
+                "root",
+                "password"
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
+⚠️ Nhớ add mysql-connector-j.jar vào thư mục lib
+
+📦 4. Model
+User.java
+package model;
+
+public class User {
+    private int id;
+    private String username;
+    private String password;
+    private String email;
+
+    // getters & setters
+}
+🗄️ 5. DAO (xử lý SQL)
+UserDAO.java
+package dao;
+
+import util.DBConnection;
+import model.User;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class UserDAO {
+
+    public boolean login(String username, String password) {
+        String sql = "SELECT * FROM users WHERE username=? AND password=?";
+        try (Connection c = DBConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setString(1, username);
+            ps.setString(2, password);
+
+            return ps.executeQuery().next();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public void register(User u) {
+        String sql = "INSERT INTO users(username,password,email) VALUES(?,?,?)";
+        try (Connection c = DBConnection.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+
+            ps.setString(1, u.getUsername());
+            ps.setString(2, u.getPassword());
+            ps.setString(3, u.getEmail());
+            ps.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public List<User> getAll() {
+        List<User> list = new ArrayList<>();
+        String sql = "SELECT * FROM users";
+
+        try (Connection c = DBConnection.getConnection();
+             Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery(sql)) {
+
+            while (rs.next()) {
+                User u = new User();
+                u.setId(rs.getInt("id"));
+                u.setUsername(rs.getString("username"));
+                u.setEmail(rs.getString("email"));
+                list.add(u);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+}
+🚦 6. Servlet
+LoginServlet.java
+@WebServlet("/login")
+public class LoginServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+
+        String user = req.getParameter("username");
+        String pass = req.getParameter("password");
+
+        UserDAO dao = new UserDAO();
+
+        if (dao.login(user, pass)) {
+            resp.sendRedirect("users.html");
+        } else {
+            resp.sendRedirect("login.html");
+        }
+    }
+}
+RegisterServlet.java
+@WebServlet("/register")
+public class RegisterServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+
+        User u = new User();
+        u.setUsername(req.getParameter("username"));
+        u.setPassword(req.getParameter("password"));
+        u.setEmail(req.getParameter("email"));
+
+        new UserDAO().register(u);
+        resp.sendRedirect("login.html");
+    }
+}
+🎨 7. Giao diện HTML + CSS
+login.html
+<form action="login" method="post" class="box">
+    <h2>Login</h2>
+    <input name="username" placeholder="Username">
+    <input name="password" type="password" placeholder="Password">
+    <button>Login</button>
+    <a href="register.html">Register</a>
+</form>
+register.html
+<form action="register" method="post" class="box">
+    <h2>Register</h2>
+    <input name="username" placeholder="Username">
+    <input name="email" placeholder="Email">
+    <input name="password" type="password" placeholder="Password">
+    <button>Create</button>
+</form>
+style.css
+body {
+    background: linear-gradient(120deg,#6a11cb,#2575fc);
+    font-family: Arial;
+}
+
+.box {
+    width: 300px;
+    margin: 100px auto;
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+}
+
+.box input, .box button {
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px;
+}
+
+.box button {
+    background: #2575fc;
+    color: white;
+    border: none;
+}
+⚙️ 8. web.xml (nếu không dùng annotation)
+<web-app>
+    <welcome-file-list>
+        <welcome-file>login.html</welcome-file>
+    </welcome-file-list>
+</web-app>
+▶️ 9. Chạy trên Tomcat
+Add Project → Run on Server
+
+Chọn Apache Tomcat
+
+Vào
+
+http://localhost:8080/WebApp
+🧠 Mình vừa giúp bạn:
+✔ Khung Web App chuẩn MVC
+✔ JDBC + DAO
+✔ Login / Register
+✔ CRUD nền tảng
+✔ HTML + CSS đẹp, dễ chấm điểm
+
+Nếu bạn muốn 👉 JSP thay HTML, Session đăng nhập, CRUD full (Add/Edit/Delete), hoặc làm đúng format bài nộp FPT
+👉 nói mình, mình build tiếp cho bạn từng bước 🔥
+
+Bạn đã nói:
+làm từng cái nhưng phải cụ thể rõ ràng, trước tiên là xây khung webapp, hướng dân cụ thể lun dùm
+ChatGPT đã nói:
+Ok Nguyên 👍 mình đi CHẬM – RÕ – CỤ THỂ, đúng kiểu “làm tới đâu hiểu tới đó”.
+👉 Bước 1 hôm nay: CHỈ xây khung Web App chạy được trên Tomcat, CHƯA đụng Database.
+
+🧩 MỤC TIÊU BƯỚC 1
+Sau bước này, bạn sẽ:
+
+Có Web App Java chạy được trên Tomcat
+
+Truy cập được bằng trình duyệt
+
+Hiểu thư mục nào để làm gì
+
+Sẵn sàng cho bước Login / JDBC sau này
+
+🛠️ YÊU CẦU TRƯỚC KHI LÀM
+✔ Máy đã cài:
+
+JDK 8+
+
+Apache Tomcat 9 hoặc 10
+
+NetBeans (đúng môi trường bạn đang dùng)
+
+🥇 BƯỚC 1: TẠO PROJECT WEB APP
+1️⃣ Mở NetBeans
+👉 File → New Project
+
+2️⃣ Chọn loại project
+Java with Ant
+→ Java Web
+→ Web Application
+👉 Nhấn Next
+
+3️⃣ Đặt tên project
+Project Name: WebAppDemo
+
+Project Location: để mặc định
+👉 Next
+
+4️⃣ Chọn Server
+Server: Apache Tomcat
+
+Java EE Version: Java EE 7 hoặc 8
+👉 Finish
+
+⏳ NetBeans tạo project…
+
+📂 BƯỚC 2: HIỂU CẤU TRÚC THƯ MỤC (CỰC QUAN TRỌNG)
+Sau khi tạo xong, bạn sẽ thấy:
+
+WebAppDemo
+│
+├── Source Packages
+│   └── (chứa code Java - Servlet)
+│
+├── Web Pages
+│   ├── index.jsp
+│   └── WEB-INF
+│       └── web.xml
+│
+├── Libraries
+│
+└── Configuration Files
+👉 Giải thích dễ hiểu:
+Thư mục	Dùng để làm gì
+Source Packages	Viết Servlet, Java
+Web Pages	HTML / JSP / CSS
+WEB-INF	Cấu hình (user không truy cập trực tiếp)
+web.xml	Khai báo servlet, welcome file
+🧪 BƯỚC 3: TEST CHO CHẮC LÀ WEB CHẠY ĐƯỢC
+1️⃣ Mở file index.jsp
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web App Demo</title>
+</head>
+<body>
+    <h1>Hello Web App!</h1>
+</body>
+</html>
+2️⃣ Chạy project
+👉 Chuột phải WebAppDemo → Run
+
+3️⃣ Trình duyệt mở lên:
+http://localhost:8080/WebAppDemo
+Nếu thấy:
+
+Hello Web App!
+🎉 CHÚC MỪNG – WEB APP ĐÃ CHẠY
+
+🧱 BƯỚC 4: TẠO KHUNG MVC CHUẨN
+1️⃣ Tạo package cho Controller
+👉 Chuột phải Source Packages → New → Java Package
+
+Name: controller
+
+2️⃣ Tạo Servlet mẫu
+👉 Chuột phải controller → New → Servlet
+
+Class Name: HomeServlet
+
+URL Pattern: /home
+
+👉 Finish
+
+3️⃣ Sửa HomeServlet.java
+@WebServlet("/home")
+public class HomeServlet extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        response.setContentType("text/html;charset=UTF-8");
+        response.getWriter().println("<h2>Home Servlet Works!</h2>");
+    }
+}
+4️⃣ Test Servlet
+Mở trình duyệt:
+
+http://localhost:8080/WebAppDemo/home
+Nếu hiện:
+
+Home Servlet Works!
+✅ Servlet hoạt động bình thường
+
+🧱 BƯỚC 5: TẠO THƯ MỤC GIAO DIỆN
+Trong Web Pages:
+
+Tạo folder: css
+
+Tạo folder: html
+
+👉 Chuột phải Web Pages → New → Folder
+
+🧠 TỔNG KẾT SAU BƯỚC 1
+✔ Tạo Web App trên Tomcat
+✔ Hiểu cấu trúc thư mục
+✔ Chạy JSP được
+✔ Servlet hoạt động
+✔ Có khung MVC cơ bản
+
+⏭️ BƯỚC TIẾP THEO (BƯỚC 2)
+👉 Làm trang Login (HTML + CSS)
+
+Form
+
+Action gửi vào Servlet
+
+Chưa cần Database
+
+Nếu ok 👉 nói “qua bước 2”
+Nếu kẹt ở bước nào 👉 chụp màn hình lỗi, mình sửa cho bạn từng dòng 💪
+
+Bạn đã nói:
+chạy servlet không đc
+ChatGPT đã nói:
+Ok, bình tĩnh nha 😄 Servlet không chạy được là lỗi RẤT hay gặp, mình sẽ bắt bệnh từng nguyên nhân, làm theo CHECKLIST, đảm bảo ra lỗi nào sửa lỗi đó.
+
+Nguyên làm theo thứ tự, đừng nhảy bước.
+
+✅ CHECKLIST SỬA LỖI “CHẠY SERVLET KHÔNG ĐƯỢC”
+🔎 BƯỚC 1: XEM BIỂU HIỆN LỖI LÀ GÌ
+Khi bạn mở:
+
+http://localhost:8080/WebAppDemo/home
+👉 Bạn thấy cái nào?
+
+A️⃣ Trang trắng / 404 Not Found
+B️⃣ 500 Internal Server Error
+C️⃣ Tomcat chạy nhưng không có gì hiện
+D️⃣ NetBeans báo lỗi đỏ khi Run
+👉 Đọc tiếp, mình xử từng case
+
+🟥 CASE A: 404 – Not Found (PHỔ BIẾN NHẤT)
+❌ Nguyên nhân thường gặp
+Sai URL
+
+Sai @WebServlet
+
+Project chưa deploy lại
+
+✅ CÁCH SỬA (làm đúng thứ tự)
+1️⃣ Kiểm tra URL CHÍNH XÁC
+Tên project là gì thì URL PHẢI giống y chang.
+
+Ví dụ:
+
+Project name: WebAppDemo
+
+Servlet:
+
+@WebServlet("/home")
+👉 URL đúng là:
+
+http://localhost:8080/WebAppDemo/home
+⚠️ Phân biệt hoa – thường
+
+2️⃣ Kiểm tra annotation @WebServlet
+Trong file HomeServlet.java PHẢI CÓ:
+
+import jakarta.servlet.annotation.WebServlet;
+// hoặc
+import javax.servlet.annotation.WebServlet;
+Và class phải có:
+
+@WebServlet("/home")
+public class HomeServlet extends HttpServlet {
+❌ Nếu thiếu @WebServlet → servlet KHÔNG tồn tại
+
+3️⃣ Clean & Run lại project
+Trong NetBeans:
+
+👉 Chuột phải WebAppDemo
+
+Clean and Build
+
+Sau đó Run
+
+(Đừng chỉ bấm Run không)
+
+🟥 CASE B: 500 – Internal Server Error
+👉 Lỗi này Servlet có chạy nhưng code bên trong bị crash
+
+✅ CÁCH BẮT LỖI
+1️⃣ Mở Output → Tomcat Log trong NetBeans
+2️⃣ Kéo lên tìm dòng màu đỏ ❌
+
+📌 Gửi mình dòng lỗi đỏ đầu tiên, mình đọc cho bạn
+
+🟥 CASE C: Trang trắng, không hiện chữ
+❌ Lỗi hay gặp
+Quên set content type hoặc writer
+
+✅ Code CHUẨN để test Servlet
+Copy y nguyên đoạn này:
+
+@WebServlet("/home")
+public class HomeServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        response.setContentType("text/html;charset=UTF-8");
+        response.getWriter().println("<h1>Servlet OK</h1>");
+    }
+}
+👉 Save → Clean & Run
+
+🟥 CASE D: NetBeans báo lỗi đỏ, không run được
+❌ Nguyên nhân
+Sai version Servlet API
+
+Import nhầm jakarta / javax
+
+✅ CÁCH KIỂM TRA (RẤT QUAN TRỌNG)
+🔍 Xem Tomcat bạn dùng là version nào
+Tomcat	Import đúng
+Tomcat 9	javax.servlet.*
+Tomcat 10	jakarta.servlet.*
+👉 Nếu dùng Tomcat 9 → Code PHẢI như sau:
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.annotation.WebServlet;
+👉 Nếu dùng Tomcat 10:
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.annotation.WebServlet;
+❌ Trộn 2 cái = CHẾT servlet
+
+🧪 BƯỚC TEST CUỐI (CỰC CHUẨN)
+1️⃣ Tạo servlet mới để test
+Tên: TestServlet
+URL: /test
+
+2️⃣ Code:
+@WebServlet("/test")
+public class TestServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+        resp.getWriter().print("TEST OK");
+    }
+}
+3️⃣ Vào:
+http://localhost:8080/WebAppDemo/test
+Nếu ra TEST OK → Tomcat + Servlet OK 100%
+
+📌 GIỜ BẠN LÀM 1 VIỆC DUY NHẤT
+👉 Trả lời mình 3 thứ này (copy paste):
+
+1️⃣ URL bạn đang gõ
+2️⃣ Toàn bộ code HomeServlet.java
+3️⃣ Tomcat version (9 hay 10)
+
+Mình sẽ chỉ đúng 1 dòng sai cho bạn, sửa xong là chạy ngay 💪
+
+Bạn đã nói:
+chạy đc rồi =)), làm tiếp đi
+ChatGPT đã nói:
+Haha đỉnh 😆🔥 chạy được servlet là qua cửa tử rồi.
+Giờ mình làm tiếp BƯỚC 2, vẫn theo tiêu chí: chậm – rõ – làm tới đâu hiểu tới đó.
+
+🥈 BƯỚC 2: LÀM TRANG LOGIN (HTML + CSS)
+⚠️ CHƯA KẾT NỐI DATABASE
+👉 Mục tiêu: form HTML → gửi dữ liệu → Servlet nhận được
+
+🎯 MỤC TIÊU BƯỚC 2
+Sau bước này, bạn sẽ:
+
+Có trang login đẹp
+
+Submit form từ HTML
+
+Servlet nhận được username, password
+
+In ra kết quả để kiểm tra
+
+📂 BƯỚC 2.1: TẠO FILE GIAO DIỆN
+1️⃣ Trong Web Pages
+👉 Chuột phải Web Pages → New → HTML
+
+File name: login.html
+
+Finish
+
+✍️ BƯỚC 2.2: CODE LOGIN.HTML
+👉 Copy y nguyên (đừng sửa trước):
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <form action="login" method="post" class="login-box">
+        <h2>Login</h2>
+
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
+
+        <button type="submit">Login</button>
+    </form>
+
+</body>
+</html>
+📌 Lưu ý:
+
+action="login" 👉 sẽ gọi LoginServlet
+
+method="post" 👉 gửi dữ liệu an toàn
+
+🎨 BƯỚC 2.3: TẠO CSS CHO ĐẸP
+1️⃣ Trong Web Pages
+👉 Chuột phải → New → Folder
+
+Name: css
+
+2️⃣ Tạo file style.css
+body {
+    background: linear-gradient(120deg, #6a11cb, #2575fc);
+    font-family: Arial, sans-serif;
+}
+
+.login-box {
+    width: 320px;
+    margin: 120px auto;
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+}
+
+.login-box h2 {
+    text-align: center;
+}
+
+.login-box input {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+}
+
+.login-box button {
+    width: 100%;
+    padding: 10px;
+    background: #2575fc;
+    border: none;
+    color: white;
+    cursor: pointer;
+}
+🧪 TEST NHANH
+Chạy project → vào:
+
+http://localhost:8080/WebAppDemo/login.html
+👉 Nếu thấy form login đẹp → OK 👌
+
+🚦 BƯỚC 2.4: TẠO LOGIN SERVLET
+1️⃣ Tạo Servlet
+👉 Chuột phải Source Packages → controller
+→ New → Servlet
+
+Class Name: LoginServlet
+
+URL Pattern: /login
+
+Finish
+
+✍️ BƯỚC 2.5: CODE LOGIN SERVLET
+👉 Copy y nguyên để test trước:
+
+@WebServlet("/login")
+public class LoginServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+
+        response.setContentType("text/html;charset=UTF-8");
+        response.getWriter().println("<h2>Login Info</h2>");
+        response.getWriter().println("Username: " + username + "<br>");
+        response.getWriter().println("Password: " + password);
+    }
+}
+📌 Ý nghĩa:
+
+getParameter() 👉 lấy dữ liệu từ form
+
+In ra màn hình để kiểm tra form gửi đúng chưa
+
+🧪 BƯỚC 2.6: TEST FULL FLOW
+1️⃣ Mở:
+http://localhost:8080/WebAppDemo/login.html
+2️⃣ Nhập:
+username: admin
+password: 123
+3️⃣ Bấm Login
+👉 Nếu thấy:
+
+Login Info
+Username: admin
+Password: 123
+🎉 CHÚC MỪNG – FORM → SERVLET ĐÃ THÔNG
+
+🧠 TỔNG KẾT BƯỚC 2
+✔ HTML Form
+✔ CSS cơ bản
+✔ POST dữ liệu
+✔ Servlet nhận dữ liệu
+✔ Hiểu luồng request
+
+⏭️ BƯỚC 3 (CỰC QUAN TRỌNG)
+👉 XỬ LÝ LOGIN BẰNG SESSION
+
+Đúng chuẩn web
+
+Phân biệt đã login / chưa login
+
+Redirect trang
+
+Nếu ok 👉 nói “qua bước 3”
+Nếu muốn chỉnh giao diện đẹp hơn 👉 nói “tô thêm css”
+Mình theo bạn tới khi CRUD full luôn 💪
+
+Bạn đã nói:
+tạo file css chỗ nào
+ChatGPT đã nói:
+Câu này hỏi đúng chỗ hay nhầm nhất luôn 👍
+Mình nói cực cụ thể, làm theo là không sai được.
+
+📍 CSS TẠO Ở ĐÂU? (QUY TẮC VÀNG)
+👉 CSS LUÔN nằm trong Web Pages,
+❌ KHÔNG tạo trong Source Packages
+
+🪜 LÀM TỪNG BƯỚC (NETBEANS)
+🥇 BƯỚC 1: MỞ ĐÚNG CHỖ
+Trong NetBeans, nhìn cây thư mục:
+
+WebAppDemo
+└── Web Pages
+    ├── index.jsp
+    └── WEB-INF
+👉 Chuột phải vào Web Pages
+
+🥈 BƯỚC 2: TẠO FOLDER CSS
+👉 Chuột phải Web Pages
+→ New
+→ Folder
+
+Folder Name: css
+
+OK
+
+Sau bước này bạn sẽ thấy:
+
+Web Pages
+├── css
+└── WEB-INF
+🥉 BƯỚC 3: TẠO FILE CSS
+👉 Chuột phải folder css
+→ New
+→ Cascading Style Sheet
+
+File Name: style
+
+Finish
+
+📌 NetBeans tự thêm .css
+
+📂 CẤU TRÚC ĐÚNG SAU KHI TẠO
+Web Pages
+├── css
+│   └── style.css   ✅
+├── login.html
+└── WEB-INF
+🔗 LINK CSS TRONG HTML (QUAN TRỌNG)
+Trong login.html:
+
+<link rel="stylesheet" href="css/style.css">
+⚠️ Không có dấu / phía trước
+❌ Sai: /css/style.css
+✅ Đúng: css/style.css
+
+🧪 CÁCH TEST CSS CÓ ĂN HAY KHÔNG
+Cách nhanh nhất:
+1️⃣ Mở style.css
+2️⃣ Thêm dòng đầu tiên:
+
+body {
+    background: red !important;
+}
+3️⃣ Reload trang login
+
+👉 Nếu nền đỏ → CSS OK
+👉 Nếu không đổi → link CSS SAI
+
+❌ LỖI HAY GẶP
+Lỗi	Nguyên nhân
+CSS không ăn	Tạo nhầm trong Source Packages
+404 css	Sai đường dẫn
+Không đổi giao diện	Chưa reload (Ctrl + F5)
+✅ TÓM TẮT 1 DÒNG
+CSS = Web Pages → css → style.css
+
+Giờ bạn làm xong CSS chưa?
+👉 Nếu rồi nói “ok css” → mình qua BƯỚC 3: SESSION + LOGIN CHUẨN WEB 🔥
+
+Bạn đã nói:
+oke làm tiếp b3
+ChatGPT đã nói:
+Quá ngon 😎🔥
+BƯỚC 3 = CHUẨN WEB APP THẬT SỰ
+→ Login bằng SESSION
+→ Chặn người chưa login
+→ Logout đàng hoàng
+
+Mình vẫn đi rõ – chậm – từng bước nha.
+
+🥉 BƯỚC 3: LOGIN BẰNG SESSION (CHƯA DB)
+🎯 MỤC TIÊU BƯỚC 3
+Sau bước này, bạn sẽ:
+
+Biết Session là gì & dùng để làm gì
+
+Login xong → nhớ trạng thái đăng nhập
+
+Chưa login → không vào được trang protected
+
+Có Logout
+
+🧠 GIẢI THÍCH NHANH (HIỂU TRƯỚC KHI CODE)
+👉 Session = vùng nhớ phía server
+👉 Dùng để lưu:
+
+user đã login chưa
+
+username
+
+role (sau này)
+
+📌 Web không có session → reload là quên sạch
+
+🧱 BƯỚC 3.1: SỬA LOGIN SERVLET (TẠO SESSION)
+Mở LoginServlet.java
+👉 SỬA TOÀN BỘ THÀNH:
+
+@WebServlet("/login")
+public class LoginServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+
+        // TẠM THỜI hard-code để test
+        if ("admin".equals(username) && "123".equals(password)) {
+
+            // Tạo session
+            HttpSession session = request.getSession();
+            session.setAttribute("user", username);
+
+            response.sendRedirect("home");
+        } else {
+            response.sendRedirect("login.html");
+        }
+    }
+}
+📌 Chỗ quan trọng:
+
+HttpSession session = request.getSession();
+session.setAttribute("user", username);
+🏠 BƯỚC 3.2: TẠO HOME SERVLET (TRANG SAU LOGIN)
+1️⃣ Tạo servlet mới
+Name: HomeServlet
+
+URL: /home
+
+2️⃣ Code HomeServlet.java
+@WebServlet("/home")
+public class HomeServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        HttpSession session = request.getSession(false);
+
+        // CHƯA LOGIN
+        if (session == null || session.getAttribute("user") == null) {
+            response.sendRedirect("login.html");
+            return;
+        }
+
+        // ĐÃ LOGIN
+        String username = session.getAttribute("user").toString();
+
+        response.setContentType("text/html;charset=UTF-8");
+        response.getWriter().println("<h1>Welcome " + username + "</h1>");
+        response.getWriter().println("<a href='logout'>Logout</a>");
+    }
+}
+📌 Cực quan trọng:
+
+request.getSession(false)
+→ không tạo session mới nếu chưa login
+
+🚪 BƯỚC 3.3: LOGOUT SERVLET
+1️⃣ Tạo servlet
+Name: LogoutServlet
+
+URL: /logout
+
+2️⃣ Code LogoutServlet.java
+@WebServlet("/logout")
+public class LogoutServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        HttpSession session = request.getSession(false);
+
+        if (session != null) {
+            session.invalidate(); // xoá session
+        }
+
+        response.sendRedirect("login.html");
+    }
+}
+🧪 BƯỚC 3.4: TEST TOÀN BỘ FLOW
+✅ TEST 1: CHƯA LOGIN
+Mở:
+
+http://localhost:8080/WebAppDemo/home
+👉 Bị đá về login.html ✅
+
+✅ TEST 2: LOGIN ĐÚNG
+username: admin
+
+password: 123
+
+👉 Vào được:
+
+Welcome admin
+Logout
+✅ TEST 3: LOGOUT
+Bấm Logout
+
+Thử vào /home
+
+👉 Bị đá về login ✅
+
+🧠 TỔNG KẾT BƯỚC 3
+✔ Session hoạt động
+✔ Login đúng chuẩn web
+✔ Chặn truy cập trái phép
+✔ Logout hoàn chỉnh
+
+🔥 Tới đây là web app thật, không còn demo linh tinh nữa.
+
+⏭️ BƯỚC 4 (RẤT QUAN TRỌNG)
+👉 KẾT NỐI DATABASE (JDBC + MySQL)
+
+Thay hard-code login
+
+Login bằng dữ liệu thật
+
+Chuẩn bài thi / đồ án
+
+Nếu ok 👉 nói “qua bước 4”
+Nếu muốn 👉 chuyển Home sang HTML/JSP cho đẹp
+Mình đi theo đúng tốc độ của bạn 💪
+
+Bạn đã nói:
+ làm phần register hả đc không
+ChatGPT đã nói:
+Được 100% nha 😄👍
+Và làm Register ở thời điểm này là QUÁ HỢP LÝ luôn (trước DB để hiểu luồng, sau đó nối DB là auto hiểu).
+
+👉 BƯỚC 3.5: REGISTER (chưa DB, dùng session tạm)
+Mình vẫn đi rõ – chậm – từng bước.
+
+🧾 BƯỚC 3.5: LÀM REGISTER (HTML + SERVLET)
+🎯 MỤC TIÊU
+Có trang Register
+
+Gửi dữ liệu từ form
+
+Servlet nhận dữ liệu
+
+Điều hướng hợp lý
+
+📂 BƯỚC 3.5.1: TẠO register.html
+👉 Trong Web Pages
+→ New → HTML
+
+Tên file: register.html
+
+✍️ CODE register.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Register</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <form action="register" method="post" class="login-box">
+        <h2>Register</h2>
+
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <input type="password" name="repassword" placeholder="Re-enter Password" required>
+
+        <button type="submit">Register</button>
+
+        <p style="text-align:center;">
+            <a href="login.html">Back to Login</a>
+        </p>
+    </form>
+
+</body>
+</html>
+📌 Dùng lại class .login-box cho đồng bộ giao diện
+
+🚦 BƯỚC 3.5.2: TẠO REGISTER SERVLET
+👉 Chuột phải controller
+→ New → Servlet
+
+Class Name: RegisterServlet
+
+URL Pattern: /register
+
+✍️ CODE RegisterServlet.java
+👉 Copy y nguyên để test trước:
+
+@WebServlet("/register")
+public class RegisterServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+        String repassword = request.getParameter("repassword");
+
+        response.setContentType("text/html;charset=UTF-8");
+
+        // check password match
+        if (!password.equals(repassword)) {
+            response.getWriter().println("<h3>Password not match!</h3>");
+            response.getWriter().println("<a href='register.html'>Back</a>");
+            return;
+        }
+
+        // TẠM GIẢ LẬP ĐĂNG KÝ THÀNH CÔNG
+        response.getWriter().println("<h2>Register success!</h2>");
+        response.getWriter().println("<a href='login.html'>Go to Login</a>");
+    }
+}
+🧪 BƯỚC 3.5.3: TEST REGISTER
+1️⃣ Mở:
+http://localhost:8080/WebAppDemo/register.html
+2️⃣ Test sai password
+pass: 123
+
+repass: 456
+
+👉 Báo Password not match ✅
+
+3️⃣ Test đúng password
+pass: 123
+
+repass: 123
+
+👉 Báo Register success ✅
+
+🔗 BƯỚC 3.5.4: LINK LOGIN ↔ REGISTER
+👉 Mở login.html thêm dưới nút Login:
+
+<p style="text-align:center;">
+    <a href="register.html">Create new account</a>
+</p>
+🧠 TỔNG KẾT REGISTER
+✔ Trang Register riêng
+✔ Check password
+✔ Servlet xử lý
+✔ Điều hướng đúng
+✔ Sẵn sàng gắn Database
+
+🔥 Tới đây bạn đã có:
+
+Login (Session)
+
+Register
+
+Logout
+
+Home bảo vệ
+
+⏭️ BƯỚC 4 (CỰC QUAN TRỌNG NHẤT)
+👉 KẾT NỐI DATABASE (MySQL + JDBC)
+
+Register lưu DB
+
+Login đọc DB
+
+Chuẩn đồ án / bài nộp
+
+Nếu ok 👉 nói “qua bước 4”
+Nếu muốn 👉 validate dữ liệu đẹp hơn / CSS cho register
+
+Bạn đã nói:
+oke làm b4
+ChatGPT đã nói:
+Quá chuẩn 🔥
+BƯỚC 4 = TRÁI TIM CỦA WEB APP
+👉 KẾT NỐI DATABASE (JDBC) → LOGIN & REGISTER THẬT
+Mình làm rất chậm – rất rõ – đúng bài giảng FPT.
+
+🧱 BƯỚC 4: KẾT NỐI DATABASE (JDBC + MySQL)
+🎯 MỤC TIÊU BƯỚC 4
+Sau bước này, bạn sẽ:
+
+Kết nối Web App ↔ MySQL
+
+Register → lưu dữ liệu vào DB
+
+Login → kiểm tra DB
+
+Không còn hard-code
+
+🛢️ BƯỚC 4.1: TẠO DATABASE & TABLE
+👉 Mở MySQL Workbench / SQL Server (ở đây mình dùng MySQL)
+
+CREATE DATABASE webapp;
+USE webapp;
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE,
+    password VARCHAR(100)
+);
+📌 Ghi nhớ:
+
+DB name: webapp
+
+Table: users
+
+📦 BƯỚC 4.2: ADD JDBC DRIVER VÀO PROJECT
+CÁCH 1 (DỄ NHẤT – NETBEANS)
+1️⃣ Chuột phải Libraries
+2️⃣ Add JAR/Folder
+3️⃣ Chọn file:
+
+mysql-connector-j-8.x.x.jar
+4️⃣ OK
+
+👉 Nếu chưa có file .jar → nói mình, mình chỉ link đúng bản
+
+🔌 BƯỚC 4.3: TẠO CLASS KẾT NỐI DB
+1️⃣ Tạo package
+👉 Source Packages → New → Java Package
+
+Name: util
+
+2️⃣ Tạo DBConnection.java
+package util;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class DBConnection {
+
+    public static Connection getConnection() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            return DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/webapp",
+                "root",
+                "YOUR_PASSWORD"
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
+⚠️ Thay:
+
+YOUR_PASSWORD = mật khẩu MySQL của bạn
+
+👤 BƯỚC 4.4: TẠO MODEL USER
+👉 Tạo package model
+
+User.java
+package model;
+
+public class User {
+    private int id;
+    private String username;
+    private String password;
+
+    public User() {}
+
+    public User(String username, String password) {
+        this.username = username;
+        this.password = password;
+    }
+
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+}
+🗄️ BƯỚC 4.5: DAO – LÀM VIỆC VỚI DB
+👉 Tạo package dao
+
+UserDAO.java
+package dao;
+
+import model.User;
+import util.DBConnection;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+public class UserDAO {
+
+    // REGISTER
+    public boolean register(User user) {
+        String sql = "INSERT INTO users(username, password) VALUES (?, ?)";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, user.getUsername());
+            ps.setString(2, user.getPassword());
+            ps.executeUpdate();
+            return true;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    // LOGIN
+    public boolean login(String username, String password) {
+        String sql = "SELECT * FROM users WHERE username=? AND password=?";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, username);
+            ps.setString(2, password);
+
+            ResultSet rs = ps.executeQuery();
+            return rs.next();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+}
+📌 Dùng PreparedStatement → chống SQL Injection (rất hay bị hỏi thi)
+
+🔁 BƯỚC 4.6: SỬA REGISTER SERVLET (LƯU DB)
+RegisterServlet.java
+@WebServlet("/register")
+public class RegisterServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+        String repassword = request.getParameter("repassword");
+
+        if (!password.equals(repassword)) {
+            response.getWriter().println("Password not match!");
+            return;
+        }
+
+        User user = new User(username, password);
+        UserDAO dao = new UserDAO();
+
+        if (dao.register(user)) {
+            response.sendRedirect("login.html");
+        } else {
+            response.getWriter().println("Register failed!");
+        }
+    }
+}
+🔐 BƯỚC 4.7: SỬA LOGIN SERVLET (ĐỌC DB)
+LoginServlet.java
+@WebServlet("/login")
+public class LoginServlet extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+
+        UserDAO dao = new UserDAO();
+
+        if (dao.login(username, password)) {
+            HttpSession session = request.getSession();
+            session.setAttribute("user", username);
+            response.sendRedirect("home");
+        } else {
+            response.sendRedirect("login.html");
+        }
+    }
+}
+🧪 BƯỚC 4.8: TEST TOÀN BỘ
+✅ TEST REGISTER
+Mở register.html
+
+Tạo tài khoản
+
+Check DB:
+
+SELECT * FROM users;
+👉 Có dữ liệu = OK
+
+✅ TEST LOGIN
+Login bằng tài khoản vừa tạo
+
+Vào /home
+
+Logout
+
+Login lại
+
+👉 Mượt = DONE 🎉
+
+🧠 TỔNG KẾT BƯỚC 4
+✔ JDBC kết nối thành công
+✔ Register lưu DB
+✔ Login đọc DB
+✔ Session hoạt động
+✔ Chuẩn bài Web App MVC
+
+⏭️ BƯỚC 5 (NEXT LEVEL)
+👉 CRUD USER (LIST / ADD / EDIT / DELETE)
+👉 Hoặc CHUYỂN SANG JSP ĐỂ GIAO DIỆN ĐẸP + CHUẨN MVC
+
+Bạn muốn:
+
+5A: CRUD USER
+
+5B: JSP + MVC đúng chuẩn thầy chấm
+
+Nói mình chọn A hay B, mình làm tiếp liền 🚀
+
+Bạn đã nói:
+Đã tải lên một tệp
+link database tới file này
+ChatGPT đã nói:
+Ok, mình hiểu câu “link database tới file này” là bạn đang hỏi:
+
+👉 làm sao để dùng file script.sql bạn có → tạo DB → rồi web app Java (JDBC) kết nối đúng vào DB đó
+
+Mình làm cụ thể 100%, không mơ hồ.
+
+🧩 TỔNG QUAN LUỒNG
+script.sql  ──▶  MySQL (tạo DB + table)
+                         ▲
+                         │
+                 DBConnection.java
+                         ▲
+                         │
+                   DAO / Servlet
+🥇 BƯỚC 1: IMPORT FILE script.sql VÀO DATABASE
+CÁCH 1: DÙNG MYSQL WORKBENCH (DỄ NHẤT)
+1️⃣ Mở MySQL Workbench
+→ Kết nối MySQL
+
+2️⃣ File → Open SQL Script
+→ Mở file script.sql
+
+(hoặc copy toàn bộ nội dung file đó)
+
+3️⃣ Bấm ⚡ Execute
+👉 Sau khi chạy xong, kiểm tra:
+
+SHOW DATABASES;
+Nếu thấy DB (ví dụ: webapp) → OK
+
+CÁCH 2: DÙNG COMMAND LINE (nếu cần)
+mysql -u root -p
+SOURCE đường_dẫn/script.sql;
+🥈 BƯỚC 2: XÁC ĐỊNH CHÍNH XÁC DB NAME & TABLE
+Mở script.sql, tìm mấy dòng kiểu như:
+
+CREATE DATABASE webapp;
+USE webapp;
+
+CREATE TABLE users (
+    ...
+);
+📌 Ghi lại 3 thứ BẮT BUỘC:
+
+Database name: webapp
+
+Table name: users
+
+Các cột: username, password, …
+
+👉 DBConnection phải khớp 100%
+
+🥉 BƯỚC 3: LINK DATABASE TRONG DBConnection.java
+Mở file:
+
+Source Packages
+└── util
+    └── DBConnection.java
+Code CHUẨN (MySQL):
+package util;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class DBConnection {
+
+    public static Connection getConnection() {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            String url = "jdbc:mysql://localhost:3306/webapp?useSSL=false&serverTimezone=UTC";
+            String user = "root";
+            String pass = "YOUR_PASSWORD";
+
+            return DriverManager.getConnection(url, user, pass);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
+🔴 BẮT BUỘC sửa 2 chỗ:
+
+webapp → đúng tên DB trong script.sql
+
+YOUR_PASSWORD → mật khẩu MySQL máy bạn
+
+🧪 BƯỚC 4: TEST RIÊNG KẾT NỐI DATABASE (RẤT QUAN TRỌNG)
+👉 Tạo class test (chỉ để test DB):
+
+TestDB.java
+public class TestDB {
+    public static void main(String[] args) {
+        if (DBConnection.getConnection() != null) {
+            System.out.println("✅ CONNECT DB SUCCESS");
+        } else {
+            System.out.println("❌ CONNECT DB FAILED");
+        }
+    }
+}
+▶️ Run file này
+
+Ra CONNECT DB SUCCESS → DB link OK
+
+Fail → 99% là sai user / password / db name
+
+🧠 BƯỚC 5: LINK DB VÀO DAO (BẠN ĐÃ LÀM)
+Trong UserDAO.java:
+
+Connection conn = DBConnection.getConnection();
+👉 Chỗ này chính là điểm link DB vào web app
+
+❌ LỖI RẤT HAY GẶP (XEM CÁI NÀO DÍNH)
+Lỗi	Nguyên nhân
+Communications link failure	MySQL chưa chạy
+Access denied for user	Sai user / password
+Unknown database	Sai tên DB
+No suitable driver	Chưa add mysql-connector
+✅ TÓM GỌN 1 CÂU
+File script.sql chỉ dùng để tạo DB → Web App link DB thông qua DBConnection.java
+
+👉 Giờ mình hỏi 1 câu để làm tiếp cho CHUẨN:
+Trong script.sql DB tên là gì? (webapp hay tên khác)
+
+Trả lời xong mình chỉnh lại DBConnection cho khớp 100% với file của bạn 👌
+
+Bạn đã nói:
+dùng SQL server đi
+ChatGPT đã nói:
+Ok 👍 chuyển hẳn sang SQL Server, mình làm lại BƯỚC 4 nhưng đúng chuẩn SQL Server + Tomcat + JDBC, cực kỳ rõ để bạn link DB là chạy liền.
+
+🧱 BƯỚC 4 (SQL SERVER): LINK DATABASE VÀO WEB APP
+🎯 MỤC TIÊU
+Dùng SQL Server (không MySQL)
+
+Import file .sql
+
+Kết nối bằng JDBC
+
+Login / Register chạy bằng DB thật
+
+🥇 BƯỚC 4.1: IMPORT FILE .sql VÀO SQL SERVER
+1️⃣ Mở SQL Server Management Studio (SSMS)
+→ Connect vào SQL Server
+
+2️⃣ Chọn database (hoặc tạo mới)
+Ví dụ tạo DB mới:
+
+CREATE DATABASE WebAppDB;
+GO
+USE WebAppDB;
+3️⃣ Mở file .sql
+File → Open → File
+
+Chọn file script của bạn
+
+Bấm Execute
+
+👉 Kiểm tra:
+
+SELECT * FROM users;
+Nếu chạy được → DB OK
+
+🥈 BƯỚC 4.2: TẢI JDBC DRIVER CHO SQL SERVER
+Bạn BẮT BUỘC phải có file này:
+
+👉 mssql-jdbc-12.x.x.jre8.jar
+(nếu JDK 8)
+
+Add vào NetBeans:
+Chuột phải Libraries
+
+Add JAR/Folder
+
+Chọn file mssql-jdbc-12.x.x.jre8.jar
+
+OK
+
+❌ Không có driver → KHÔNG BAO GIỜ CONNECT ĐƯỢC
+
+🥉 BƯỚC 4.3: CẤU HÌNH SQL SERVER (QUAN TRỌNG)
+✅ 1. Bật TCP/IP
+SQL Server Configuration Manager
+
+SQL Server Network Configuration
+
+Protocols for MSSQLSERVER
+
+Enable TCP/IP
+
+Restart SQL Server
+
+✅ 2. Port (thường là 1433)
+Kiểm tra trong TCP/IP → IPAll → TCP Port
+
+🟦 BƯỚC 4.4: TẠO DBConnection.java (SQL SERVER)
+👉 SỬA FILE NÀY, không dùng MySQL nữa.
+
+package util;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class DBConnection {
+
+    public static Connection getConnection() {
+        try {
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+
+            String url = "jdbc:sqlserver://localhost:1433;"
+                       + "databaseName=WebAppDB;"
+                       + "encrypt=true;"
+                       + "trustServerCertificate=true";
+
+            String user = "sa";          // hoặc user SQL của bạn
+            String pass = "YOUR_PASSWORD";
+
+            return DriverManager.getConnection(url, user, pass);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
+🔴 BẮT BUỘC chỉnh đúng:
+
+WebAppDB → đúng tên DB
+
+user / pass → đúng tài khoản SQL Server
+
+🧪 BƯỚC 4.5: TEST RIÊNG KẾT NỐI DB
+👉 Tạo class test (Java Application):
+
+public class TestDB {
+    public static void main(String[] args) {
+        if (DBConnection.getConnection() != null) {
+            System.out.println("✅ SQL SERVER CONNECT OK");
+        } else {
+            System.out.println("❌ CONNECT FAILED");
+        }
+    }
+}
+▶ Run file này
+
+Ra CONNECT OK → DB link thành công
+
+Fail → xem lỗi đỏ trong Output
+
+🗄️ BƯỚC 4.6: DAO (KHÔNG ĐỔI GÌ NHIỀU)
+UserDAO.java (SQL Server vẫn dùng y chang)
+String sql = "SELECT * FROM users WHERE username=? AND password=?";
+📌 SQL Server + JDBC vẫn dùng PreparedStatement như MySQL.
+
+🔁 BƯỚC 4.7: TEST LOGIN / REGISTER
+Register:
+Mở register.html
+
+Tạo user
+
+Check DB:
+
+SELECT * FROM users;
+Login:
+Login user vừa tạo
+
+Vào /home
+
+Logout
+
+Login lại
+
+❌ LỖI SQL SERVER RẤT HAY GẶP
+Lỗi	Nguyên nhân
+Login failed for user	Sai user / password
+The TCP/IP connection	Chưa bật TCP/IP
+No suitable driver	Chưa add JDBC jar
+Invalid column name	Tên cột sai
+✅ TÓM TẮT 1 DÒNG
+SQL Server chỉ khác MySQL ở DRIVER + URL, còn Servlet / DAO giữ nguyên.
+
+👉 Giờ cho mình biết:
+1️⃣ Tên database trong SQL Server
+2️⃣ Tên table user (users hay khác)
+3️⃣ Bạn dùng login SQL (sa) hay Windows Auth
+
+👉 Mình sẽ chỉnh DBConnection + SQL cho khớp 100% DB của bạn, không lệch 1 chữ 💪
+
+Bạn đã nói:
+link database đã có sẵn thì làm sao
+ChatGPT đã nói:
+À ok, database đã có sẵn trong SQL Server thì mình chỉ cần link (connect) tới nó, KHÔNG cần tạo lại DB 👍
+Mình làm từng bước cho dễ theo nha (theo kiểu Java Web/JDBC + SQL Server).
+
+✅ Bước 1: Chuẩn bị JDBC Driver cho SQL Server
+Nếu dùng NetBeans / Eclipse:
+
+👉 Tải Microsoft JDBC Driver for SQL Server
+
+File thường là: mssql-jdbc-<version>.jar
+
+👉 Add vào project:
+
+NetBeans:
+Project → Libraries → Add JAR/Folder
+
+Maven thì thêm dependency (nếu cần mình viết cho)
+
+✅ Bước 2: Xác định thông tin database có sẵn
+Giả sử:
+
+Server: localhost
+
+Port: 1433
+
+Database name: MyDatabase
+
+Username: sa
+
+Password: 123456
+
+👉 KHÔNG cần script.sql nữa nếu DB đã tồn tại.
+
+✅ Bước 3: Viết class kết nối Database (DBUtil / DBContext)
+package utils;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+
+public class DBContext {
+
+    public static Connection getConnection() {
+        try {
+            Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+
+            String url = "jdbc:sqlserver://localhost:1433;"
+                       + "databaseName=MyDatabase;"
+                       + "encrypt=true;trustServerCertificate=true";
+
+            String user = "sa";
+            String pass = "123456";
+
+            return DriverManager.getConnection(url, user, pass);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+}
+📌 Quan trọng:
+
+databaseName=MyDatabase → tên DB đã có
+
+encrypt=true;trustServerCertificate=true → tránh lỗi SSL
+
+✅ Bước 4: Test kết nối DB
+Tạo file test nhanh:
+
+public class TestDB {
+    public static void main(String[] args) {
+        if (DBContext.getConnection() != null) {
+            System.out.println("✅ Kết nối SQL Server thành công");
+        } else {
+            System.out.println("❌ Kết nối thất bại");
+        }
+    }
+}
+👉 Run thử, thấy dòng thành công là OK 🎉
+
+✅ Bước 5: Dùng DB trong Register / Login (ví dụ)
+Ví dụ insert user (register):
+
+String sql = "INSERT INTO Users(username, password, email) VALUES (?, ?, ?)";
+
+Connection conn = DBContext.getConnection();
+PreparedStatement ps = conn.prepareStatement(sql);
+
+ps.setString(1, username);
+ps.setString(2, password);
+ps.setString(3, email);
+
+ps.executeUpdate();
+📌 Chỉ cần đảm bảo:
+
+Bảng Users đã tồn tại
+
+Tên cột đúng 100% với SQL Server
+
+⚠️ Lỗi hay gặp & cách sửa nhanh
+❌ Cannot open database requested by the login
+👉 Sai databaseName
+
+❌ Login failed for user
+👉 Sai user / password SQL Server
+
+❌ Driver not found
+👉 Chưa add mssql-jdbc.jar
+
+👉 Giờ mình có thể làm tiếp cho bạn:
+1️⃣ Link DB trực tiếp vào RegisterServlet
+2️⃣ Viết DAO class chuẩn MVC
+3️⃣ Check trùng username/email khi register
+4️⃣ Hash password
+5️⃣ Hoàn chỉnh flow Register → Login
+
+👉 Bạn đang làm Web JSP/Servlet hay Java thuần? Nói mình biết để làm đúng form cho bạn 👌
+
+
+
+
+No file chosenNo file chosen
+ChatGPT có thể mắc lỗi. Hãy kiểm tra các thông tin quan trọng. Vui lòng tham khảo Tùy chọn cookie.
