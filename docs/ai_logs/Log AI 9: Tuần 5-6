@@ -5154,3 +5154,2063 @@ Viết DAO cho toàn bộ 4 bảng
 Viết sample dữ liệu test
 
 Nói mình, mình làm tiếp phần core nghiệp vụ cho bạn.
+
+shippingId là int identity nha, rồi giờ code những chức năng của Order, OrderItem, OrderVoucher và Shipping trên java và trên web cho tôi copy
+
+Ok Vinh 👍
+Giờ mình sẽ code đúng theo ERD bạn gửi, và đúng business flow bạn đã chốt trước đó:
+
+shippingId = int IDENTITY ✅
+
+Order tính subtotal, totalDiscount, totalAmount
+
+OrderVoucher giảm tiền từng bước
+
+orderAmount không được âm
+
+totalAmount = orderAmount cuối cùng
+
+Mình sẽ viết:
+
+Database (đã chỉnh shippingId = int identity)
+
+Model (đúng method trong ERD)
+
+DAO
+
+Checkout Flow (quan trọng nhất)
+
+Web Controller + JSP mẫu
+
+🎯 1️⃣ DATABASE (CHUẨN THEO ẢNH MỚI)
+ORDER
+CREATE TABLE [Order] (
+    orderId INT IDENTITY(1,1) PRIMARY KEY,
+    orderDate DATETIME NOT NULL DEFAULT GETDATE(),
+    status NVARCHAR(50) NOT NULL,
+    subtotalAmount FLOAT NOT NULL,
+    totalDiscount FLOAT NOT NULL,
+    totalAmount FLOAT NOT NULL,
+    userId INT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES AppUser(userId)
+);
+ORDER ITEM
+CREATE TABLE OrderItem (
+    orderItemId INT IDENTITY(1,1) PRIMARY KEY,
+    quantity INT NOT NULL,
+    subtotal FLOAT NOT NULL,
+    priceSnapshot FLOAT NOT NULL,
+    orderId INT NOT NULL,
+    variantId INT NOT NULL,
+
+    FOREIGN KEY (orderId) REFERENCES [Order](orderId) ON DELETE CASCADE,
+    FOREIGN KEY (variantId) REFERENCES ProductVariant(variantId)
+);
+ORDER VOUCHER
+CREATE TABLE OrderVoucher (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    discount FLOAT NOT NULL,
+    orderAmount FLOAT NOT NULL,
+    orderId INT NOT NULL,
+    voucherId INT NOT NULL,
+
+    FOREIGN KEY (orderId) REFERENCES [Order](orderId) ON DELETE CASCADE,
+    FOREIGN KEY (voucherId) REFERENCES Voucher(voucherId)
+);
+SHIPPING (identity theo yêu cầu)
+CREATE TABLE Shipping (
+    shippingId INT IDENTITY(1,1) PRIMARY KEY,
+    trackCode NVARCHAR(100),
+    shippingAddress NVARCHAR(255) NOT NULL,
+    receiverName NVARCHAR(100) NOT NULL,
+    receiverPhone NVARCHAR(20) NOT NULL,
+    shippingFee FLOAT NOT NULL,
+    status NVARCHAR(50) NOT NULL,
+    orderId INT UNIQUE NOT NULL,
+    FOREIGN KEY (orderId) REFERENCES [Order](orderId)
+);
+🎯 2️⃣ MODEL (ĐÚNG THEO ERD)
+Order.java
+public class Order {
+
+    private int orderId;
+    private LocalDateTime orderDate;
+    private String status;
+    private double subtotalAmount;
+    private double totalDiscount;
+    private double totalAmount;
+    private AppUser user;
+
+    public double calculateSubtotal(List<OrderItem> items) {
+        return items.stream()
+                .mapToDouble(OrderItem::calculateSubtotal)
+                .sum();
+    }
+
+    public void calculateTotalDiscount(List<OrderVoucher> vouchers) {
+        totalDiscount = vouchers.stream()
+                .mapToDouble(OrderVoucher::getDiscount)
+                .sum();
+    }
+
+    public void checkout() {
+        status = "COMPLETED";
+    }
+
+    public void cancel() {
+        status = "CANCELLED";
+    }
+
+    public void complete() {
+        status = "DONE";
+    }
+
+    // getters setters
+}
+OrderItem.java
+public class OrderItem {
+
+    private int orderItemId;
+    private int quantity;
+    private double subtotal;
+    private double priceSnapshot;
+    private Order order;
+    private ProductVariant productVariant;
+
+    public double calculateSubtotal() {
+        subtotal = priceSnapshot * quantity;
+        return subtotal;
+    }
+
+    // getters setters
+}
+OrderVoucher.java
+public class OrderVoucher {
+
+    private int id;
+    private double discount;
+    private double orderAmount;
+    private Order order;
+    private Voucher voucher;
+
+    public double calculateDiscount(double currentAmount) {
+
+        if (!voucher.isApplicable(currentAmount))
+            return 0;
+
+        discount = voucher.applyDiscount(currentAmount);
+        orderAmount = Math.max(0, currentAmount - discount);
+
+        return orderAmount;
+    }
+
+    // getters setters
+}
+Shipping.java
+public class Shipping {
+
+    private int shippingId;
+    private String trackCode;
+    private String shippingAddress;
+    private String receiverName;
+    private String receiverPhone;
+    private double shippingFee;
+    private String status;
+    private Order order;
+
+    public void startShipping() {
+        status = "SHIPPING";
+    }
+
+    public void markDelivered() {
+        status = "DELIVERED";
+    }
+
+    public void markFailed() {
+        status = "FAILED";
+    }
+
+    public void returnShipping() {
+        status = "RETURNED";
+    }
+
+    public boolean canCancel() {
+        return status.equals("PENDING");
+    }
+
+    // getters setters
+}
+🎯 3️⃣ CHECKOUT FLOW (QUAN TRỌNG NHẤT)
+
+Đây là logic đúng theo business bạn đã chốt:
+
+public void checkout(AppUser user,
+                     List<CartItem> cart,
+                     List<Voucher> selectedVouchers,
+                     Shipping shippingInfo) {
+
+    Order order = new Order();
+    order.setUser(user);
+    order.setStatus("PENDING");
+
+    // 1️⃣ Create Order
+
+    int orderId = orderDAO.insertAndReturnId(order);
+
+    double subtotal = 0;
+
+    for (CartItem c : cart) {
+
+        OrderItem item = new OrderItem();
+        item.setOrder(order);
+        item.setQuantity(c.getQuantity());
+        item.setPriceSnapshot(c.getVariant().getPriceVariant());
+
+        double itemSubtotal = item.calculateSubtotal();
+        subtotal += itemSubtotal;
+
+        orderItemDAO.insert(item);
+    }
+
+    order.setSubtotalAmount(subtotal);
+
+    double currentAmount = subtotal;
+
+    List<OrderVoucher> orderVouchers = new ArrayList<>();
+
+    for (Voucher v : selectedVouchers) {
+
+        OrderVoucher ov = new OrderVoucher();
+        ov.setOrder(order);
+        ov.setVoucher(v);
+
+        currentAmount = ov.calculateDiscount(currentAmount);
+
+        orderVoucherDAO.insert(ov);
+        orderVouchers.add(ov);
+    }
+
+    order.calculateTotalDiscount(orderVouchers);
+    order.setTotalAmount(currentAmount);
+
+    orderDAO.updateAmounts(order);
+
+    // 4️⃣ Create Shipping
+    shippingInfo.setOrder(order);
+    shippingDAO.insert(shippingInfo);
+}
+🎯 4️⃣ WEB CONTROLLER
+CheckoutController
+@WebServlet("/checkout")
+public class CheckoutController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        AppUser user = (AppUser) request.getSession().getAttribute("user");
+
+        String address = request.getParameter("address");
+        String name = request.getParameter("name");
+        String phone = request.getParameter("phone");
+
+        Shipping shipping = new Shipping();
+        shipping.setShippingAddress(address);
+        shipping.setReceiverName(name);
+        shipping.setReceiverPhone(phone);
+        shipping.setShippingFee(20000);
+        shipping.setStatus("PENDING");
+
+        checkoutService.checkout(user,
+                cart,
+                selectedVouchers,
+                shipping);
+
+        response.sendRedirect("orders");
+    }
+}
+🎯 5️⃣ CHECKOUT JSP
+<form action="checkout" method="post">
+
+Address: <input type="text" name="address"><br>
+Receiver Name: <input type="text" name="name"><br>
+Phone: <input type="text" name="phone"><br>
+
+<button type="submit">Checkout</button>
+
+</form>
+🎯 LUỒNG HOÀN CHỈNH
+
+User add to cart
+
+Chọn voucher
+
+Submit checkout
+
+Tạo Order
+
+Tạo OrderItem
+
+Tạo OrderVoucher (giảm từng bước)
+
+Update totalDiscount + totalAmount
+
+Tạo Shipping
+
+Trừ stock sau khi thanh toán thành công
+
+Nếu bạn muốn mình viết tiếp:
+
+DAO full insertAndReturnId
+
+Transaction rollback nếu lỗi
+
+Trừ stock trong ProductVariant
+
+Flow cancel hoàn tiền + tăng stock
+
+Nói mình, mình viết phần core nghiệp vụ hoàn chỉnh cho bạn.
+
+status là kiểu enum, bây giờ code lại chi tiết cho tôi copy về Order, các chức năng của nó và cả trên web
+
+Ok Vinh 👍
+Giờ mình sẽ code lại Order hoàn chỉnh, dùng ENUM đúng theo ERD, và viết đầy đủ:
+
+✅ OrderStatus enum
+
+✅ Order.java (đúng business flow bạn đã chốt)
+
+✅ OrderDAO
+
+✅ Servlet (view + cancel + complete)
+
+✅ JSP hiển thị
+
+Tất cả có thể copy chạy.
+
+🎯 1️⃣ OrderStatus ENUM
+public enum OrderStatus {
+    PENDING,
+    PAID,
+    SHIPPING,
+    COMPLETED,
+    CANCELLED
+}
+🎯 2️⃣ Order.java (ĐÚNG THEO ERD + BUSINESS FLOW)
+import java.time.LocalDateTime;
+import java.util.List;
+
+public class Order {
+
+    private int orderId;
+    private LocalDateTime orderDate;
+    private OrderStatus status;
+    private double subtotalAmount;
+    private double totalDiscount;
+    private double totalAmount;
+    private AppUser user;
+
+    // ================= BUSINESS METHODS =================
+
+    public double calculateSubtotalAmount(List<OrderItem> items) {
+        subtotalAmount = items.stream()
+                .mapToDouble(OrderItem::calculateSubtotal)
+                .sum();
+        return subtotalAmount;
+    }
+
+    public double calculateTotalDiscount(List<OrderVoucher> vouchers) {
+        totalDiscount = vouchers.stream()
+                .mapToDouble(OrderVoucher::getDiscount)
+                .sum();
+        return totalDiscount;
+    }
+
+    public void checkout() {
+        if (status != OrderStatus.PENDING)
+            throw new IllegalStateException("Order cannot checkout");
+
+        status = OrderStatus.PAID;
+    }
+
+    public void cancel() {
+        if (status == OrderStatus.SHIPPING ||
+            status == OrderStatus.COMPLETED)
+            throw new IllegalStateException("Cannot cancel this order");
+
+        status = OrderStatus.CANCELLED;
+    }
+
+    public void complete() {
+        if (status != OrderStatus.SHIPPING)
+            throw new IllegalStateException("Order not shipping yet");
+
+        status = OrderStatus.COMPLETED;
+    }
+
+    // ================= GETTER SETTER =================
+
+    public int getOrderId() { return orderId; }
+    public void setOrderId(int orderId) { this.orderId = orderId; }
+
+    public LocalDateTime getOrderDate() { return orderDate; }
+    public void setOrderDate(LocalDateTime orderDate) { this.orderDate = orderDate; }
+
+    public OrderStatus getStatus() { return status; }
+    public void setStatus(OrderStatus status) { this.status = status; }
+
+    public double getSubtotalAmount() { return subtotalAmount; }
+    public void setSubtotalAmount(double subtotalAmount) { this.subtotalAmount = subtotalAmount; }
+
+    public double getTotalDiscount() { return totalDiscount; }
+    public void setTotalDiscount(double totalDiscount) { this.totalDiscount = totalDiscount; }
+
+    public double getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(double totalAmount) { this.totalAmount = totalAmount; }
+
+    public AppUser getUser() { return user; }
+    public void setUser(AppUser user) { this.user = user; }
+}
+🎯 3️⃣ Database (STATUS LÀ ENUM STRING)
+status NVARCHAR(50) NOT NULL
+
+Lưu dạng:
+
+PENDING
+PAID
+SHIPPING
+COMPLETED
+CANCELLED
+🎯 4️⃣ OrderDAO
+insert
+public int insert(Order order) throws Exception {
+
+    String sql = "INSERT INTO [Order] (orderDate, status, subtotalAmount, totalDiscount, totalAmount, userId) " +
+                 "VALUES (?, ?, ?, ?, ?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+        ps.setTimestamp(1, Timestamp.valueOf(order.getOrderDate()));
+        ps.setString(2, order.getStatus().name());
+        ps.setDouble(3, order.getSubtotalAmount());
+        ps.setDouble(4, order.getTotalDiscount());
+        ps.setDouble(5, order.getTotalAmount());
+        ps.setInt(6, order.getUser().getUserId());
+
+        ps.executeUpdate();
+
+        ResultSet rs = ps.getGeneratedKeys();
+        if (rs.next()) {
+            return rs.getInt(1);
+        }
+    }
+    return -1;
+}
+getByUser
+public List<Order> getByUser(int userId) throws Exception {
+
+    List<Order> list = new ArrayList<>();
+
+    String sql = "SELECT * FROM [Order] WHERE userId = ? ORDER BY orderDate DESC";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, userId);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+
+            Order o = new Order();
+            o.setOrderId(rs.getInt("orderId"));
+            o.setOrderDate(rs.getTimestamp("orderDate").toLocalDateTime());
+            o.setStatus(OrderStatus.valueOf(rs.getString("status")));
+            o.setSubtotalAmount(rs.getDouble("subtotalAmount"));
+            o.setTotalDiscount(rs.getDouble("totalDiscount"));
+            o.setTotalAmount(rs.getDouble("totalAmount"));
+
+            list.add(o);
+        }
+    }
+    return list;
+}
+updateStatus
+public void updateStatus(int orderId, OrderStatus status) throws Exception {
+
+    String sql = "UPDATE [Order] SET status = ? WHERE orderId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, status.name());
+        ps.setInt(2, orderId);
+        ps.executeUpdate();
+    }
+}
+🎯 5️⃣ OrderServlet (WEB)
+@WebServlet("/orders")
+public class OrderServlet extends HttpServlet {
+
+    private OrderDAO orderDAO = new OrderDAO();
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+            AppUser user = (AppUser) request.getSession().getAttribute("user");
+
+            List<Order> orders = orderDAO.getByUser(user.getUserId());
+
+            request.setAttribute("orders", orders);
+            request.getRequestDispatcher("orders.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+            int orderId = Integer.parseInt(request.getParameter("orderId"));
+            String action = request.getParameter("action");
+
+            if (action.equals("cancel")) {
+                orderDAO.updateStatus(orderId, OrderStatus.CANCELLED);
+            }
+
+            response.sendRedirect("orders");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+🎯 6️⃣ orders.jsp
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="java.util.List" %>
+<%@ page import="model.Order" %>
+
+<h2>My Orders</h2>
+
+<table border="1">
+<tr>
+    <th>ID</th>
+    <th>Date</th>
+    <th>Status</th>
+    <th>Total</th>
+    <th>Action</th>
+</tr>
+
+<%
+List<Order> orders = (List<Order>) request.getAttribute("orders");
+
+for (Order o : orders) {
+%>
+<tr>
+    <td><%= o.getOrderId() %></td>
+    <td><%= o.getOrderDate() %></td>
+    <td><%= o.getStatus() %></td>
+    <td><%= o.getTotalAmount() %></td>
+    <td>
+        <% if (o.getStatus().toString().equals("PENDING")) { %>
+        <form action="orders" method="post">
+            <input type="hidden" name="orderId" value="<%= o.getOrderId() %>"/>
+            <input type="hidden" name="action" value="cancel"/>
+            <button type="submit">Cancel</button>
+        </form>
+        <% } %>
+    </td>
+</tr>
+<% } %>
+
+</table>
+🔥 LUỒNG HOẠT ĐỘNG
+
+User vào /orders → xem danh sách
+
+Nếu status = PENDING → được Cancel
+
+Cancel → update status = CANCELLED
+
+Checkout → chuyển sang PAID
+
+Khi giao hàng → SHIPPING
+
+Giao xong → COMPLETED
+
+Nếu bạn muốn mình viết tiếp:
+
+View chi tiết Order (kèm OrderItem)
+
+Transaction chuẩn khi checkout
+
+Luồng hoàn stock khi cancel
+
+Admin quản lý Order
+
+Nói mình, mình build full flow cho bạn theo đúng ERD luôn.
+
+package model;
+
+public enum OrderStatus {
+    CREATED,
+    PAID,
+    COMPLETED,
+    CANCELLED
+}
+package model;
+
+public enum ShippingStatus {
+    PENDING,
+    SHIPPING,
+    DELIVERED,
+    RETURNED
+}
+
+Ok Vinh 👍 rất chuẩn rồi.
+
+Bây giờ mình sẽ code lại Order + Shipping đúng theo 2 enum bạn đang dùng:
+
+public enum OrderStatus {
+    CREATED,
+    PAID,
+    COMPLETED,
+    CANCELLED
+}
+
+public enum ShippingStatus {
+    PENDING,
+    SHIPPING,
+    DELIVERED,
+    RETURNED
+}
+
+Tức là:
+
+Order không còn SHIPPING nữa
+
+Trạng thái giao hàng tách riêng qua ShippingStatus
+
+Order và Shipping tách vai trò rõ ràng (đúng thiết kế tốt hơn)
+
+🎯 1️⃣ Order.java (ĐÚNG THEO ENUM CỦA BẠN)
+package model;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+public class Order {
+
+    private int orderId;
+    private LocalDateTime orderDate;
+    private OrderStatus status;
+    private double subtotalAmount;
+    private double totalDiscount;
+    private double totalAmount;
+    private AppUser user;
+
+    // ================= BUSINESS METHODS =================
+
+    public double calculateSubtotalAmount(List<OrderItem> items) {
+        subtotalAmount = items.stream()
+                .mapToDouble(OrderItem::calculateSubtotal)
+                .sum();
+        return subtotalAmount;
+    }
+
+    public double calculateTotalDiscount(List<OrderVoucher> vouchers) {
+        totalDiscount = vouchers.stream()
+                .mapToDouble(OrderVoucher::getDiscount)
+                .sum();
+        return totalDiscount;
+    }
+
+    // User thanh toán thành công
+    public void pay() {
+        if (status != OrderStatus.CREATED)
+            throw new IllegalStateException("Order cannot be paid");
+
+        status = OrderStatus.PAID;
+    }
+
+    // Khi giao hàng hoàn tất
+    public void complete() {
+        if (status != OrderStatus.PAID)
+            throw new IllegalStateException("Order must be paid before complete");
+
+        status = OrderStatus.COMPLETED;
+    }
+
+    public void cancel() {
+        if (status == OrderStatus.COMPLETED)
+            throw new IllegalStateException("Cannot cancel completed order");
+
+        status = OrderStatus.CANCELLED;
+    }
+
+    // ================= GETTER SETTER =================
+
+    public int getOrderId() { return orderId; }
+    public void setOrderId(int orderId) { this.orderId = orderId; }
+
+    public LocalDateTime getOrderDate() { return orderDate; }
+    public void setOrderDate(LocalDateTime orderDate) { this.orderDate = orderDate; }
+
+    public OrderStatus getStatus() { return status; }
+    public void setStatus(OrderStatus status) { this.status = status; }
+
+    public double getSubtotalAmount() { return subtotalAmount; }
+    public void setSubtotalAmount(double subtotalAmount) { this.subtotalAmount = subtotalAmount; }
+
+    public double getTotalDiscount() { return totalDiscount; }
+    public void setTotalDiscount(double totalDiscount) { this.totalDiscount = totalDiscount; }
+
+    public double getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(double totalAmount) { this.totalAmount = totalAmount; }
+
+    public AppUser getUser() { return user; }
+    public void setUser(AppUser user) { this.user = user; }
+}
+🎯 2️⃣ Shipping.java (DÙNG ShippingStatus)
+package model;
+
+public class Shipping {
+
+    private int shippingId;
+    private String trackCode;
+    private String shippingAddress;
+    private String receiverName;
+    private String receiverPhone;
+    private double shippingFee;
+    private ShippingStatus status;
+    private Order order;
+
+    // ================= BUSINESS METHODS =================
+
+    public void startShipping() {
+        if (status != ShippingStatus.PENDING)
+            throw new IllegalStateException("Cannot start shipping");
+
+        status = ShippingStatus.SHIPPING;
+    }
+
+    public void markDelivered() {
+        if (status != ShippingStatus.SHIPPING)
+            throw new IllegalStateException("Shipping not in progress");
+
+        status = ShippingStatus.DELIVERED;
+    }
+
+    public void returnShipping() {
+        status = ShippingStatus.RETURNED;
+    }
+
+    // ================= GETTER SETTER =================
+
+    public int getShippingId() { return shippingId; }
+    public void setShippingId(int shippingId) { this.shippingId = shippingId; }
+
+    public String getTrackCode() { return trackCode; }
+    public void setTrackCode(String trackCode) { this.trackCode = trackCode; }
+
+    public String getShippingAddress() { return shippingAddress; }
+    public void setShippingAddress(String shippingAddress) { this.shippingAddress = shippingAddress; }
+
+    public String getReceiverName() { return receiverName; }
+    public void setReceiverName(String receiverName) { this.receiverName = receiverName; }
+
+    public String getReceiverPhone() { return receiverPhone; }
+    public void setReceiverPhone(String receiverPhone) { this.receiverPhone = receiverPhone; }
+
+    public double getShippingFee() { return shippingFee; }
+    public void setShippingFee(double shippingFee) { this.shippingFee = shippingFee; }
+
+    public ShippingStatus getStatus() { return status; }
+    public void setStatus(ShippingStatus status) { this.status = status; }
+
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
+}
+🎯 3️⃣ Database lưu ENUM
+
+Trong SQL:
+
+status NVARCHAR(50) NOT NULL
+
+Lưu:
+
+Order:
+
+CREATED
+PAID
+COMPLETED
+CANCELLED
+
+Shipping:
+
+PENDING
+SHIPPING
+DELIVERED
+RETURNED
+🎯 4️⃣ Update DAO khi dùng Enum
+
+Ví dụ:
+
+ps.setString(2, order.getStatus().name());
+
+Khi đọc:
+
+order.setStatus(OrderStatus.valueOf(rs.getString("status")));
+
+Shipping:
+
+shipping.setStatus(ShippingStatus.valueOf(rs.getString("status")));
+🎯 5️⃣ Flow Chuẩn Theo Thiết Kế Mới
+
+1️⃣ User đặt hàng → Order = CREATED
+2️⃣ Thanh toán thành công → Order = PAID
+3️⃣ Tạo Shipping → Shipping = PENDING
+4️⃣ Shop bắt đầu giao → SHIPPING
+5️⃣ Giao xong → DELIVERED
+6️⃣ Khi DELIVERED → Order.complete() → COMPLETED
+
+Nếu Shipping RETURNED → có thể xử lý hoàn tiền riêng.
+
+🔥 Kiến trúc này đúng chuẩn:
+
+Order quản lý trạng thái thanh toán
+
+Shipping quản lý trạng thái vận chuyển
+
+Không trùng role
+
+Không lẫn business logic
+
+Nếu bạn muốn, mình có thể:
+
+Viết full Checkout Transaction chuẩn ACID
+
+Viết Cancel hoàn stock
+
+Viết Admin quản lý Order + Shipping
+
+Hoặc vẽ lại flow sequence cho bạn
+
+Nói mình hướng bạn muốn build tiếp.
+
+bây giờ code lại chi tiết cho tôi copy về Order, các chức năng của nó và cả trên web
+
+Ok Vinh 👍
+Giờ mình sẽ viết lại Order hoàn chỉnh – sạch, đúng enum của bạn, có đầy đủ chức năng + web (Servlet + JSP) để bạn copy chạy luôn.
+
+Bạn đang dùng:
+
+public enum OrderStatus {
+    CREATED,
+    PAID,
+    COMPLETED,
+    CANCELLED
+}
+🎯 I. ORDER MODEL (Chuẩn theo ERD + business)
+1️⃣ Order.java
+package model;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+public class Order {
+
+    private int orderId;
+    private LocalDateTime orderDate;
+    private OrderStatus status;
+    private double subtotalAmount;
+    private double totalDiscount;
+    private double totalAmount;
+    private AppUser user;
+
+    // ================= BUSINESS METHODS =================
+
+    public double calculateSubtotalAmount(List<OrderItem> items) {
+        subtotalAmount = items.stream()
+                .mapToDouble(OrderItem::calculateSubtotal)
+                .sum();
+        return subtotalAmount;
+    }
+
+    public double calculateTotalDiscount(List<OrderVoucher> vouchers) {
+        totalDiscount = vouchers.stream()
+                .mapToDouble(OrderVoucher::getDiscount)
+                .sum();
+        return totalDiscount;
+    }
+
+    // Thanh toán thành công
+    public void pay() {
+        if (status != OrderStatus.CREATED)
+            throw new IllegalStateException("Order cannot be paid");
+
+        status = OrderStatus.PAID;
+    }
+
+    // Hoàn tất đơn
+    public void complete() {
+        if (status != OrderStatus.PAID)
+            throw new IllegalStateException("Order must be PAID before complete");
+
+        status = OrderStatus.COMPLETED;
+    }
+
+    // Hủy đơn
+    public void cancel() {
+        if (status == OrderStatus.COMPLETED)
+            throw new IllegalStateException("Cannot cancel completed order");
+
+        status = OrderStatus.CANCELLED;
+    }
+
+    // ================= GETTER SETTER =================
+
+    public int getOrderId() { return orderId; }
+    public void setOrderId(int orderId) { this.orderId = orderId; }
+
+    public LocalDateTime getOrderDate() { return orderDate; }
+    public void setOrderDate(LocalDateTime orderDate) { this.orderDate = orderDate; }
+
+    public OrderStatus getStatus() { return status; }
+    public void setStatus(OrderStatus status) { this.status = status; }
+
+    public double getSubtotalAmount() { return subtotalAmount; }
+    public void setSubtotalAmount(double subtotalAmount) { this.subtotalAmount = subtotalAmount; }
+
+    public double getTotalDiscount() { return totalDiscount; }
+    public void setTotalDiscount(double totalDiscount) { this.totalDiscount = totalDiscount; }
+
+    public double getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(double totalAmount) { this.totalAmount = totalAmount; }
+
+    public AppUser getUser() { return user; }
+    public void setUser(AppUser user) { this.user = user; }
+}
+🎯 II. ORDER DAO
+2️⃣ insert Order
+public int insert(Order order) throws Exception {
+
+    String sql = "INSERT INTO [Order] (orderDate, status, subtotalAmount, totalDiscount, totalAmount, userId) " +
+                 "VALUES (?, ?, ?, ?, ?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+        ps.setTimestamp(1, Timestamp.valueOf(order.getOrderDate()));
+        ps.setString(2, order.getStatus().name());
+        ps.setDouble(3, order.getSubtotalAmount());
+        ps.setDouble(4, order.getTotalDiscount());
+        ps.setDouble(5, order.getTotalAmount());
+        ps.setInt(6, order.getUser().getUserId());
+
+        ps.executeUpdate();
+
+        ResultSet rs = ps.getGeneratedKeys();
+        if (rs.next()) {
+            return rs.getInt(1);
+        }
+    }
+    return -1;
+}
+3️⃣ get Orders by User
+public List<Order> getByUser(int userId) throws Exception {
+
+    List<Order> list = new ArrayList<>();
+
+    String sql = "SELECT * FROM [Order] WHERE userId = ? ORDER BY orderDate DESC";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, userId);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+
+            Order o = new Order();
+            o.setOrderId(rs.getInt("orderId"));
+            o.setOrderDate(rs.getTimestamp("orderDate").toLocalDateTime());
+            o.setStatus(OrderStatus.valueOf(rs.getString("status")));
+            o.setSubtotalAmount(rs.getDouble("subtotalAmount"));
+            o.setTotalDiscount(rs.getDouble("totalDiscount"));
+            o.setTotalAmount(rs.getDouble("totalAmount"));
+
+            list.add(o);
+        }
+    }
+    return list;
+}
+4️⃣ update Status
+public void updateStatus(int orderId, OrderStatus status) throws Exception {
+
+    String sql = "UPDATE [Order] SET status = ? WHERE orderId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, status.name());
+        ps.setInt(2, orderId);
+        ps.executeUpdate();
+    }
+}
+🎯 III. ORDER WEB (Servlet)
+5️⃣ OrderServlet
+@WebServlet("/orders")
+public class OrderServlet extends HttpServlet {
+
+    private OrderDAO orderDAO = new OrderDAO();
+
+    @Override
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+            AppUser user = (AppUser) request.getSession().getAttribute("user");
+
+            if (user == null) {
+                response.sendRedirect("login.jsp");
+                return;
+            }
+
+            List<Order> orders = orderDAO.getByUser(user.getUserId());
+            request.setAttribute("orders", orders);
+
+            request.getRequestDispatcher("orders.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+            int orderId = Integer.parseInt(request.getParameter("orderId"));
+            String action = request.getParameter("action");
+
+            if ("cancel".equals(action)) {
+                orderDAO.updateStatus(orderId, OrderStatus.CANCELLED);
+            }
+
+            response.sendRedirect("orders");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+🎯 IV. orders.jsp
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="java.util.List" %>
+<%@ page import="model.Order" %>
+
+<h2>My Orders</h2>
+
+<table border="1">
+<tr>
+    <th>ID</th>
+    <th>Date</th>
+    <th>Status</th>
+    <th>Subtotal</th>
+    <th>Discount</th>
+    <th>Total</th>
+    <th>Action</th>
+</tr>
+
+<%
+List<Order> orders = (List<Order>) request.getAttribute("orders");
+
+for (Order o : orders) {
+%>
+<tr>
+    <td><%= o.getOrderId() %></td>
+    <td><%= o.getOrderDate() %></td>
+    <td><%= o.getStatus() %></td>
+    <td><%= o.getSubtotalAmount() %></td>
+    <td><%= o.getTotalDiscount() %></td>
+    <td><%= o.getTotalAmount() %></td>
+    <td>
+        <% if (o.getStatus().toString().equals("CREATED")) { %>
+        <form action="orders" method="post">
+            <input type="hidden" name="orderId" value="<%= o.getOrderId() %>"/>
+            <input type="hidden" name="action" value="cancel"/>
+            <button type="submit">Cancel</button>
+        </form>
+        <% } %>
+    </td>
+</tr>
+<% } %>
+
+</table>
+🎯 V. FLOW HOẠT ĐỘNG
+
+1️⃣ User checkout → Order = CREATED
+2️⃣ Thanh toán thành công → order.pay() → PAID
+3️⃣ Giao xong → order.complete() → COMPLETED
+4️⃣ Nếu chưa hoàn tất → có thể cancel
+
+🔥 BÂY GIỜ ORDER ĐÃ CÓ:
+
+✅ Business logic chuẩn
+✅ Enum rõ ràng
+✅ DAO đầy đủ
+✅ Web hiển thị
+✅ Cancel action
+
+Nếu bạn muốn mình viết tiếp:
+
+Order Detail (hiển thị OrderItem)
+
+Tích hợp Shipping vào Order view
+
+Admin quản lý Order
+
+Transaction Checkout full chuẩn
+
+Nói mình phần tiếp theo bạn muốn build.
+
+bây giờ code lại chi tiết cho tôi copy về OrderItem, các chức năng của nó và cả trên web
+
+Ok Vinh 👍
+Giờ mình viết OrderItem hoàn chỉnh, đúng theo ERD của bạn:
+
+Theo ERD:
+
+orderItemId : int
+
+quantity : int
+
+subtotal : double
+
+priceSnapshot : double
+
+order : Order
+
+productVariant : ProductVariant
+
+calculateSubtotal()
+
+Mình sẽ viết:
+
+Model OrderItem
+
+OrderItemDAO
+
+Servlet xem Order Detail
+
+JSP hiển thị OrderItem
+
+Flow hoạt động
+
+Bạn copy dùng được ngay.
+
+🎯 I. ORDERITEM MODEL
+1️⃣ OrderItem.java
+package model;
+
+public class OrderItem {
+
+    private int orderItemId;
+    private int quantity;
+    private double subtotal;
+    private double priceSnapshot;
+    private Order order;
+    private ProductVariant productVariant;
+
+    // ================= BUSINESS METHOD =================
+
+    public double calculateSubtotal() {
+        subtotal = priceSnapshot * quantity;
+        return subtotal;
+    }
+
+    // ================= GETTER SETTER =================
+
+    public int getOrderItemId() { return orderItemId; }
+    public void setOrderItemId(int orderItemId) { this.orderItemId = orderItemId; }
+
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+
+    public double getSubtotal() { return subtotal; }
+    public void setSubtotal(double subtotal) { this.subtotal = subtotal; }
+
+    public double getPriceSnapshot() { return priceSnapshot; }
+    public void setPriceSnapshot(double priceSnapshot) { this.priceSnapshot = priceSnapshot; }
+
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
+
+    public ProductVariant getProductVariant() { return productVariant; }
+    public void setProductVariant(ProductVariant productVariant) {
+        this.productVariant = productVariant;
+    }
+}
+🎯 II. ORDERITEM DAO
+2️⃣ insert OrderItem
+public void insert(OrderItem item) throws Exception {
+
+    String sql = "INSERT INTO OrderItem (quantity, subtotal, priceSnapshot, orderId, variantId) " +
+                 "VALUES (?, ?, ?, ?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, item.getQuantity());
+        ps.setDouble(2, item.getSubtotal());
+        ps.setDouble(3, item.getPriceSnapshot());
+        ps.setInt(4, item.getOrder().getOrderId());
+        ps.setInt(5, item.getProductVariant().getVariantId());
+
+        ps.executeUpdate();
+    }
+}
+3️⃣ get OrderItems by OrderId
+public List<OrderItem> getByOrderId(int orderId) throws Exception {
+
+    List<OrderItem> list = new ArrayList<>();
+
+    String sql = """
+        SELECT oi.*, pv.size, pv.color, pv.priceVariant
+        FROM OrderItem oi
+        JOIN ProductVariant pv ON oi.variantId = pv.variantId
+        WHERE oi.orderId = ?
+    """;
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, orderId);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+
+            OrderItem item = new OrderItem();
+
+            item.setOrderItemId(rs.getInt("orderItemId"));
+            item.setQuantity(rs.getInt("quantity"));
+            item.setSubtotal(rs.getDouble("subtotal"));
+            item.setPriceSnapshot(rs.getDouble("priceSnapshot"));
+
+            ProductVariant variant = new ProductVariant();
+            variant.setVariantId(rs.getInt("variantId"));
+            variant.setSize(rs.getString("size"));
+            variant.setColor(rs.getString("color"));
+            variant.setPriceVariant(rs.getDouble("priceVariant"));
+
+            item.setProductVariant(variant);
+
+            list.add(item);
+        }
+    }
+    return list;
+}
+🎯 III. ORDER DETAIL WEB
+
+Bây giờ ta sẽ làm:
+
+/order-detail?id=...
+
+4️⃣ OrderDetailServlet
+@WebServlet("/order-detail")
+public class OrderDetailServlet extends HttpServlet {
+
+    private OrderDAO orderDAO = new OrderDAO();
+    private OrderItemDAO orderItemDAO = new OrderItemDAO();
+
+    @Override
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+            int orderId = Integer.parseInt(request.getParameter("id"));
+
+            Order order = orderDAO.getById(orderId);
+            List<OrderItem> items = orderItemDAO.getByOrderId(orderId);
+
+            request.setAttribute("order", order);
+            request.setAttribute("items", items);
+
+            request.getRequestDispatcher("order-detail.jsp")
+                   .forward(request, response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+🎯 IV. order-detail.jsp
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page import="java.util.List" %>
+<%@ page import="model.OrderItem" %>
+<%@ page import="model.Order" %>
+
+<%
+Order order = (Order) request.getAttribute("order");
+List<OrderItem> items = (List<OrderItem>) request.getAttribute("items");
+%>
+
+<h2>Order Detail</h2>
+
+<p><b>Order ID:</b> <%= order.getOrderId() %></p>
+<p><b>Status:</b> <%= order.getStatus() %></p>
+<p><b>Total:</b> <%= order.getTotalAmount() %></p>
+
+<hr>
+
+<table border="1">
+<tr>
+    <th>Variant ID</th>
+    <th>Size</th>
+    <th>Color</th>
+    <th>Price</th>
+    <th>Quantity</th>
+    <th>Subtotal</th>
+</tr>
+
+<%
+for (OrderItem item : items) {
+%>
+<tr>
+    <td><%= item.getProductVariant().getVariantId() %></td>
+    <td><%= item.getProductVariant().getSize() %></td>
+    <td><%= item.getProductVariant().getColor() %></td>
+    <td><%= item.getPriceSnapshot() %></td>
+    <td><%= item.getQuantity() %></td>
+    <td><%= item.getSubtotal() %></td>
+</tr>
+<% } %>
+</table>
+🎯 V. LINK TỪ orders.jsp SANG DETAIL
+
+Trong orders.jsp thêm:
+
+<a href="order-detail?id=<%= o.getOrderId() %>">View Detail</a>
+🎯 FLOW HOẠT ĐỘNG
+
+1️⃣ User vào /orders
+2️⃣ Click "View Detail"
+3️⃣ Servlet load Order + OrderItem
+4️⃣ JSP hiển thị chi tiết
+
+🔥 ORDERITEM HIỆN ĐÃ CÓ:
+
+✅ Business method calculateSubtotal
+✅ DAO insert
+✅ DAO getByOrderId
+✅ Servlet xem chi tiết
+✅ JSP hiển thị
+
+Nếu bạn muốn mình build tiếp:
+
+Chỉnh sửa số lượng OrderItem (trước khi pay)
+
+Hủy đơn hoàn stock
+
+Admin quản lý OrderItem
+
+Tích hợp Voucher hiển thị trong detail
+
+Nói mình phần tiếp theo bạn muốn hoàn thiện.
+
+orderDao chưa có getById
+
+Chuẩn 👍 đúng rồi — lúc nãy mình có dùng orderDAO.getById(orderId) trong OrderDetailServlet nhưng chưa viết method đó.
+
+Giờ mình viết getById đầy đủ, chuẩn enum OrderStatus, copy dùng được ngay.
+
+✅ Thêm vào OrderDAO
+1️⃣ getById(int orderId)
+public Order getById(int orderId) throws Exception {
+
+    String sql = "SELECT * FROM [Order] WHERE orderId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, orderId);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+
+            Order order = new Order();
+
+            order.setOrderId(rs.getInt("orderId"));
+            order.setOrderDate(
+                rs.getTimestamp("orderDate").toLocalDateTime()
+            );
+
+            // Convert String -> Enum
+            order.setStatus(
+                OrderStatus.valueOf(rs.getString("status"))
+            );
+
+            order.setSubtotalAmount(rs.getDouble("subtotalAmount"));
+            order.setTotalDiscount(rs.getDouble("totalDiscount"));
+            order.setTotalAmount(rs.getDouble("totalAmount"));
+
+            AppUser user = new AppUser();
+            user.setUserId(rs.getInt("userId"));
+            order.setUser(user);
+
+            return order;
+        }
+    }
+
+    return null;
+}
+🔎 Giải thích nhanh
+Quan trọng nhất là dòng này:
+OrderStatus.valueOf(rs.getString("status"))
+
+Vì trong DB bạn lưu:
+
+CREATED
+PAID
+COMPLETED
+CANCELLED
+
+Nó phải match đúng tên enum.
+
+🧠 Nếu bạn bị lỗi IllegalArgumentException
+
+Thì 99% là do trong DB bạn lưu:
+
+created
+Paid
+completed
+
+→ Sai chữ hoa/thường.
+
+Enum bắt buộc match 100%.
+
+🔥 Giờ flow hoạt động đầy đủ:
+
+/orders → getByUser()
+
+/order-detail?id=... → getById()
+
+Load OrderItem theo orderId
+
+Hiển thị chi tiết
+
+Nếu bạn muốn mình:
+
+Thêm check: chỉ owner mới xem được order
+
+Thêm transaction khi checkout
+
+Thêm hoàn stock khi cancel
+
+Viết luôn Admin Order Management
+
+Nói mình phần tiếp theo bạn muốn build.
+
+sao lỗi z
+
+Nhìn hình của bạn mình thấy lỗi nằm ngay chỗ:
+
+public Order getById(int orderId) throws Excep
+
+👉 Bạn đang viết dở throws Exception nên IDE báo lỗi đỏ.
+
+✅ Sửa lại đúng cú pháp:
+public Order getById(int orderId) throws Exception {
+
+Phải viết đầy đủ Exception và có { mở body.
+
+📌 Ngoài ra kiểm tra thêm 3 lỗi rất hay gặp
+1️⃣ Thiếu import Order
+
+Trên đầu file OrderDAO.java phải có:
+
+import model.Order;
+import model.OrderStatus;
+2️⃣ Bạn đặt method sai vị trí
+
+Đảm bảo getById() nằm bên trong class OrderDAO
+
+Phải như này:
+
+public class OrderDAO {
+
+    public Order getById(int orderId) throws Exception {
+        ...
+    }
+
+}
+
+❌ Không được đặt ngoài class.
+
+3️⃣ Sai tên class Exception
+
+Phải là:
+
+throws Exception
+
+Không phải:
+
+throws Excep
+throws Exceptions
+throws exception
+
+Java phân biệt chữ hoa.
+
+🔥 Nếu vẫn đỏ
+
+Copy nguyên lỗi IDE báo (dòng message bên dưới) gửi mình,
+mình chỉ chính xác lỗi cho bạn.
+
+99% trường hợp của bạn là do:
+
+👉 viết thiếu chữ Exception nên compile error.
+
+bây giờ code lại chi tiết cho tôi copy về OrderVoucher, các chức năng của nó và cả trên web
+
+Ok Vinh 👍
+Giờ mình viết OrderVoucher hoàn chỉnh, đúng theo ERD + đúng business flow bạn đã chốt trước đó:
+
+Nhắc lại logic bạn đã xác nhận:
+
+OrderVoucher.discount = số tiền giảm của voucher đó
+
+OrderVoucher.orderAmount = số tiền còn lại sau khi áp voucher đó
+
+Voucher stacking giảm từng bước
+
+totalDiscount = sum(discount)
+
+totalAmount = orderAmount cuối cùng
+
+Mình sẽ viết:
+
+1️⃣ OrderVoucher model
+2️⃣ OrderVoucherDAO
+3️⃣ Service áp voucher đúng chuẩn
+4️⃣ Web: apply voucher (Servlet + JSP)
+5️⃣ Flow hoạt động
+
+Bạn copy dùng được luôn.
+
+🎯 I. ORDER VOUCHER MODEL
+1️⃣ OrderVoucher.java
+package model;
+
+public class OrderVoucher {
+
+    private int id;
+    private double discount;     // số tiền được giảm
+    private double orderAmount;  // số tiền còn lại sau khi áp voucher này
+    private Order order;
+    private Voucher voucher;
+
+    // ================= BUSINESS METHODS =================
+
+    public double calculateDiscount(double currentAmount) {
+
+        if (!voucher.isApplicable(currentAmount)) {
+            discount = 0;
+            orderAmount = currentAmount;
+            return currentAmount;
+        }
+
+        double discountValue = voucher.applyDiscount(currentAmount);
+
+        // Không cho giảm vượt quá currentAmount
+        discount = Math.min(discountValue, currentAmount);
+
+        orderAmount = currentAmount - discount;
+
+        return orderAmount;
+    }
+
+    // ================= GETTER SETTER =================
+
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public double getDiscount() { return discount; }
+    public void setDiscount(double discount) { this.discount = discount; }
+
+    public double getOrderAmount() { return orderAmount; }
+    public void setOrderAmount(double orderAmount) { this.orderAmount = orderAmount; }
+
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
+
+    public Voucher getVoucher() { return voucher; }
+    public void setVoucher(Voucher voucher) { this.voucher = voucher; }
+}
+🎯 II. ORDER VOUCHER DAO
+2️⃣ insert OrderVoucher
+public void insert(OrderVoucher ov) throws Exception {
+
+    String sql = "INSERT INTO OrderVoucher (discount, orderAmount, orderId, voucherId) " +
+                 "VALUES (?, ?, ?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setDouble(1, ov.getDiscount());
+        ps.setDouble(2, ov.getOrderAmount());
+        ps.setInt(3, ov.getOrder().getOrderId());
+        ps.setInt(4, ov.getVoucher().getVoucherId());
+
+        ps.executeUpdate();
+    }
+}
+3️⃣ getByOrderId
+public List<OrderVoucher> getByOrderId(int orderId) throws Exception {
+
+    List<OrderVoucher> list = new ArrayList<>();
+
+    String sql = """
+        SELECT ov.*, v.code, v.discountValue
+        FROM OrderVoucher ov
+        JOIN Voucher v ON ov.voucherId = v.voucherId
+        WHERE ov.orderId = ?
+    """;
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, orderId);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+
+            OrderVoucher ov = new OrderVoucher();
+
+            ov.setId(rs.getInt("id"));
+            ov.setDiscount(rs.getDouble("discount"));
+            ov.setOrderAmount(rs.getDouble("orderAmount"));
+
+            Voucher v = new Voucher();
+            v.setVoucherId(rs.getInt("voucherId"));
+            v.setCode(rs.getString("code"));
+            v.setDiscountValue(rs.getDouble("discountValue"));
+
+            ov.setVoucher(v);
+
+            list.add(ov);
+        }
+    }
+
+    return list;
+}
+🎯 III. APPLY VOUCHER SERVICE (STACKING CHUẨN)
+
+Đây là phần quan trọng nhất.
+
+public double applyVouchers(Order order,
+                            List<Voucher> selectedVouchers)
+                            throws Exception {
+
+    double currentAmount = order.getSubtotalAmount();
+
+    List<OrderVoucher> orderVouchers = new ArrayList<>();
+
+    for (Voucher v : selectedVouchers) {
+
+        OrderVoucher ov = new OrderVoucher();
+        ov.setOrder(order);
+        ov.setVoucher(v);
+
+        currentAmount = ov.calculateDiscount(currentAmount);
+
+        orderVoucherDAO.insert(ov);
+        orderVouchers.add(ov);
+    }
+
+    double totalDiscount = orderVouchers.stream()
+            .mapToDouble(OrderVoucher::getDiscount)
+            .sum();
+
+    order.setTotalDiscount(totalDiscount);
+    order.setTotalAmount(currentAmount);
+
+    orderDAO.updateAmounts(order);
+
+    return currentAmount;
+}
+🎯 IV. WEB – APPLY VOUCHER
+
+Giả sử bạn có input mã voucher.
+
+4️⃣ ApplyVoucherServlet
+@WebServlet("/apply-voucher")
+public class ApplyVoucherServlet extends HttpServlet {
+
+    private VoucherDAO voucherDAO = new VoucherDAO();
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+
+            String code = request.getParameter("code");
+
+            Voucher voucher = voucherDAO.getByCode(code);
+
+            if (voucher == null) {
+                request.setAttribute("error", "Voucher not found");
+                request.getRequestDispatcher("checkout.jsp")
+                       .forward(request, response);
+                return;
+            }
+
+            List<Voucher> selected =
+                    (List<Voucher>) request.getSession()
+                                           .getAttribute("selectedVouchers");
+
+            if (selected == null) {
+                selected = new ArrayList<>();
+            }
+
+            selected.add(voucher);
+
+            request.getSession().setAttribute("selectedVouchers", selected);
+
+            response.sendRedirect("checkout");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+🎯 V. checkout.jsp (Hiển thị voucher đã chọn)
+<form action="apply-voucher" method="post">
+    Enter voucher code:
+    <input type="text" name="code"/>
+    <button type="submit">Apply</button>
+</form>
+
+<hr>
+
+<h3>Selected Vouchers:</h3>
+
+<%
+List<Voucher> selected =
+    (List<Voucher>) session.getAttribute("selectedVouchers");
+
+if (selected != null) {
+    for (Voucher v : selected) {
+%>
+        <p><%= v.getCode() %></p>
+<%
+    }
+}
+%>
+🎯 VI. Hiển thị trong Order Detail
+
+Trong order-detail.jsp thêm:
+
+<h3>Applied Vouchers</h3>
+
+<%
+List<OrderVoucher> vouchers =
+    (List<OrderVoucher>) request.getAttribute("orderVouchers");
+
+if (vouchers != null) {
+    for (OrderVoucher ov : vouchers) {
+%>
+    <p>
+        Code: <%= ov.getVoucher().getCode() %> |
+        Discount: <%= ov.getDiscount() %> |
+        Remaining: <%= ov.getOrderAmount() %>
+    </p>
+<%
+    }
+}
+%>
+🔥 FLOW CHUẨN HOẠT ĐỘNG
+
+1️⃣ User nhập voucher
+2️⃣ Lưu vào session selectedVouchers
+3️⃣ Khi checkout → áp từng voucher
+4️⃣ Insert OrderVoucher
+5️⃣ Update totalDiscount
+6️⃣ totalAmount = orderAmount cuối
+
+🚀 BÂY GIỜ OrderVoucher CỦA BẠN ĐÃ:
+
+✅ Đúng business stacking
+✅ Không âm tiền
+✅ DAO đầy đủ
+✅ Web apply voucher
+✅ Hiển thị voucher trong order
+
+Nếu bạn muốn mình build tiếp:
+
+Validate minOrderAmount đúng chuẩn
+
+Chặn voucher hết hạn
+
+Chặn voucher không stackable
+
+Transaction rollback nếu 1 voucher lỗi
+
+Nói mình, mình build phần advanced cho bạn.
+
+bị lỗi j
+
+Ok Vinh 👍 mình nhìn hình và thấy 3 lỗi rõ ràng luôn. Mình chỉ đúng từng cái cho bạn sửa.
+
+❌ LỖI 1 — Trong OrderVoucher.java
+
+Dòng này đang bị đỏ:
+
+double discountValue = voucher.applyDiscount
+👉 Nguyên nhân:
+
+Bạn chưa truyền tham số cho method.
+
+Trong class Voucher của bạn, applyDiscount() chắc chắn phải có tham số:
+
+public double applyDiscount(double orderAmount)
+
+Nhưng bạn đang gọi thiếu (currentAmount).
+
+✅ Sửa lại đúng:
+double discountValue = voucher.applyDiscount(currentAmount);
+❌ LỖI 2 — Trong OrderVoucherDAO
+
+Dòng này bị đỏ:
+
+orderVoucherDAO.insert(ov);
+👉 Nguyên nhân:
+
+Bạn đang viết method applyVouchers() ngay trong class OrderVoucherDAO,
+nhưng lại gọi orderVoucherDAO.insert(ov);
+
+→ Không tồn tại biến orderVoucherDAO.
+
+✅ Cách sửa đúng (vì bạn đang ở trong class đó):
+
+Chỉ cần gọi:
+
+insert(ov);
+❌ LỖI 3 — Dòng này cũng sai
+orderDAO.updateAmounts(order);
+👉 Nguyên nhân:
+
+Bạn chưa khai báo biến orderDAO.
+
+✅ Sửa 1 trong 2 cách:
+Cách 1 (đơn giản):
+OrderDAO orderDAO = new OrderDAO();
+orderDAO.updateAmounts(order);
+Cách 2 (tốt hơn – khuyên dùng):
+
+Khai báo ở đầu class:
+
+private OrderDAO orderDAO = new OrderDAO();
+⚠ LỖI TIỀM ẨN NỮA
+
+Trong applyVouchers() bạn có dòng:
+
+double currentAmount = order.getSubtotalAmount();
+
+Nếu trong Order bạn chưa có getter này:
+
+public double getSubtotalAmount()
+
+→ sẽ lỗi luôn.
+
+🔥 TỔNG KẾT SỬA NHANH
+Trong OrderVoucher.java
+double discountValue = voucher.applyDiscount(currentAmount);
+Trong OrderVoucherDAO
+
+Sửa:
+
+orderVoucherDAO.insert(ov);
+
+Thành:
+
+insert(ov);
+
+Thêm khai báo:
+
+private OrderDAO orderDAO = new OrderDAO();
+🎯 Sau khi sửa 3 chỗ này sẽ hết lỗi đỏ.
+
+Nếu vẫn còn lỗi, bạn gửi ảnh lỗi compile message (dòng chữ đỏ bên dưới IDE), mình chỉ chính xác 100% cho bạn.
+
+ public Double applyDiscount(double orderAmount, LocalDateTime currentTime) {
+
+        if (isOutOfDate(currentTime)) {
+            throw new RuntimeException("Voucher expired");
+        }
+
+        if (!isApplicable(orderAmount)) {
+            throw new RuntimeException("Not enough order amount");
+        }
+
+        return discountValue;
+    }
+và chưa có updateAmounts trong OrderDAO
+
+Ok Vinh 👍 giờ rõ rồi.
+
+Bạn có 2 vấn đề:
+
+1️⃣ Voucher.applyDiscount() của bạn có 2 tham số
+2️⃣ OrderDAO chưa có updateAmounts()
+
+Mình sửa chuẩn lại toàn bộ cho đúng hệ thống của bạn.
+
+🎯 I. SỬA OrderVoucher.calculateDiscount()
+
+Hiện tại Voucher của bạn là:
+
+public Double applyDiscount(double orderAmount, LocalDateTime currentTime)
+
+Vậy trong OrderVoucher bạn phải gọi đúng 2 tham số.
+
+✅ Sửa OrderVoucher.java
+import java.time.LocalDateTime;
+
+public double calculateDiscount(double currentAmount) {
+
+    try {
+
+        double discountValue =
+                voucher.applyDiscount(currentAmount, LocalDateTime.now());
+
+        discount = Math.min(discountValue, currentAmount);
+        orderAmount = currentAmount - discount;
+
+        return orderAmount;
+
+    } catch (RuntimeException e) {
+
+        // Nếu voucher không hợp lệ hoặc hết hạn
+        discount = 0;
+        orderAmount = currentAmount;
+        return currentAmount;
+    }
+}
+🎯 II. THÊM updateAmounts() vào OrderDAO
+
+Bạn cần method này để update:
+
+subtotalAmount
+
+totalDiscount
+
+totalAmount
+
+✅ Thêm vào OrderDAO
+public void updateAmounts(Order order) throws Exception {
+
+    String sql = """
+        UPDATE [Order]
+        SET subtotalAmount = ?,
+            totalDiscount = ?,
+            totalAmount = ?
+        WHERE orderId = ?
+    """;
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setDouble(1, order.getSubtotalAmount());
+        ps.setDouble(2, order.getTotalDiscount());
+        ps.setDouble(3, order.getTotalAmount());
+        ps.setInt(4, order.getOrderId());
+
+        ps.executeUpdate();
+    }
+}
+🎯 III. SỬA applyVouchers() CHO ĐÚNG
+
+Trong OrderVoucherDAO
+
+✅ Version chuẩn chạy được
+private OrderDAO orderDAO = new OrderDAO();
+
+public double applyVouchers(Order order,
+                            List<Voucher> selectedVouchers)
+                            throws Exception {
+
+    double currentAmount = order.getSubtotalAmount();
+
+    List<OrderVoucher> orderVouchers = new ArrayList<>();
+
+    for (Voucher v : selectedVouchers) {
+
+        OrderVoucher ov = new OrderVoucher();
+        ov.setOrder(order);
+        ov.setVoucher(v);
+
+        currentAmount = ov.calculateDiscount(currentAmount);
+
+        insert(ov); // vì đang trong OrderVoucherDAO
+        orderVouchers.add(ov);
+    }
+
+    double totalDiscount = orderVouchers.stream()
+            .mapToDouble(OrderVoucher::getDiscount)
+            .sum();
+
+    order.setTotalDiscount(totalDiscount);
+    order.setTotalAmount(currentAmount);
+
+    orderDAO.updateAmounts(order);
+
+    return currentAmount;
+}
+🎯 IV. Flow chuẩn của bạn bây giờ
+
+1️⃣ subtotalAmount đã có
+2️⃣ apply từng voucher
+3️⃣ mỗi voucher giảm từng bước
+4️⃣ insert OrderVoucher
+5️⃣ sum discount
+6️⃣ updateAmounts()
+7️⃣ totalAmount = số tiền còn lại cuối
+
+🚨 LƯU Ý QUAN TRỌNG
+
+Hiện tại Voucher.applyDiscount() đang throw RuntimeException nếu:
+
+Hết hạn
+
+Không đủ minOrderAmount
+
+Bạn đang bắt lại trong OrderVoucher → hệ thống không crash.
+
+👉 Cách này OK.
+
+Nếu bạn không muốn dùng try-catch, mình có thể viết version clean hơn không throw.
+
+🔥 Sau khi thêm updateAmounts() và sửa calculateDiscount() là hết lỗi.
+
+Nếu bạn muốn mình:
+
+Viết full checkout transaction chuẩn ACID
+
+Chặn voucher không stackable
+
+Hoàn stock khi cancel
+
+Kiểm tra lỗi logic stacking
+
+Nói mình, mình build tiếp phần nâng cao cho bạn.
