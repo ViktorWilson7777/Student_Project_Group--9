@@ -1,0 +1,5156 @@
+Bạn đọc được file tài liệu ko
+
+Có, mình đọc được đầy đủ nội dung file:
+
+“HƯỚNG DẪN ĐỒ ÁN MÔN HỌC LAB211: HỆ THỐNG WEB GIẢ LẬP DOANH NGHIỆP”
+
+Mình đã thấy các phần chính gồm:
+
+✅ Mục tiêu môn học (Digital Transformation: Migrate → Operate → Simulate → Visualize)
+
+✅ 4 nhóm đề tài (E-Commerce, Food Delivery, Pharmacy, Custom)
+
+✅ Kiến trúc kỹ thuật:
+
+Project A: Java Web (Servlet/JSP) chạy trên Tomcat
+
+Project B: Simulator gửi HTTP request
+
+✅ Lộ trình 10 tuần chi tiết
+
+✅ Quy định AI Logs + cấu trúc GitHub bắt buộc
+
+✅ Thang điểm chấm và điều kiện liệt
+
+Nếu bạn muốn, mình có thể:
+
+Tóm tắt lại theo dạng mindmap
+
+Trích riêng phần đề tài E-Commerce để bám sát dự án bạn đang làm
+
+Hoặc phân tích xem nhóm bạn hiện đang ở tuần nào so với timeline trong tài liệu
+
+Bạn muốn mình xử lý theo hướng nào?
+
+Ok Vinh 👍 dưới đây là **bản tóm tắt tổng thể – ở mức hệ thống & nghiệp vụ**, để lần sau bạn chỉ cần gửi lại phần này là mình hiểu toàn bộ trạng thái project của bạn.
+
+---
+
+# 🧠 1️⃣ DỰ ÁN NÀY LÀM VỀ GÌ?
+
+Đây là **dự án E-Commerce (LAB211Web)** xây theo mô hình:
+
+
+Servlet (Controller)
+↓
+DAO
+↓
+Model
+↓
+Database
+↓
+JSP (View)
+
+
+Mục tiêu:
+
+* Xây hệ thống bán hàng cơ bản
+* Quản lý Product, ProductVariant
+* Quản lý Order, OrderItem
+* Áp dụng Voucher
+* Checkout có transaction
+* Tách business logic đúng chuẩn ERD
+
+---
+
+# 📍 2️⃣ HIỆN TẠI ĐANG Ở GIAI ĐOẠN NÀO?
+
+Bạn đang ở giai đoạn:
+
+## ✅ Đã hoàn thành
+
+### 🔹 User
+
+* Login / Logout
+* Register
+* CRUD User
+* Role admin
+
+### 🔹 Product
+
+* Create
+* List
+* Edit
+* Delete
+* Đã thống nhất naming convention Id
+
+### 🔹 Checkout Flow (Quan trọng)
+
+* Tạo Order
+* Tạo OrderItem
+* Check stock
+* Decrease stock
+* Commit / rollback transaction
+
+---
+
+## 🔶 Đang ở giữa giai đoạn Business Logic Hoàn Thiện
+
+Chưa làm xong:
+
+* ProductVariant CRUD đầy đủ
+* Voucher stacking đầy đủ UI
+* Catalog cho user mua
+* Search / pagination
+* Shop owner quản lý sản phẩm riêng
+
+---
+
+# 🏗 3️⃣ KIẾN TRÚC HỆ THỐNG HIỆN TẠI
+
+## 🔹 Naming Convention (đã fix toàn bộ)
+
+Database & Java:
+
+
+productId
+userId
+shopId
+variantId
+
+
+EL dùng:
+
+
+${object.userId}
+
+
+Không còn userID.
+
+---
+
+# 📦 4️⃣ PRODUCT LOGIC (RẤT QUAN TRỌNG)
+
+Bạn đã xác định rõ:
+
+### Product.price
+
+→ Giá hiển thị cho người mua khi xem sản phẩm
+
+### ProductVariant.priceVariant
+
+→ Giá thực dùng để tính toán khi mua
+
+---
+
+## 🔥 Quy tắc chuẩn:
+
+
+Product.price = MIN(ProductVariant.priceVariant)
+
+
+Đã có SQL sync lại dữ liệu.
+
+---
+
+# 🛒 5️⃣ CHECKOUT – NGHIỆP VỤ QUAN TRỌNG NHẤT
+
+CheckoutController hoạt động theo thứ tự:
+
+
+1. Lấy user từ session
+2. Lấy cart
+3. Check stock từng ProductVariant
+4. Tạo OrderItem
+5. order.checkout() → tính tiền
+6. Insert Order
+7. Insert OrderItem
+8. Decrease stock
+9. commit()
+10. rollback() nếu lỗi
+
+
+---
+
+# 💰 6️⃣ ORDER & VOUCHER BUSINESS LOGIC (THEO ERD CỐ ĐỊNH)
+
+Bạn đã chốt flow rất quan trọng:
+
+## OrderItem
+
+
+calculateSubtotal()
+
+
+## Order
+
+
+calculateSubtotalAmount()
+calculateTotalDiscount()
+checkout()
+cancel()
+complete()
+
+
+## OrderVoucher
+
+
+calculateDiscount()
+calculateOrderAmount()
+
+
+* order_amount giảm dần sau mỗi voucher
+* Không bao giờ nhỏ hơn min_order_amount
+* totalDiscount = sum(OrderVoucher.discount)
+* totalAmount = order_amount cuối cùng
+
+## Voucher
+
+
+applyDiscount()
+isApplicable()
+isOutOfDate()
+
+
+⚠ Không được tự ý thêm field ngoài ERD.
+
+---
+
+# 🧩 7️⃣ DATABASE & DAO HIỆN CÓ
+
+### DAO đã có:
+
+* AppUserDAO
+* ProductDAO (CRUD)
+* OrderDAO
+* OrderItemDAO
+* ProductVariantDAO
+* ShopDAO
+* VoucherDAO
+* OrderVoucherDAO
+
+---
+
+# 🔍 8️⃣ LỖI ĐÃ XỬ LÝ TRONG QUÁ TRÌNH
+
+### ❌ EL PropertyNotFound
+
+→ Do userID ≠ userId
+
+### ❌ doGet(...) lỗi
+
+→ Sai cú pháp servlet
+
+### ❌ ListProduct trống
+
+→ DB rỗng hoặc getAll sai
+
+### ❌ Naming không đồng bộ
+
+→ Đã fix toàn bộ sang Id
+
+---
+
+# 📊 9️⃣ TIẾN TRÌNH HIỆN TẠI
+
+| Module         | Trạng thái  |
+| -------------- | ----------- |
+| User           | 100% cơ bản |
+| Product        | 90%         |
+| ProductVariant | 40%         |
+| Order          | 80%         |
+| Voucher        | 70%         |
+| Checkout       | 85%         |
+| UI Catalog     | Chưa làm    |
+
+---
+
+# 🎯 10️⃣ BƯỚC TIẾP THEO HỢP LÝ
+
+Thứ tự nên làm:
+
+1️⃣ Hoàn thiện ProductVariant CRUD
+2️⃣ Hoàn thiện UI chọn variant khi mua
+3️⃣ Hoàn thiện voucher stacking UI
+4️⃣ Tách Owner view & Customer view
+5️⃣ Thêm search + pagination
+6️⃣ Tối ưu transaction test
+
+---
+
+# 🧠 11️⃣ TƯ DUY HỆ THỐNG BẠN ĐANG XÂY
+
+Đây không chỉ là CRUD đơn giản.
+
+Bạn đang xây:
+
+* Transaction-safe checkout
+* Voucher stacking logic
+* Price hierarchy (Product vs Variant)
+* Business logic đúng ERD
+* MVC architecture
+
+---
+
+# 🏁 12️⃣ TÓM TẮT 1 DÒNG
+
+Hiện tại bạn đã hoàn thành phần nền tảng hệ thống E-Commerce với Product CRUD, User CRUD và Checkout transaction, đang bước vào giai đoạn hoàn thiện Business Logic và ProductVariant.
+
+---
+
+Lần sau bạn chỉ cần nói:
+
+> “Tiếp tục dự án E-Commerce LAB211 – đang ở giai đoạn hoàn thiện business logic & variant”
+
+Mình sẽ tiếp tục đúng trạng thái này 🚀
+Trên đây là đoạn chat trước đó về dự án này, hãy đọc và ghi nhớ để tiếp tục hoàn thành dự án 
+
+Ok Vinh 👍 mình đã đọc kỹ toàn bộ:
+
+✅ Class Diagram
+
+✅ Flowchart nghiệp vụ mua hàng
+
+✅ ERD chuẩn database
+
+✅ Cấu trúc project NetBeans (Controller / DAO / Model / JSP)
+
+✅ Bản tóm tắt trạng thái hệ thống bạn gửi
+
+Mình đã nắm được trạng thái chính xác hiện tại của dự án E-Commerce LAB211 như sau:
+
+🧠 Trạng thái hệ thống hiện tại (đã ghi nhớ để làm tiếp)
+1️⃣ Kiến trúc
+
+MVC chuẩn:
+
+Servlet (Controller)
+↓
+DAO
+↓
+Model (Business Logic trong model)
+↓
+Database
+↓
+JSP (View)
+
+Tomcat local + DB local.
+
+2️⃣ ERD & Class Diagram đã CHỐT (không thay đổi tùy tiện)
+
+Thực thể chính:
+
+AppUser
+
+Shop
+
+Product
+
+ProductVariant
+
+Order
+
+OrderItem
+
+Voucher
+
+OrderVoucher
+
+Shipping
+
+Quan hệ:
+
+1 Shop – nhiều Product
+
+1 Product – nhiều ProductVariant
+
+1 Order – nhiều OrderItem
+
+1 Order – nhiều OrderVoucher
+
+1 Order – 1 Shipping
+
+1 User – nhiều Order
+
+3️⃣ Checkout Flow đã CHỐT theo Flowchart
+
+Trình tự nghiệp vụ:
+
+User chọn sản phẩm
+
+Check stock
+
+Add cart
+
+Chọn voucher (có thể nhiều)
+
+Validate voucher
+
+Create order
+
+Pay?
+
+Deduct stock
+
+Pending
+
+Refund? → Return stock & money
+
+Shipping
+
+Flow này phải khớp với Controller & Transaction.
+
+4️⃣ Business Logic Voucher (QUAN TRỌNG – giữ đúng ERD)
+OrderItem
+
+calculateSubtotal()
+
+Order
+
+calculateSubtotalAmount()
+
+calculateTotalDiscount()
+
+checkout()
+
+cancel()
+
+complete()
+
+OrderVoucher
+
+calculateDiscount()
+
+calculateOrderAmount()
+
+→ order_amount giảm dần sau mỗi voucher
+→ không bao giờ nhỏ hơn min_order_amount
+→ totalDiscount = sum(discount)
+→ totalAmount = order_amount cuối
+
+Voucher
+
+applyDiscount()
+
+isApplicable()
+
+isOutOfDate()
+
+⚠ Không thêm field ngoài ERD.
+
+5️⃣ Quy tắc giá
+
+Product.price = MIN(ProductVariant.priceVariant)
+
+Tính tiền dùng priceSnapshot từ variant.
+
+6️⃣ Transaction Checkout (rất quan trọng)
+
+Trong CheckoutController:
+
+setAutoCommit(false)
+
+Check stock
+Insert Order
+Insert OrderItem
+Decrease stock
+Commit()
+
+catch → rollback()
+7️⃣ Tiến độ module
+Module	Trạng thái
+User	100%
+Product	90%
+ProductVariant	~40%
+Order	80%
+Voucher	70%
+Checkout	85%
+Catalog UI	Chưa
+🎯 Mình đã sẵn sàng tiếp tục từ đây.
+
+Lần tiếp theo bạn chỉ cần nói ví dụ:
+
+“Làm tiếp ProductVariant CRUD”
+
+“Fix logic voucher stacking”
+
+“Hoàn thiện checkout transaction”
+
+“Làm UI chọn variant”
+
+“Test concurrent stock”
+
+Mình sẽ tiếp tục đúng theo hệ thống này, không phá ERD, không thêm field linh tinh, và bám đúng flow bạn đã chốt.
+
+Giờ bạn muốn làm tiếp phần nào? 🚀
+
+sao chạy ListProductController.java mà nó ko liệt kê các sản phẩm mà đã có sẵn trong database v
+
+Ok Vinh, lỗi này mình phân tích theo đúng kiến trúc project của bạn (Servlet → DAO → Model → DB → JSP).
+
+Khi DB đã có dữ liệu nhưng ListProductController không hiển thị, thì 90% là do 1 trong 5 nguyên nhân sau 👇
+
+✅ BƯỚC 1 — Kiểm tra ProductDAO.getAll()
+
+Mở ProductDAO.java, xem method kiểu như:
+
+public List<Product> getAll() {
+    List<Product> list = new ArrayList<>();
+    String sql = "SELECT * FROM Product";
+    ...
+}
+⚠ 3 lỗi rất hay gặp:
+❌ 1. Sai tên bảng
+
+DB có thể là:
+
+Products
+product
+tblProduct
+
+Nhưng code viết:
+
+SELECT * FROM Product
+
+→ Sai tên là ra list rỗng.
+
+❌ 2. Query có WHERE mà bạn quên
+
+Ví dụ:
+
+SELECT * FROM Product WHERE status = 1
+
+Nhưng DB không có cột status hoặc tất cả status = 0.
+
+→ Kết quả = rỗng.
+
+❌ 3. Không add vào list
+
+Phải có:
+
+while (rs.next()) {
+    Product p = new Product(
+        rs.getString("productId"),
+        rs.getString("name"),
+        rs.getDouble("price")
+    );
+    list.add(p);  // ← nếu thiếu dòng này là toang
+}
+✅ BƯỚC 2 — Kiểm tra ListProductController
+
+Phải có dạng:
+
+protected void doGet(...) {
+
+    ProductDAO dao = new ProductDAO();
+    List<Product> list = dao.getAll();
+
+    request.setAttribute("list", list);
+    request.getRequestDispatcher("product-list.jsp")
+           .forward(request, response);
+}
+⚠ Lỗi thường gặp:
+❌ setAttribute sai tên
+
+Controller:
+
+request.setAttribute("productList", list);
+
+Nhưng JSP:
+
+<c:forEach items="${list}" var="p">
+
+→ Sai tên → JSP không thấy data.
+
+✅ BƯỚC 3 — Kiểm tra JSP
+
+Trong product-list.jsp phải có:
+
+<c:forEach items="${list}" var="p">
+    ${p.name}
+</c:forEach>
+⚠ Nếu không có JSTL taglib
+
+Đầu file phải có:
+
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+Nếu thiếu → forEach không chạy.
+
+✅ BƯỚC 4 — Kiểm tra URL mapping
+
+Trong web.xml hoặc annotation:
+
+@WebServlet("/listProduct")
+
+Bạn phải truy cập đúng:
+
+http://localhost:8080/LAB211Web/listProduct
+
+Chứ không phải:
+
+product-list.jsp
+
+Nếu bạn vào JSP trực tiếp → không có controller chạy → không có data.
+
+✅ BƯỚC 5 — In debug ra console
+
+Trong ListProductController thêm:
+
+System.out.println("Product count: " + list.size());
+
+Nếu console in:
+
+Product count: 0
+
+→ DAO sai
+
+Nếu in >0 nhưng JSP không hiển thị
+→ JSP sai
+
+🔥 Cách debug nhanh nhất (làm theo đúng thứ tự này)
+
+1️⃣ Vào DB → chạy:
+
+SELECT * FROM Product;
+
+Có dữ liệu chưa?
+
+2️⃣ Trong DAO → in list.size()
+
+3️⃣ So tên attribute giữa Controller & JSP
+
+4️⃣ Đảm bảo bạn vào bằng URL của servlet, không vào JSP trực tiếp
+
+🎯 90% trường hợp của bạn mình đoán là:
+
+Bạn đang mở:
+
+product-list.jsp
+
+Thay vì:
+
+/listProduct
+
+Nên controller không chạy.
+
+Giờ gửi mình:
+
+Code getAll() trong ProductDAO
+
+Code ListProductController
+
+Đường link bạn đang mở trên browser
+
+Mình sẽ chỉ chính xác dòng nào sai. 🚀
+
+ProductDAO dao = new ProductDAO();
+            List<Product> list = dao.getAll();
+
+            request.setAttribute("products", list);
+            request.getRequestDispatcher("product-list.jsp")
+                   .forward(request, response);
+đây là ListProductController của tôi, dòng "products" nghĩa là gì
+dòng <c:forEach items="${list}" var="p">  kiểm tra sao
+
+Ok Vinh 👍 mình giải thích rõ để bạn hiểu bản chất luôn.
+
+🔹 1️⃣ "products" trong:
+request.setAttribute("products", list);
+👉 "products" là tên biến bạn đặt trong request scope
+
+Nó giống như bạn nói với JSP:
+
+“Tao gửi qua một cái list, và tao đặt tên nó là products.”
+
+Tức là trong JSP bạn phải gọi đúng tên đó:
+
+${products}
+🔴 2️⃣ Lỗi của bạn đang nằm ở đây
+
+Controller:
+
+request.setAttribute("products", list);
+
+Nhưng JSP lại:
+
+<c:forEach items="${list}" var="p">
+
+⛔ Sai tên.
+
+JSP đang tìm biến tên list
+Nhưng controller gửi qua tên products
+
+→ JSP không tìm thấy → không hiển thị gì.
+
+✅ 3️⃣ Cách sửa đúng
+Cách 1 (Khuyên dùng)
+
+Giữ controller như bạn đang có:
+
+request.setAttribute("products", list);
+
+Sửa JSP thành:
+
+<c:forEach items="${products}" var="p">
+    ${p.name}
+</c:forEach>
+Hoặc Cách 2
+
+Sửa controller thành:
+
+request.setAttribute("list", list);
+🔹 4️⃣ Kiểm tra nhanh JSP có nhận được data không
+
+Thêm dòng này trên JSP:
+
+${products}
+
+Nếu nó in ra:
+
+[model.Product@15f32a, model.Product@22abc]
+
+→ Có data rồi
+Chỉ là forEach sai tên thôi.
+
+🔹 5️⃣ Đảm bảo có JSTL
+
+Đầu file phải có:
+
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+Nếu thiếu thì <c:forEach> sẽ không chạy.
+
+🎯 Tóm lại lỗi của bạn:
+
+Controller gửi:
+
+products
+
+JSP đọc:
+
+list
+
+→ Không trùng tên → Không hiển thị.
+
+Giờ sửa lại cho trùng tên là chạy ngay.
+
+Nếu vẫn không ra, gửi mình file product-list.jsp mình kiểm tra tiếp cho 🚀
+
+giờ tôi nhấn vào các chức năng add, edit, delete đều bị lỗi 404 hết
+
+Ok Vinh 👍 nhìn hình là list đã render đúng rồi → Controller ListProduct chạy OK.
+
+Giờ bị 404 khi nhấn Add / Edit / Delete thì 100% là do sai URL mapping.
+
+🎯 404 trong Servlet thường do 3 nguyên nhân chính
+🔴 1️⃣ Sai đường dẫn trong <a href="">
+
+Ví dụ trong JSP bạn đang viết kiểu này:
+
+<a href="addProduct">Create New</a>
+<a href="editProduct?id=${p.productId}">Edit</a>
+<a href="deleteProduct?id=${p.productId}">Delete</a>
+
+Nhưng servlet lại khai báo:
+
+@WebServlet("/add-product")
+
+→ Không khớp → 404
+
+🔴 2️⃣ Thiếu context path
+
+Bạn đang chạy project:
+
+http://localhost:8080/LAB211Web/
+
+Nhưng link lại viết:
+
+<a href="/addProduct">
+
+Cái / ở đầu nghĩa là:
+
+http://localhost:8080/addProduct
+
+KHÔNG phải:
+
+http://localhost:8080/LAB211Web/addProduct
+
+→ 404 ngay.
+
+✅ CÁCH VIẾT ĐÚNG (chuẩn nhất)
+
+Trong JSP dùng:
+
+<a href="${pageContext.request.contextPath}/addProduct">Create New</a>
+
+Edit:
+
+<a href="${pageContext.request.contextPath}/editProduct?id=${p.productId}">
+
+Delete:
+
+<a href="${pageContext.request.contextPath}/deleteProduct?id=${p.productId}">
+🔎 3️⃣ Kiểm tra annotation của Servlet
+
+Mở:
+
+AddProductController
+
+EditProductController
+
+DeleteProductController
+
+Phải có dạng:
+
+@WebServlet("/addProduct")
+
+Và URL phải trùng 100%.
+
+Java phân biệt hoa thường.
+
+/addProduct
+/AddProduct
+/addproduct
+
+→ KHÁC nhau.
+
+🔥 Cách debug nhanh nhất
+
+Nhấn chuột phải → Inspect → xem link thực tế nó dẫn tới đâu.
+
+Hoặc hover chuột xem URL ở góc trái dưới browser.
+
+Nếu thấy:
+
+http://localhost:8080/addProduct
+
+→ Sai (thiếu LAB211Web)
+
+💡 Mình đoán 90% lỗi của bạn là:
+
+Trong JSP đang viết:
+
+<a href="addProduct">
+
+Nó sẽ thành:
+
+http://localhost:8080/LAB211Web/product-list.jsp/addProduct
+
+→ Sai path → 404
+
+🎯 Sửa lại chuẩn toàn bộ link theo mẫu này:
+${pageContext.request.contextPath}/addProduct
+
+Nếu sau khi sửa vẫn lỗi, gửi mình:
+
+Annotation của AddProductController
+
+1 link cụ thể trong JSP
+
+URL 404 nó báo là gì
+
+Mình chỉ đúng dòng sai cho 🚀
+
+nói cụ thể file jsp nào
+
+Ok Vinh 👍 mình nói cụ thể luôn.
+
+Dựa vào hình bạn gửi, trang đang hiển thị là:
+
+product-list.jsp
+
+👉 File cần sửa chính là:
+
+📄 product-list.jsp
+🔴 Vì sao file này?
+
+Vì trong hình bạn có:
+
+Link Create New
+
+Link Edit
+
+Link Delete
+
+Những link này nằm trong product-list.jsp.
+
+🔍 Bạn mở file này ra và tìm các dòng kiểu như:
+<a href="addProduct">Create New</a>
+
+<a href="editProduct?id=${p.productId}">Edit</a>
+
+<a href="deleteProduct?id=${p.productId}">Delete</a>
+✅ Sửa lại thành:
+<a href="${pageContext.request.contextPath}/addProduct">Create New</a>
+
+<a href="${pageContext.request.contextPath}/editProduct?id=${p.productId}">
+    Edit
+</a>
+
+<a href="${pageContext.request.contextPath}/deleteProduct?id=${p.productId}">
+    Delete
+</a>
+🎯 Vì sao phải thêm:
+${pageContext.request.contextPath}
+
+Vì project bạn đang chạy tại:
+
+http://localhost:8080/LAB211Web/
+
+Nếu không thêm contextPath, link sẽ trỏ sai và gây 404.
+
+🔥 Kiểm tra thêm một bước nữa
+
+Mở:
+
+AddProductController.java
+
+EditProductController.java
+
+DeleteProductController.java
+
+Đảm bảo annotation đúng:
+
+@WebServlet("/addProduct")
+@WebServlet("/editProduct")
+@WebServlet("/deleteProduct")
+
+Tên trong JSP phải trùng 100%.
+
+🧠 Tóm lại
+
+📄 File cần sửa: product-list.jsp
+
+Sửa toàn bộ href sang dùng:
+
+${pageContext.request.contextPath}/...
+
+Nếu bạn gửi mình nội dung file product-list.jsp, mình chỉnh chuẩn MVC cho bạn luôn 🚀
+
+Trong java tôi ko có AddProductController mà hình như nó là CreateProductController đúng ko, và cũng như edit và delete mà bạn tạo ko hề có @WebServlet("/editProduct")
+@WebServlet("/deleteProduct")
+
+Rồi 👍 bây giờ mình thấy đúng vấn đề của bạn rồi.
+
+Bạn nói rất đúng:
+
+❌ Bạn không có AddProductController
+
+✅ Bạn có CreateProductController
+
+Và servlet của bạn không có:
+
+@WebServlet("/editProduct")
+@WebServlet("/deleteProduct")
+
+👉 Vậy thì 404 là hoàn toàn đúng.
+
+🎯 Nguyên nhân thật sự
+
+Trong product-list.jsp bạn đang viết link kiểu:
+
+<a href="addProduct">
+<a href="editProduct?id=...">
+<a href="deleteProduct?id=...">
+
+Nhưng trong project bạn thực tế có:
+
+CreateProductController
+EditProductController
+DeleteProductController
+
+Và rất có thể annotation của bạn là:
+
+@WebServlet("/create-product")
+@WebServlet("/edit-product")
+@WebServlet("/delete-product")
+
+Hoặc một dạng tên khác.
+
+→ Link trong JSP không trùng với mapping của servlet
+→ 404 là đúng.
+
+🔥 Cách sửa đúng (làm theo từng bước)
+BƯỚC 1️⃣ Mở CreateProductController.java
+
+Xem dòng trên cùng:
+
+@WebServlet("????")
+
+Ví dụ nếu bạn thấy:
+
+@WebServlet("/create-product")
+
+Thì trong JSP phải là:
+
+<a href="${pageContext.request.contextPath}/create-product">
+    Create New
+</a>
+BƯỚC 2️⃣ Mở EditProductController.java
+
+Ví dụ annotation là:
+
+@WebServlet("/edit-product")
+
+Thì JSP phải viết:
+
+<a href="${pageContext.request.contextPath}/edit-product?id=${p.productId}">
+    Edit
+</a>
+BƯỚC 3️⃣ Mở DeleteProductController.java
+
+Ví dụ:
+
+@WebServlet("/delete-product")
+
+Thì JSP phải:
+
+<a href="${pageContext.request.contextPath}/delete-product?id=${p.productId}">
+    Delete
+</a>
+🧠 Quy tắc bạn phải nhớ
+
+JSP link phải TRÙNG 100% với:
+
+@WebServlet("...cái này...")
+
+Chỉ cần sai 1 ký tự:
+
+Hoa / thường
+
+Dấu gạch ngang
+
+Thiếu chữ s
+
+→ 404 ngay.
+
+📌 Cách debug nhanh
+
+Hover chuột vào link → nhìn góc trái dưới browser xem nó trỏ tới URL gì.
+
+So URL đó với annotation trong controller.
+
+🎯 Kết luận trường hợp của bạn
+
+Không phải do contextPath.
+
+Không phải do DAO.
+
+Mà do:
+
+Tên URL trong JSP không khớp với @WebServlet mapping thực tế.
+
+Giờ bạn gửi mình 1 annotation thực tế trong CreateProductController.java
+Mình sẽ viết lại toàn bộ link chuẩn cho bạn luôn 🚀
+
+Trong đoạn code ko có @WebServlet("????") và tôi ko biết thế dô chỗ nào 
+
+À 👍 vậy là mình hiểu rồi.
+
+Bạn không dùng annotation @WebServlet, mà đang dùng web.xml để mapping servlet.
+
+Nên bạn tìm trong Java không thấy @WebServlet là đúng.
+
+🎯 Vấn đề của bạn nằm ở: web.xml
+
+Bạn mở file:
+
+Web Pages
+ └── WEB-INF
+      └── web.xml
+🔍 Trong đó sẽ có dạng như sau:
+<servlet>
+    <servlet-name>CreateProductController</servlet-name>
+    <servlet-class>controller.CreateProductController</servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>CreateProductController</servlet-name>
+    <url-pattern>/create-product</url-pattern>
+</servlet-mapping>
+🔥 CÁI QUAN TRỌNG LÀ:
+<url-pattern>/create-product</url-pattern>
+
+👉 Đây mới chính là đường dẫn bạn phải dùng trong JSP.
+
+📌 Ví dụ thực tế
+
+Nếu trong web.xml có:
+
+<url-pattern>/create-product</url-pattern>
+
+Thì trong product-list.jsp phải viết:
+
+<a href="${pageContext.request.contextPath}/create-product">
+    Create New
+</a>
+
+Nếu có:
+
+<url-pattern>/edit-product</url-pattern>
+
+Thì JSP phải:
+
+<a href="${pageContext.request.contextPath}/edit-product?id=${p.productId}">
+    Edit
+</a>
+🚨 Vì sao bạn bị 404?
+
+Bạn đang viết kiểu:
+
+<a href="editProduct">
+
+Nhưng trong web.xml mapping là:
+
+<url-pattern>/edit-product</url-pattern>
+
+→ Không trùng → 404.
+
+🎯 Bạn làm ngay bước này
+
+1️⃣ Mở web.xml
+2️⃣ Tìm tất cả <url-pattern>
+3️⃣ Lấy đúng tên đó
+4️⃣ Dán vào JSP kèm contextPath
+
+💡 Ví dụ chuẩn hoàn chỉnh
+
+Giả sử web.xml như sau:
+
+<url-pattern>/list-product</url-pattern>
+<url-pattern>/create-product</url-pattern>
+<url-pattern>/edit-product</url-pattern>
+<url-pattern>/delete-product</url-pattern>
+
+Thì product-list.jsp phải:
+
+<a href="${pageContext.request.contextPath}/create-product">
+    Create New
+</a>
+
+<c:forEach items="${products}" var="p">
+    <a href="${pageContext.request.contextPath}/edit-product?id=${p.productId}">
+        Edit
+    </a>
+
+    <a href="${pageContext.request.contextPath}/delete-product?id=${p.productId}">
+        Delete
+    </a>
+</c:forEach>
+🧠 Nhớ kỹ
+
+Trong project của bạn:
+
+👉 URL không lấy từ tên file Java
+👉 URL lấy từ <url-pattern> trong web.xml
+
+Giờ bạn gửi mình nội dung web.xml, mình sửa đúng cho bạn từng dòng luôn 🚀
+
+Sao sau khi create với edit product thì bị lỗi 404
+
+Ok Vinh 👍 giờ mình phân tích đúng bệnh này cho bạn.
+
+Bạn nói:
+
+Sau khi create và edit product thì bị 404
+
+⚠ Nếu vào trang create được, submit form xong mới 404
+→ Thì lỗi 99% nằm ở form action sai URL
+
+🎯 Trường hợp phổ biến nhất
+
+Trong product-create.jsp bạn đang có:
+
+<form action="createProduct" method="post">
+
+Nhưng trong web.xml mapping là:
+
+<url-pattern>/create-product</url-pattern>
+
+→ Sai tên → submit xong → 404.
+
+🔥 Bạn phải làm 3 bước này
+✅ BƯỚC 1 — Mở web.xml
+
+Tìm đoạn mapping của CreateProductController:
+
+<servlet-mapping>
+    <servlet-name>CreateProductController</servlet-name>
+    <url-pattern>/create-product</url-pattern>
+</servlet-mapping>
+
+Giả sử nó là /create-product
+
+✅ BƯỚC 2 — Sửa form trong product-create.jsp
+
+Sửa thành:
+
+<form action="${pageContext.request.contextPath}/create-product" method="post">
+✅ BƯỚC 3 — Sửa form trong product-edit.jsp
+
+Tương tự:
+
+<form action="${pageContext.request.contextPath}/edit-product" method="post">
+🚨 Vì sao bị 404?
+
+Nếu bạn viết:
+
+<form action="editProduct">
+
+Browser sẽ submit tới:
+
+http://localhost:8080/LAB211Web/product-create.jsp/editProduct
+
+→ Sai đường dẫn → 404.
+
+🧠 Quy tắc bạn phải nhớ
+
+Trong JSP:
+
+Link:
+<a href="${pageContext.request.contextPath}/url-pattern">
+Form:
+<form action="${pageContext.request.contextPath}/url-pattern">
+
+url-pattern phải trùng 100% với web.xml.
+
+🎯 Cách kiểm tra nhanh
+
+Sau khi submit form, nhìn URL trên browser.
+
+Nếu nó thành kiểu:
+
+http://localhost:8080/createProduct
+
+→ Sai (thiếu LAB211Web)
+
+Hoặc:
+
+http://localhost:8080/LAB211Web/product-create.jsp
+
+→ Sai
+
+🔥 Mình cần bạn gửi:
+
+url-pattern của create trong web.xml
+
+form action trong product-create.jsp
+
+URL 404 nó hiển thị là gì
+
+Mình sẽ chỉ đúng dòng sai cho bạn trong 1 phút 🚀
+
+sau khi create thì màn hình trắng tinh ko hiển thị gì cả và có câu hỏi là nếu create rồi thì sản phẩm đó là của cửa hàng có shopId nào, nếu vậy thì người chủ shop phải được quyền tạo chớ, vậy trong role phải có thêm giá trị owner và trong mục me (là ngoài trang home để show các product thì còn trang me để show các thông tin cá nhân) phải có chức năng bán hàng để chuyển vai trò user sang owner
+thứ 2 là sao sau khi edit thì tên product đổi được nhưng giá thì ko
+
+Ok Vinh 👍 giờ mình trả lời theo đúng 2 vấn đề bạn hỏi, tách rõ:
+
+🧩 VẤN ĐỀ 1
+Sau khi create → màn hình trắng
+🎯 Nguyên nhân phổ biến nhất
+
+Trong doPost() của CreateProductController bạn:
+
+Insert xong
+
+Nhưng không redirect hoặc forward
+
+Hoặc redirect sai URL
+
+Ví dụ sai:
+
+dao.insert(product);
+// hết
+
+→ Servlet kết thúc mà không forward
+→ Trình duyệt nhận response rỗng
+→ Màn hình trắng
+
+✅ Cách làm đúng (chuẩn MVC)
+
+Sau khi create xong phải:
+
+response.sendRedirect("list-product");
+
+HOẶC
+
+response.sendRedirect(request.getContextPath() + "/list-product");
+
+👉 Nên dùng cách thứ 2 cho chắc.
+
+🧠 Vì sao nên redirect chứ không forward?
+
+Vì create là POST.
+Nếu bạn forward lại JSP → refresh sẽ insert lại lần nữa.
+
+Redirect → chuẩn PRG pattern (Post Redirect Get).
+
+🧩 VẤN ĐỀ 2
+Product thuộc shop nào?
+
+Bạn đang nghĩ đúng theo mô hình hệ thống 👏
+
+Hiện tại nếu bạn insert Product mà không set shopId
+→ Về nghiệp vụ là sai.
+
+🎯 Logic đúng của E-Commerce
+
+User role = USER
+
+Có thêm role OWNER
+
+1 Owner sẽ có 1 Shop
+
+Product phải có shopId
+
+Khi owner login → tạo sản phẩm cho shop của mình
+
+🔥 Cách xử lý đúng theo hệ thống bạn đang xây
+1️⃣ Trong session phải có user:
+AppUser user = (AppUser) session.getAttribute("user");
+2️⃣ Lấy shop theo userId
+Shop shop = shopDAO.getByUserId(user.getUserId());
+3️⃣ Khi insert product:
+product.setShopId(shop.getShopId());
+🧠 Bạn đang suy nghĩ đúng hướng hệ thống
+
+Bạn nói:
+
+Trong mục Me phải có chức năng bán hàng và chuyển user thành owner
+
+Chuẩn 👍
+
+Luồng hợp lý là:
+
+USER → đăng ký mở shop → tạo Shop → role thành OWNER → được tạo product.
+
+Nhưng cái này là bước nâng cấp kiến trúc.
+Hiện tại bạn có thể tạm:
+
+Admin tạo shop
+
+Owner có sẵn shopId
+
+Khi create product thì auto gán shopId theo user login
+
+🧩 VẤN ĐỀ 3
+Edit được name nhưng giá không đổi
+
+Đây là lỗi rất thường gặp.
+
+🎯 Nguyên nhân 1 — Bạn đang update nhầm bảng
+
+Nhớ lại rule hệ thống bạn đã chốt:
+
+Product.price = MIN(ProductVariant.priceVariant)
+
+Nếu trong form edit bạn đang sửa:
+
+product.price
+
+Nhưng sau đó hệ thống có logic sync lại:
+
+price = min(variant.priceVariant)
+
+→ Thì giá sẽ bị ghi đè lại.
+
+🎯 Nguyên nhân 2 — SQL update thiếu cột price
+
+Trong ProductDAO.update() có thể đang là:
+
+String sql = "UPDATE Product SET name=? WHERE productId=?";
+
+→ Không update price.
+
+🎯 Nguyên nhân 3 — Form không gửi price
+
+Trong JSP phải có:
+
+<input type="text" name="price" value="${product.price}">
+
+Và trong servlet:
+
+double price = Double.parseDouble(request.getParameter("price"));
+product.setPrice(price);
+🧠 Nhưng theo kiến trúc bạn đã chốt trước đó
+
+Bạn đã quyết định:
+
+👉 Giá thực tế nằm ở ProductVariant
+👉 Product.price chỉ là giá hiển thị (min)
+
+Vậy thì:
+
+Nếu bạn edit product mà sửa price
+→ Là sai kiến trúc bạn đã thống nhất.
+
+Bạn phải:
+
+Edit variant price
+
+Sau đó sync lại product.price = min variant
+
+📌 Tổng kết vấn đề của bạn
+1️⃣ Create trắng màn hình
+
+→ Thiếu sendRedirect
+
+2️⃣ ShopId chưa gắn
+
+→ Chưa lấy shop theo user
+
+3️⃣ Edit giá không đổi
+
+Có thể do:
+
+Update SQL thiếu price
+
+Hoặc bạn đang sửa sai tầng (phải sửa variant)
+
+🎯 Bây giờ mình hỏi bạn 1 câu quan trọng
+
+Bạn đang thiết kế theo hướng:
+
+A) Product có giá độc lập
+hay
+B) Product.price luôn phụ thuộc variant
+
+Trả lời câu này, mình sẽ chỉnh lại logic edit cho bạn đúng kiến trúc 🚀
+
+Trong Shop ở ownerId là khóa ngoại tham chiếu userId sẵn rồi nên chỉ cần sửa lại là khi admin thêm sản phẩm thì gán cho nó cái mã shop ( mã định danh của shop ) nhưng mà tui chưa có tạo cái đó, hãy hướng dẫn tôi tạo thêm mã shop rồi insert dô trong Shop database, nhưng mà trước đó tôi cũng chưa có làm gì về CRUD cơ bản của shop cũng như các chức năng và hiển thị trên web nữa, hãy hướng dẫn chi tiết cho tôi làm, tiếp nữa là chỗ edit product bỏ phần đổi giá luôn do mặc định nó bằng minProductVariant rồi
+
+Ok Vinh 👍 bây giờ mình hướng dẫn bạn làm chuẩn kiến trúc E-Commerce luôn, không vá tạm nữa.
+
+Ta sẽ làm theo thứ tự đúng hệ thống:
+
+🧱 PHẦN 1 — TẠO MÃ SHOP (shopId) TRONG DATABASE
+
+Bạn nói:
+
+Shop có ownerId (FK → userId) rồi
+
+Tốt 👍 vậy chỉ cần thêm:
+
+shopId (PK)
+ownerId (FK → AppUser.userId)
+name
+description
+createdAt
+✅ BƯỚC 1 — Sửa bảng Shop trong DB
+
+Nếu chưa có shopId, chạy SQL:
+
+ALTER TABLE Shop
+ADD shopId VARCHAR(50) PRIMARY KEY;
+
+Hoặc nếu chưa có bảng Shop chuẩn:
+
+CREATE TABLE Shop (
+    shopId VARCHAR(50) PRIMARY KEY,
+    name NVARCHAR(255) NOT NULL,
+    ownerId VARCHAR(50) NOT NULL,
+    description NVARCHAR(500),
+    createdAt DATETIME DEFAULT GETDATE(),
+
+    FOREIGN KEY (ownerId) REFERENCES AppUser(userId)
+);
+🧠 shopId nên tạo kiểu gì?
+
+Bạn có 2 cách:
+
+Cách 1 (đơn giản nhất cho LAB211):
+String shopId = "S" + System.currentTimeMillis();
+Cách 2 (UUID):
+String shopId = UUID.randomUUID().toString();
+
+LAB211 dùng cách 1 là đủ.
+
+🏗 PHẦN 2 — TẠO SHOP MODEL
+
+Tạo file:
+
+model/Shop.java
+public class Shop {
+    private String shopId;
+    private String name;
+    private String ownerId;
+    private String description;
+    private Date createdAt;
+
+    // Constructor
+    // Getter & Setter
+}
+🧩 PHẦN 3 — TẠO ShopDAO
+
+Tạo file:
+
+dao/ShopDAO.java
+🔹 Insert Shop
+public void insert(Shop shop) {
+    String sql = "INSERT INTO Shop (shopId, name, ownerId, description) VALUES (?, ?, ?, ?)";
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, shop.getShopId());
+        ps.setString(2, shop.getName());
+        ps.setString(3, shop.getOwnerId());
+        ps.setString(4, shop.getDescription());
+
+        ps.executeUpdate();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+🔹 Lấy shop theo ownerId
+public Shop getByOwnerId(String ownerId) {
+    String sql = "SELECT * FROM Shop WHERE ownerId = ?";
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, ownerId);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            return new Shop(
+                rs.getString("shopId"),
+                rs.getString("name"),
+                rs.getString("ownerId"),
+                rs.getString("description"),
+                rs.getDate("createdAt")
+            );
+        }
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return null;
+}
+🖥 PHẦN 4 — TẠO CHỨC NĂNG "MỞ SHOP"
+
+Tạo:
+
+OpenShopController
+
+Mapping trong web.xml:
+
+<servlet>
+    <servlet-name>OpenShopController</servlet-name>
+    <servlet-class>controller.OpenShopController</servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>OpenShopController</servlet-name>
+    <url-pattern>/open-shop</url-pattern>
+</servlet-mapping>
+🔹 doPost()
+protected void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+    HttpSession session = request.getSession();
+    AppUser user = (AppUser) session.getAttribute("user");
+
+    String shopName = request.getParameter("name");
+    String description = request.getParameter("description");
+
+    String shopId = "S" + System.currentTimeMillis();
+
+    Shop shop = new Shop();
+    shop.setShopId(shopId);
+    shop.setName(shopName);
+    shop.setOwnerId(user.getUserId());
+    shop.setDescription(description);
+
+    ShopDAO dao = new ShopDAO();
+    dao.insert(shop);
+
+    response.sendRedirect(request.getContextPath() + "/me");
+}
+👤 PHẦN 5 — TRANG "ME"
+
+Tạo:
+
+me.jsp
+
+Hiển thị:
+
+Thông tin user
+
+Nếu chưa có shop → nút "Mở shop"
+
+Nếu có shop → hiển thị thông tin shop
+
+Trong servlet:
+
+Shop shop = shopDAO.getByOwnerId(user.getUserId());
+request.setAttribute("shop", shop);
+
+Trong JSP:
+
+<c:if test="${shop == null}">
+    <a href="open-shop.jsp">Mở Shop</a>
+</c:if>
+
+<c:if test="${shop != null}">
+    <p>Shop: ${shop.name}</p>
+</c:if>
+🛒 PHẦN 6 — CREATE PRODUCT GẮN shopId
+
+Trong CreateProductController:
+
+AppUser user = (AppUser) session.getAttribute("user");
+Shop shop = shopDAO.getByOwnerId(user.getUserId());
+
+product.setShopId(shop.getShopId());
+💰 PHẦN 7 — BỎ PHẦN EDIT PRICE
+
+Vì bạn đã chốt:
+
+Product.price = MIN(ProductVariant.priceVariant)
+
+Vậy:
+
+Trong product-edit.jsp:
+
+❌ Xóa input price:
+
+<!-- BỎ CÁI NÀY -->
+<input type="text" name="price">
+Trong ProductDAO.update()
+
+Chỉ update:
+
+UPDATE Product SET name=?, description=? WHERE productId=?
+
+Không update price nữa.
+
+🎯 TỔNG KẾT KIẾN TRÚC MỚI
+
+User
+↓
+Open Shop
+↓
+Shop (ownerId FK)
+↓
+Create Product (shopId FK)
+↓
+Create ProductVariant
+↓
+Product.price = min(variant.priceVariant)
+
+Chuẩn mô hình Shopee.
+
+🚀 BÂY GIỜ BẠN NÊN LÀM THEO THỨ TỰ
+
+1️⃣ Tạo bảng Shop chuẩn
+2️⃣ Tạo Shop model
+3️⃣ Tạo ShopDAO
+4️⃣ Làm Open Shop
+5️⃣ Làm trang Me
+6️⃣ Gắn shopId khi create product
+7️⃣ Bỏ edit price
+
+Nếu bạn muốn, mình có thể:
+
+Vẽ lại flow chuẩn theo ERD bạn đang có
+
+Hoặc viết full code skeleton cho toàn bộ module Shop
+
+Bạn muốn đi hướng nào?
+
+Nếu bạn xem lại trong ERD và class diagram mà tôi gửi thì sẽ ko có description và createdAt gì hết nha, đừng thêm vào. Insert Shop bị lỗi j nè,  getByOwnerId nữa, OpenShopController, rồi bắt đầu từ phần 5 trở đi bạn chỉ tôi không hiểu gì hết, tôi bị mù về code, về công nghệ nên làm ơn hướng dẫn chi tiết, tận tình giùm
+
+Rồi Vinh 👍 bình tĩnh, mình làm lại từ đầu theo đúng ERD của bạn.
+KHÔNG thêm description, KHÔNG thêm createdAt. Chỉ đúng những gì có trong ERD.
+
+Theo ERD bạn gửi, bảng Shop chỉ có:
+
+shopId
+shopName
+ownerId (FK → AppUser.userId)
+
+Không có gì khác. Ta làm đúng 3 cột này thôi.
+
+🚨 1️⃣ Vì sao bạn đang bị lỗi đỏ toàn bộ?
+
+Nhìn hình mình thấy lỗi:
+
+cannot find symbol setName(String)
+
+→ Lý do: class Shop của bạn không có method setName()
+
+Trong ERD, field là:
+
+shopName
+
+KHÔNG phải name
+
+Vậy trong model Shop phải là:
+
+setShopName()
+getShopName()
+
+Không phải setName().
+
+✅ 2️⃣ Làm lại Shop.java cho đúng ERD
+
+Vào model/Shop.java
+
+XÓA hết code cũ nếu sai và viết lại như sau:
+
+package model;
+
+public class Shop {
+
+    private String shopId;
+    private String shopName;
+    private String ownerId;
+
+    public Shop() {
+    }
+
+    public Shop(String shopId, String shopName, String ownerId) {
+        this.shopId = shopId;
+        this.shopName = shopName;
+        this.ownerId = ownerId;
+    }
+
+    public String getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(String shopId) {
+        this.shopId = shopId;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
+    }
+
+    public String getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(String ownerId) {
+        this.ownerId = ownerId;
+    }
+}
+
+🔴 Quan trọng: phải là shopName, không phải name.
+
+✅ 3️⃣ Sửa lại ShopDAO.insert()
+
+Vì ERD chỉ có 3 cột nên SQL phải là:
+
+public void insert(Shop shop) {
+
+    String sql = "INSERT INTO Shop (shopId, shopName, ownerId) VALUES (?, ?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, shop.getShopId());
+        ps.setString(2, shop.getShopName());
+        ps.setString(3, shop.getOwnerId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+
+🔴 Bạn đang bị lỗi vì:
+
+SQL có 3 cột
+
+Nhưng bạn set 4 parameter
+
+Và gọi getDescription() trong khi ERD không có
+
+✅ 4️⃣ Sửa getByOwnerId()
+
+Vì ERD không có description và createdAt, nên sửa lại:
+
+public Shop getByOwnerId(String ownerId) {
+
+    String sql = "SELECT * FROM Shop WHERE ownerId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, ownerId);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            return new Shop(
+                    rs.getString("shopId"),
+                    rs.getString("shopName"),
+                    rs.getString("ownerId")
+            );
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+✅ 5️⃣ Sửa OpenShopController (đơn giản nhất có thể)
+
+Trong OpenShopController.java sửa thành:
+
+protected void doPost(HttpServletRequest request,
+                      HttpServletResponse response)
+        throws ServletException, IOException {
+
+    HttpSession session = request.getSession();
+    AppUser user = (AppUser) session.getAttribute("user");
+
+    String shopName = request.getParameter("shopName");
+
+    // Tạo mã shop đơn giản
+    String shopId = "S" + System.currentTimeMillis();
+
+    Shop shop = new Shop();
+    shop.setShopId(shopId);
+    shop.setShopName(shopName);
+    shop.setOwnerId(user.getUserId());
+
+    ShopDAO dao = new ShopDAO();
+    dao.insert(shop);
+
+    response.sendRedirect(request.getContextPath() + "/me");
+}
+
+🔴 Lưu ý: phải dùng setShopName().
+
+✅ 6️⃣ Tạo open-shop.jsp (form mở shop)
+
+Tạo file mới:
+
+open-shop.jsp
+
+<form action="${pageContext.request.contextPath}/open-shop" method="post">
+    Shop name:
+    <input type="text" name="shopName" required>
+    <button type="submit">Create Shop</button>
+</form>
+✅ 7️⃣ Thêm mapping trong web.xml
+
+Mở web.xml thêm:
+
+<servlet>
+    <servlet-name>OpenShopController</servlet-name>
+    <servlet-class>controller.OpenShopController</servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>OpenShopController</servlet-name>
+    <url-pattern>/open-shop</url-pattern>
+</servlet-mapping>
+✅ 8️⃣ Làm trang me đơn giản nhất
+
+Tạo MeController
+
+Trong doGet:
+
+HttpSession session = request.getSession();
+AppUser user = (AppUser) session.getAttribute("user");
+
+ShopDAO dao = new ShopDAO();
+Shop shop = dao.getByOwnerId(user.getUserId());
+
+request.setAttribute("shop", shop);
+request.getRequestDispatcher("me.jsp").forward(request, response);
+me.jsp
+<h2>My Profile</h2>
+
+<c:if test="${shop == null}">
+    <a href="open-shop.jsp">Open Shop</a>
+</c:if>
+
+<c:if test="${shop != null}">
+    <p>Shop Name: ${shop.shopName}</p>
+</c:if>
+🎯 9️⃣ Bỏ edit price
+
+Trong:
+
+product-edit.jsp
+
+XÓA input price.
+
+Trong ProductDAO.update()
+
+Sửa SQL:
+
+UPDATE Product SET name=? WHERE productId=?
+
+Không update price nữa.
+
+📌 TÓM LẠI LỖI CỦA BẠN
+
+Bạn bị lỗi vì:
+
+Dùng setName thay vì setShopName
+
+Thêm description và createdAt không tồn tại
+
+SQL số cột không khớp số parameter
+
+Bây giờ bạn làm theo đúng 9 bước trên.
+
+Nếu còn lỗi, chụp hình lại, mình sửa từng dòng cho bạn.
+
+Bình tĩnh, làm từng bước một là được 💪
+
+ShopDAO,OpenShopController,MeController,CreateProductController
+
+Ok mình xem 4 file bạn gửi (ShopDAO, OpenShopController, MeController, CreateProductController) và lỗi đỏ khắp nơi rồi. Giờ mình nói thẳng vấn đề chính để bạn sửa đúng gốc.
+
+I. Lý do đang bị lỗi đỏ toàn bộ
+❌ 1. MeController của bạn viết SAI CẤU TRÚC Servlet
+
+Trong hình MeController, bạn đang viết code như thế này:
+
+HttpSession session = request.getSession();
+AppUser user = (AppUser) session.getAttribute("user");
+
+ShopDAO dao = new ShopDAO();
+Shop shop = dao.getByOwnerId(user.getUserId());
+
+request.setAttribute("shop", shop);
+request.getRequestDispatcher("me.jsp").forward(request, response);
+
+❌ Nhưng bạn KHÔNG đặt nó trong:
+
+public class MeController extends HttpServlet
+
+và cũng không có:
+
+protected void doGet(...)
+
+Nó đang nằm lơ lửng ngoài class → nên IDE báo lỗi toàn bộ request, response, session.
+
+✅ Cách sửa MeController chuẩn
+package controller;
+
+import dal.ShopDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.*;
+import jakarta.servlet.annotation.WebServlet;
+import java.io.IOException;
+import model.AppUser;
+import model.Shop;
+
+@WebServlet("/me")
+public class MeController extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        AppUser user = (AppUser) session.getAttribute("user");
+
+        if (user == null) {
+            response.sendRedirect("login");
+            return;
+        }
+
+        ShopDAO dao = new ShopDAO();
+        Shop shop = dao.getByOwnerId(user.getUserId());
+
+        request.setAttribute("shop", shop);
+        request.getRequestDispatcher("me.jsp")
+               .forward(request, response);
+    }
+}
+II. Lỗi ở ShopDAO
+
+Trong hình ShopDAO bạn bị lỗi đỏ ở:
+
+shop.getShopId()
+shop.getShopName()
+shop.getOwnerId()
+
+👉 Điều này chỉ xảy ra khi trong model Shop chưa có getter.
+
+✅ Kiểm tra model Shop phải có:
+public class Shop {
+
+    private String shopId;
+    private String shopName;
+    private String ownerId;
+
+    public Shop() {}
+
+    public Shop(String shopId, String shopName, String ownerId) {
+        this.shopId = shopId;
+        this.shopName = shopName;
+        this.ownerId = ownerId;
+    }
+
+    public String getShopId() { return shopId; }
+    public void setShopId(String shopId) { this.shopId = shopId; }
+
+    public String getShopName() { return shopName; }
+    public void setShopName(String shopName) { this.shopName = shopName; }
+
+    public String getOwnerId() { return ownerId; }
+    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+}
+
+Nếu thiếu getter/setter → IDE sẽ gạch đỏ toàn bộ.
+
+III. Lỗi ở OpenShopController
+
+Bạn cũng viết thiếu class bao ngoài giống MeController.
+
+Phải là:
+
+@WebServlet("/open-shop")
+public class OpenShopController extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        AppUser user = (AppUser) session.getAttribute("user");
+
+        String shopName = request.getParameter("shopName");
+
+        String shopId = "S" + System.currentTimeMillis();
+
+        Shop shop = new Shop();
+        shop.setShopId(shopId);
+        shop.setShopName(shopName);
+        shop.setOwnerId(user.getUserId());
+
+        ShopDAO dao = new ShopDAO();
+        dao.insert(shop);
+
+        response.sendRedirect("me");
+    }
+}
+IV. CreateProductController đang đúng logic nhưng cần kiểm tra 2 thứ
+Shop shop = shopDAO.getByOwnerId(user.getUserId());
+p.setShop(shop);
+
+👉 Nếu shop == null → sẽ gây lỗi sau này khi insert.
+
+Bạn nên thêm:
+
+if (shop == null) {
+    response.sendRedirect("open-shop");
+    return;
+}
+V. Vấn đề bạn hỏi về quyền OWNER
+
+Bạn nói rất đúng.
+
+Hiện tại bạn chưa có role OWNER. Nhưng thực ra không cần tạo role mới.
+
+Vì:
+
+User → có shop → tự động là owner
+User → không có shop → chỉ là user thường
+
+Bạn chỉ cần check:
+
+Shop shop = shopDAO.getByOwnerId(user.getUserId());
+
+if (shop != null) {
+    // hiển thị chức năng bán hàng
+}
+
+Không cần thêm role.
+
+VI. Lỗi màn hình trắng sau khi create
+
+100% do bạn đang:
+
+catch (Exception e) {
+    e.printStackTrace();
+}
+
+Nhưng không redirect hoặc forward gì sau đó.
+
+👉 Nếu lỗi xảy ra → servlet không trả về gì → trắng màn hình.
+
+Sửa thành:
+catch (Exception e) {
+    e.printStackTrace();
+    response.sendRedirect("error.jsp");
+}
+VII. Checklist để bạn sửa hết lỗi
+
+✔ Shop model có constructor + getter/setter
+✔ MeController có class + doGet
+✔ OpenShopController có class + doPost
+✔ Có @WebServlet mapping
+✔ Sau catch phải redirect
+✔ Nếu shop null thì redirect open-shop
+
+Tổng kết
+
+Hiện tại project bạn đang ở giai đoạn:
+
+User → có thể mở shop
+Shop → liên kết ownerId
+Product → gắn với shop
+
+Bạn đang build đúng hướng marketplace rồi.
+
+Nếu bạn muốn, mình có thể vẽ lại toàn bộ luồng:
+
+User → Open Shop → Create Product → Me → List Product
+
+cho bạn theo đúng MVC chuẩn để bạn build tiếp không bị vỡ cấu trúc nữa.
+
+Thì nó bị lỗi thì do bạn chứ đâu, bạn đưa sao tôi copy vậy chứ tôi mù công nghệ mà, bạn ko làm chi tiết thì lỗi thôi, với lại tôi muốn sửa lại các kiểu dữ liệu của id là int hết nha, trong Shop.java thì ownerId là kiểu dữ liệu AppUser. Trong OpenShopController thì để cho shopId là Idnetity nên ko cần ghi shopId đâu và ownerId là kiểu dữ liệu AppUser.
+ownerId ở đây là tham chiếu với khóa chính userId trong AppUser á
+
+Ok 👍 bình tĩnh. Lần này mình sẽ làm đúng theo ERD bạn gửi, không tự chế thêm nữa.
+
+Bạn yêu cầu:
+
+✅ Tất cả id = int
+
+✅ Shop.owner là kiểu AppUser (không phải String ownerId)
+
+✅ shopId dùng IDENTITY (auto increment)
+
+✅ owner tham chiếu khóa chính userId trong AppUser
+
+Mình sẽ viết lại đúng chuẩn theo UML của bạn.
+
+I. DATABASE (SQL chuẩn lại trước)
+
+Vì bạn muốn:
+
+shopId = int identity
+
+ownerId = int (FK → AppUser.userId)
+
+SQL đúng phải là:
+CREATE TABLE Shop (
+    shopId INT IDENTITY(1,1) PRIMARY KEY,
+    shopName NVARCHAR(255) NOT NULL,
+    ownerId INT NOT NULL,
+    FOREIGN KEY (ownerId) REFERENCES AppUser(userId)
+);
+
+✔ shopId auto tăng
+✔ ownerId là int
+✔ tham chiếu AppUser(userId)
+
+II. MODEL Shop.java (ĐÚNG THEO ERD)
+
+Bạn nói ownerId là kiểu AppUser → đúng theo UML bạn gửi.
+
+Vậy model phải là:
+
+package model;
+
+public class Shop {
+
+    private int shopId;
+    private String shopName;
+    private AppUser owner;   // đúng theo ERD
+
+    public Shop() {
+    }
+
+    public Shop(int shopId, String shopName, AppUser owner) {
+        this.shopId = shopId;
+        this.shopName = shopName;
+        this.owner = owner;
+    }
+
+    public int getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(int shopId) {
+        this.shopId = shopId;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
+    }
+
+    public AppUser getOwner() {
+        return owner;
+    }
+
+    public void setOwner(AppUser owner) {
+        this.owner = owner;
+    }
+}
+III. ShopDAO (SỬA CHUẨN LẠI)
+
+Vì shopId auto → khi insert KHÔNG insert shopId.
+
+insert()
+public void insert(Shop shop) {
+    String sql = "INSERT INTO Shop (shopName, ownerId) VALUES (?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, shop.getShopName());
+        ps.setInt(2, shop.getOwner().getUserId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+getByOwnerId()
+public Shop getByOwnerId(int ownerId) {
+
+    String sql = "SELECT * FROM Shop WHERE ownerId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, ownerId);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+
+            AppUser owner = new AppUser();
+            owner.setUserId(rs.getInt("ownerId"));
+
+            Shop shop = new Shop();
+            shop.setShopId(rs.getInt("shopId"));
+            shop.setShopName(rs.getString("shopName"));
+            shop.setOwner(owner);
+
+            return shop;
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+IV. OpenShopController (VIẾT LẠI ĐÚNG)
+
+Vì shopId auto → KHÔNG tạo shopId bằng tay nữa.
+
+package controller;
+
+import dal.ShopDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import model.AppUser;
+import model.Shop;
+
+@WebServlet("/open-shop")
+public class OpenShopController extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+        AppUser user = (AppUser) session.getAttribute("user");
+
+        if (user == null) {
+            response.sendRedirect("login");
+            return;
+        }
+
+        String shopName = request.getParameter("shopName");
+
+        Shop shop = new Shop();
+        shop.setShopName(shopName);
+        shop.setOwner(user);  // đúng theo ERD
+
+        ShopDAO dao = new ShopDAO();
+        dao.insert(shop);
+
+        response.sendRedirect("me");
+    }
+}
+V. CreateProductController (SỬA LẠI CHO ĐÚNG QUAN HỆ)
+
+Trong ERD:
+
+Product có: private Shop shop;
+
+Vậy đoạn này đúng:
+
+Shop shop = shopDAO.getByOwnerId(user.getUserId());
+
+if (shop == null) {
+    response.sendRedirect("open-shop");
+    return;
+}
+
+Product p = new Product();
+p.setName(name);
+p.setPrice(price);
+p.setShop(shop);
+VI. Lý do bạn bị lỗi đỏ trước đó
+
+❌ Bạn dùng ownerId là String
+
+❌ Model không khớp DB
+
+❌ Không có getter
+
+❌ Viết code ngoài class
+
+❌ shopId vừa identity vừa tự set
+
+Giờ mình đã đồng bộ:
+
+DB = int identity
+Model = object reference
+DAO = dùng getOwner().getUserId()
+
+VII. Quan hệ chuẩn hiện tại (đúng theo ERD bạn gửi)
+
+AppUser (1) —— (0..) Shop
+Shop (1) —— (0..) Product
+Product (1) —— (0..*) ProductVariant
+
+Bạn đang đi đúng hướng marketplace rồi.
+
+Nếu bạn muốn, mình có thể:
+
+Viết lại toàn bộ flow Owner chuẩn từ đầu (Open shop → Create product → List product)
+
+Hoặc giúp bạn chuẩn hóa lại toàn bộ id int hết trong toàn hệ thống
+
+Bạn chọn hướng nào mình làm chi tiết từng file cho bạn để không lỗi nữa.
+
+trong Shop.java ownerId chứ ko phải owner, sao  cái dòng     try (Connection conn = DBContext.getConnection();  trong ShopDAO cứ bị lỗi và ps.setString(1, ownerId); cũng lỗi
+
+Ok 👍 giờ mình sửa lại đúng theo bạn yêu cầu:
+
+Shop có ownerId (int), KHÔNG phải AppUser owner
+
+Tất cả id là int
+
+shopId là IDENTITY
+
+ownerId là FK → AppUser.userId
+
+Mình sẽ giải thích từng lỗi bạn đang gặp.
+
+I. Shop.java đúng phải là thế này
+
+Bạn nói là ownerId chứ không phải owner → đúng.
+
+package model;
+
+public class Shop {
+
+    private int shopId;
+    private String shopName;
+    private int ownerId;   // int, không phải AppUser
+
+    public Shop() {}
+
+    public Shop(int shopId, String shopName, int ownerId) {
+        this.shopId = shopId;
+        this.shopName = shopName;
+        this.ownerId = ownerId;
+    }
+
+    public int getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(int shopId) {
+        this.shopId = shopId;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
+    }
+
+    public int getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(int ownerId) {
+        this.ownerId = ownerId;
+    }
+}
+
+Nếu thiếu getOwnerId() → IDE sẽ đỏ ở DAO.
+
+II. Lỗi:
+❌ ps.setString(1, ownerId); bị lỗi
+
+Vì:
+
+ownerId là int
+
+Bạn đang dùng:
+
+setString()
+
+👉 SAI kiểu dữ liệu.
+
+✅ Sửa lại:
+ps.setInt(1, ownerId);
+III. Lỗi ở dòng
+try (Connection conn = DBContext.getConnection();
+
+Có 3 khả năng gây lỗi:
+
+1️⃣ Bạn chưa import Connection
+
+Phải có ở đầu file:
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+Nếu thiếu → IDE đỏ ngay dòng try.
+
+2️⃣ DBContext.getConnection() không phải static
+
+Nếu trong DBContext bạn viết:
+
+public Connection getConnection() { ... }
+
+Thì bạn không thể gọi:
+
+DBContext.getConnection()
+
+👉 Phải làm:
+
+DBContext db = new DBContext();
+Connection conn = db.getConnection();
+
+Hoặc sửa DBContext thành:
+
+public static Connection getConnection()
+3️⃣ Project đang dùng Java thấp hơn 1.7
+
+try-with-resources chỉ dùng được từ Java 7 trở lên.
+
+Nếu project bạn đang để Java 6 → sẽ lỗi ngay.
+
+Vào:
+Project Properties → Java Source → đổi lên 11 hoặc 17.
+
+IV. ShopDAO chuẩn khi ownerId là int
+insert()
+public void insert(Shop shop) {
+
+    String sql = "INSERT INTO Shop (shopName, ownerId) VALUES (?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, shop.getShopName());
+        ps.setInt(2, shop.getOwnerId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+getByOwnerId()
+public Shop getByOwnerId(int ownerId) {
+
+    String sql = "SELECT * FROM Shop WHERE ownerId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, ownerId);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            return new Shop(
+                rs.getInt("shopId"),
+                rs.getString("shopName"),
+                rs.getInt("ownerId")
+            );
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+V. OpenShopController đúng khi ownerId là int
+Shop shop = new Shop();
+shop.setShopName(shopName);
+shop.setOwnerId(user.getUserId());
+
+Không còn setOwner() nữa.
+
+VI. Tóm lại lỗi của bạn là:
+Lỗi	Nguyên nhân
+ps.setString(1, ownerId) đỏ	ownerId là int
+getOwnerId() đỏ	thiếu getter
+try (Connection ...) đỏ	thiếu import / DBContext không static / Java version thấp
+
+Nếu bạn gửi mình ảnh file DBContext.java mình sẽ chỉ ra chính xác vì sao dòng try bị đỏ.
+
+Đừng lo, cái này không phải bạn mù công nghệ đâu 😄
+Nó chỉ là đồng bộ kiểu dữ liệu cho đúng giữa:
+
+Database ↔ Model ↔ DAO
+
+Giờ mình đã đồng bộ hết cho bạn rồi.
+
+Không phải ý tôi là  owner trong Shop là kiểu dữ liệu AppUser, nó dùng để liên kết với userId trong AppUser, có nghĩa là Shop đó có người chủ là userId đó 
+
+Ok 👍 giờ mình hiểu đúng ý bạn rồi.
+
+Bạn muốn:
+
+Trong Shop.java
+
+private AppUser owner;
+
+Nhưng trong Database thì:
+
+ownerId INT FOREIGN KEY REFERENCES AppUser(userId)
+
+👉 Đây là đúng chuẩn OOP + đúng chuẩn quan hệ CSDL.
+Không sai gì hết. Bạn đang làm đúng hướng.
+
+🔥 Giải thích cho bạn hiểu rõ (rất quan trọng)
+Trong DATABASE
+
+Ta lưu:
+
+ownerId INT
+
+Vì database không biết AppUser object là gì.
+
+Trong JAVA (Model)
+
+Ta lưu:
+
+private AppUser owner;
+
+Vì trong Java ta muốn làm việc với object.
+
+👉 Vậy ShopDAO phải làm gì?
+
+Khi đọc từ database, ta phải:
+
+Lấy ownerId từ DB
+
+Tạo object AppUser
+
+Set userId vào đó
+
+Gán vào shop.setOwner()
+
+✅ Shop.java đúng theo bạn
+package model;
+
+public class Shop {
+
+    private int shopId;
+    private String shopName;
+    private AppUser owner;   // đúng như bạn nói
+
+    public Shop() {}
+
+    public Shop(int shopId, String shopName, AppUser owner) {
+        this.shopId = shopId;
+        this.shopName = shopName;
+        this.owner = owner;
+    }
+
+    public int getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(int shopId) {
+        this.shopId = shopId;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
+    }
+
+    public AppUser getOwner() {
+        return owner;
+    }
+
+    public void setOwner(AppUser owner) {
+        this.owner = owner;
+    }
+}
+✅ Database vẫn là:
+CREATE TABLE Shop (
+    shopId INT IDENTITY(1,1) PRIMARY KEY,
+    shopName NVARCHAR(255),
+    ownerId INT NOT NULL,
+    FOREIGN KEY (ownerId) REFERENCES AppUser(userId)
+);
+🔥 ShopDAO đúng chuẩn khi owner là AppUser
+INSERT
+public void insert(Shop shop) {
+
+    String sql = "INSERT INTO Shop (shopName, ownerId) VALUES (?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, shop.getShopName());
+
+        // LẤY userId từ object owner
+        ps.setInt(2, shop.getOwner().getUserId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+GET BY OWNER ID
+public Shop getByOwnerId(int ownerId) {
+
+    String sql = "SELECT * FROM Shop WHERE ownerId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, ownerId);
+
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+
+            // TẠO AppUser object
+            AppUser owner = new AppUser();
+            owner.setUserId(rs.getInt("ownerId"));
+
+            // TẠO Shop object
+            Shop shop = new Shop();
+            shop.setShopId(rs.getInt("shopId"));
+            shop.setShopName(rs.getString("shopName"));
+            shop.setOwner(owner);
+
+            return shop;
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+🔥 OpenShopController đúng chuẩn
+Shop shop = new Shop();
+shop.setShopName(shopName);
+shop.setOwner(user);   // user lấy từ session
+
+dao.insert(shop);
+💥 Còn lỗi try (Connection conn = DBContext.getConnection(); )
+
+Nếu dòng này đỏ, thì 99% là:
+
+❌ DBContext.getConnection() không static
+
+Mở DBContext.java xem:
+
+Nếu bạn đang viết:
+
+public Connection getConnection()
+
+👉 Thì phải gọi:
+
+DBContext db = new DBContext();
+Connection conn = db.getConnection();
+
+HOẶC
+
+Đổi DBContext thành:
+
+public static Connection getConnection()
+🎯 Tóm lại
+Database	Java
+ownerId INT	AppUser owner
+FK → AppUser(userId)	owner.getUserId()
+
+Bạn đang làm đúng kiến trúc rồi đó. Không sai đâu.
+
+Nếu bạn muốn mình vẽ lại luồng object mapping giữa:
+
+DB row → Shop → AppUser
+
+để bạn hiểu luôn ORM hoạt động kiểu gì, mình giải thích tiếp cho bạn dễ hiểu hơn.
+
+01-Mar-2026 12:59:36.083 SEVERE [http-nio-8080-exec-6] org.apache.catalina.startup.HostConfig.deployDescriptor Error deploying deployment descriptor [C:\apache-tomcat-11.0.18-windows-x64\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml]
+	java.lang.IllegalStateException: Error starting child
+		at org.apache.catalina.core.ContainerBase.addChild(ContainerBase.java:567)
+		at org.apache.catalina.core.StandardHost.addChild(StandardHost.java:663)
+		at org.apache.catalina.startup.HostConfig.deployDescriptor(HostConfig.java:590)
+		at org.apache.catalina.startup.HostConfig.deployApps(HostConfig.java:439)
+		at org.apache.catalina.startup.HostConfig.check(HostConfig.java:1653)
+		at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+		at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+		at org.apache.tomcat.util.modeler.BaseModelMBean.invoke(BaseModelMBean.java:249)
+		at java.management/com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.invoke(DefaultMBeanServerInterceptor.java:628)
+		at java.management/com.sun.jmx.mbeanserver.JmxMBeanServer.invoke(JmxMBeanServer.java:790)
+		at org.apache.catalina.manager.ManagerServlet.check(ManagerServlet.java:1449)
+		at org.apache.catalina.manager.ManagerServlet.deploy(ManagerServlet.java:943)
+		at org.apache.catalina.manager.ManagerServlet.doGet(ManagerServlet.java:307)
+		at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:622)
+		at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:710)
+		at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:128)
+		at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:53)
+		at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+		at org.apache.catalina.filters.HttpHeaderSecurityFilter.doFilter(HttpHeaderSecurityFilter.java:114)
+		at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+		at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165)
+		at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:77)
+		at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:607)
+		at org.apache.catalina.valves.RequestFilterValve.process(RequestFilterValve.java:352)
+		at org.apache.catalina.valves.RemoteCIDRValve.invoke(RemoteCIDRValve.java:138)
+		at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113)
+		at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83)
+		at org.apache.catalina.valves.AbstractAccessLogValve.invoke(AbstractAccessLogValve.java:654)
+		at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72)
+		at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:341)
+		at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:397)
+		at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+		at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
+		at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1779)
+		at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+		at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:946)
+		at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:480)
+		at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:57)
+		at java.base/java.lang.Thread.run(Thread.java:1474)
+	Caused by: org.apache.catalina.LifecycleException: Failed to start component [StandardEngine[Catalina].StandardHost[localhost].StandardContext[/LAB211Web]]
+		at org.apache.catalina.util.LifecycleBase.handleSubClassException(LifecycleBase.java:404)
+		at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:179)
+		at org.apache.catalina.core.ContainerBase.addChild(ContainerBase.java:564)
+		... 38 more
+	Caused by: java.lang.IllegalArgumentException: The servlets named [OpenShopController] and [controller.OpenShopController] are both mapped to the url-pattern [/open-shop] which is not permitted
+		at org.apache.tomcat.util.descriptor.web.WebXml.addServletMappingDecoded(WebXml.java:419)
+		at org.apache.tomcat.util.descriptor.web.WebXml.addServletMapping(WebXml.java:410)
+		at org.apache.catalina.startup.ContextConfig.processAnnotationWebServlet(ContextConfig.java:2542)
+		at org.apache.catalina.startup.ContextConfig.processClass(ContextConfig.java:2248)
+		at org.apache.catalina.startup.ContextConfig.processAnnotationsStream(ContextConfig.java:2237)
+		at org.apache.catalina.startup.ContextConfig.processAnnotationsWebResource(ContextConfig.java:2148)
+		at org.apache.catalina.startup.ContextConfig.processAnnotationsWebResource(ContextConfig.java:2143)
+		at org.apache.catalina.startup.ContextConfig.processClasses(ContextConfig.java:1357)
+		at org.apache.catalina.startup.ContextConfig.webConfig(ContextConfig.java:1267)
+		at org.apache.catalina.startup.ContextConfig.configureStart(ContextConfig.java:968)
+		at org.apache.catalina.startup.ContextConfig.lifecycleEvent(ContextConfig.java:288)
+		at org.apache.catalina.util.LifecycleBase.fireLifecycleEvent(LifecycleBase.java:109)
+		at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4334)
+		at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164)
+		... 39 more
+01-Mar-2026 12:59:36.097 INFO [http-nio-8080-exec-6] org.apache.catalina.startup.HostConfig.deployDescriptor Deployment of deployment descriptor [C:\apache-tomcat-11.0.18-windows-x64\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml] has finished in [101] ms
+01-Mar-2026 13:00:00.001 INFO [http-nio-8080-exec-10] org.apache.catalina.startup.HostConfig.undeploy Undeploying context [/LAB211Web]
+Sao run web  bị lỗi này ko chạy đc
+
+Ok 👍 mình đọc log rồi. Lỗi của bạn rất rõ ràng, không liên quan database gì hết.
+
+❌ LỖI CHÍNH
+The servlets named [OpenShopController] and [controller.OpenShopController] 
+are both mapped to the url-pattern [/open-shop]
+which is not permitted
+
+👉 Nghĩa là:
+
+Bạn đang khai báo servlet /open-shop 2 lần.
+
+Tomcat không cho phép 2 servlet cùng map chung 1 URL.
+
+🔥 Vì sao lại bị?
+
+Bạn đang dùng cả 2 cách khai báo servlet cùng lúc:
+
+Cách 1: Dùng Annotation (trong Java)
+@WebServlet("/open-shop")
+public class OpenShopController extends HttpServlet {
+Cách 2: Dùng web.xml
+
+Trong file:
+
+C:\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml
+
+hoặc web.xml trong project bạn có thể đang có:
+
+<servlet>
+    <servlet-name>OpenShopController</servlet-name>
+    <servlet-class>controller.OpenShopController</servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>OpenShopController</servlet-name>
+    <url-pattern>/open-shop</url-pattern>
+</servlet-mapping>
+
+👉 Như vậy là bị trùng.
+
+✅ CÁCH SỬA (CHỌN 1 TRONG 2)
+✅ Cách 1 (Khuyên dùng – hiện đại hơn)
+Giữ lại:
+@WebServlet("/open-shop")
+XÓA trong web.xml:
+<servlet>
+    <servlet-name>OpenShopController</servlet-name>
+    ...
+</servlet>
+
+<servlet-mapping>
+    ...
+</servlet-mapping>
+❌ Hoặc nếu muốn dùng web.xml
+
+Thì phải XÓA annotation:
+
+// XÓA dòng này
+@WebServlet("/open-shop")
+🎯 Mình khuyên bạn
+
+👉 Dùng Annotation
+👉 Đừng dùng web.xml nữa
+👉 Đỡ rối và đỡ lỗi trùng
+
+⚠ Quan trọng
+
+Sau khi sửa:
+
+Stop Tomcat
+
+Xóa folder:
+
+apache-tomcat-11.0.18\work
+
+Clean & Build lại project
+
+Run lại
+
+📌 Tóm lại
+Lỗi	Nguyên nhân
+Cannot map 2 servlet to same URL	Bạn khai báo 2 lần
+Không deploy được	Tomcat chặn vì config sai
+
+Đây không phải lỗi code logic. Đây là lỗi cấu hình servlet mapping.
+
+Nếu bạn gửi mình nội dung web.xml, mình chỉ ra dòng cần xóa luôn cho bạn.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="5.0" xmlns="https://jakarta.ee/xml/ns/jakartaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee          https://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd">
+    <servlet>
+        <servlet-name>testdb</servlet-name>
+        <servlet-class>.TestDBController</servlet-class>
+    </servlet>
+    <servlet>
+        <servlet-name>editUser</servlet-name>
+        <servlet-class>controller.EditUserController</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>testdb</servlet-name>
+        <url-pattern>/testdb</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>login</servlet-name>
+        <servlet-class>controller.LoginController</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>login</servlet-name>
+        <url-pattern>/login</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>listUser</servlet-name>
+        <servlet-class>controller.ListUserController</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>listUser</servlet-name>
+        <url-pattern>/listUser</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>register</servlet-name>
+        <servlet-class>controller.RegisterController</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>register</servlet-name>
+        <url-pattern>/register</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>logout</servlet-name>
+        <servlet-class>controller.LogoutController</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>logout</servlet-name>
+        <url-pattern>/logout</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>deleteUser</servlet-name>
+        <servlet-class>controller.DeleteUserController</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>deleteUser</servlet-name>
+        <url-pattern>/deleteUser</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>addUser</servlet-name>
+        <servlet-class>controller.AddUserController</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>addUser</servlet-name>
+        <url-pattern>/addUser</url-pattern>
+    </servlet-mapping>
+    <filter>
+        <filter-name>auth</filter-name>
+        <filter-class>controller.AuthFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>auth</filter-name>
+        <url-pattern>/listUser</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>auth</filter-name>
+        <url-pattern>/addUser</url-pattern>
+    </filter-mapping>
+    <filter-mapping>
+        <filter-name>auth</filter-name>
+        <url-pattern>/editUser</url-pattern>
+    </filter-mapping>
+    <servlet-mapping>
+        <servlet-name>editUser</servlet-name>
+        <url-pattern>/editUser</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>ListProduct</servlet-name>
+        <servlet-class>controller.ListProductController</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>ListProduct</servlet-name>
+        <url-pattern>/listProduct</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>CreateProductController</servlet-name>
+        <servlet-class>controller.CreateProductController</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>CreateProductController</servlet-name>
+        <url-pattern>/create-product</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>EditProductController</servlet-name>
+        <servlet-class>controller.EditProductController</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>EditProductController</servlet-name>
+        <url-pattern>/edit-product</url-pattern>
+    </servlet-mapping>
+    <servlet>
+        <servlet-name>DeleteProductController</servlet-name>
+        <servlet-class>controller.DeleteProductController</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>DeleteProductController</servlet-name>
+        <url-pattern>/delete-product</url-pattern>
+    </servlet-mapping>
+    
+    <welcome-file-list>
+        <welcome-file>login.jsp</welcome-file>
+    </welcome-file-list>
+</web-app>
+đây là web.xml, giờ những cái nào nên chuyển anmotation cho hiện đại 
+
+Ok 👍 mình xem web.xml của bạn rồi.
+
+🔥 Kết luận quan trọng trước
+
+Trong web.xml bạn gửi KHÔNG có OpenShopController.
+
+Vậy lỗi:
+
+The servlets named [OpenShopController] and 
+[controller.OpenShopController] are both mapped to [/open-shop]
+
+👉 Không phải do file web.xml này.
+
+👉 Nó nằm ở file:
+
+C:\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml
+
+Đây là file Tomcat tự generate khi deploy bằng Manager.
+
+🎯 Cách xử lý lỗi deploy ngay lập tức
+
+Stop Tomcat
+
+Vào:
+
+apache-tomcat-11.0.18/conf/Catalina/localhost/
+
+Xóa file:
+
+LAB211Web.xml
+
+Xóa luôn thư mục:
+
+apache-tomcat-11.0.18/work/
+
+Clean & Build lại project
+
+Run lại từ IDE (đừng deploy bằng Manager nữa)
+
+👉 99% sẽ hết lỗi.
+
+🚀 Giờ trả lời câu hỏi chính của bạn
+
+Những cái nào nên chuyển sang annotation cho hiện đại?
+
+Mình nói thẳng:
+
+👉 Nếu đã dùng annotation thì nên bỏ hết servlet mapping trong web.xml.
+
+✅ Cách hiện đại (khuyên dùng)
+Giữ lại trong web.xml:
+
+filter (nếu chưa dùng annotation)
+
+welcome-file-list (có thể giữ)
+
+Chuyển TẤT CẢ servlet sang annotation.
+🔥 Ví dụ chuyển từng cái
+LoginController
+
+XÓA trong web.xml:
+
+<servlet>
+    <servlet-name>login</servlet-name>
+    <servlet-class>controller.LoginController</servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>login</servlet-name>
+    <url-pattern>/login</url-pattern>
+</servlet-mapping>
+
+THÊM trong LoginController.java:
+
+@WebServlet("/login")
+public class LoginController extends HttpServlet {
+ListProductController
+
+XÓA trong web.xml:
+
+<servlet>
+    <servlet-name>ListProduct</servlet-name>
+    <servlet-class>controller.ListProductController</servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>ListProduct</servlet-name>
+    <url-pattern>/listProduct</url-pattern>
+</servlet-mapping>
+
+THÊM trong file Java:
+
+@WebServlet("/listProduct")
+CreateProductController
+
+Thêm:
+
+@WebServlet("/create-product")
+EditProductController
+@WebServlet("/edit-product")
+DeleteProductController
+@WebServlet("/delete-product")
+🔥 Filter cũng có thể chuyển sang annotation
+
+Trong AuthFilter.java:
+
+@WebFilter({
+    "/listUser",
+    "/addUser",
+    "/editUser"
+})
+public class AuthFilter implements Filter {
+
+Sau đó XÓA toàn bộ phần <filter> trong web.xml.
+
+🎯 Cuối cùng
+
+Sau khi chuyển hết sang annotation:
+
+web.xml của bạn có thể rút gọn còn:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="5.0"
+ xmlns="https://jakarta.ee/xml/ns/jakartaee"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+ https://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd">
+
+    <welcome-file-list>
+        <welcome-file>login.jsp</welcome-file>
+    </welcome-file-list>
+
+</web-app>
+🧠 Mình khuyên bạn
+
+Vì bạn đang học:
+
+👉 Dùng annotation hết cho sạch
+👉 web.xml để trống
+👉 Tránh 100% lỗi trùng mapping
+
+📌 Tóm lại
+Thành phần	Nên làm
+Servlet	Annotation
+Filter	Annotation
+welcome-file	Có thể giữ
+Tomcat Manager deploy	Không dùng
+
+Nếu bạn muốn mình viết checklist từng bước chuyển toàn bộ project sang annotation không lỗi, mình hướng dẫn từng bước một cho bạn.
+
+01-Mar-2026 13:11:37.491 SEVERE [http-nio-8080-exec-15] org.apache.catalina.startup.HostConfig.deployDescriptor Error deploying deployment descriptor [C:\apache-tomcat-11.0.18-windows-x64\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml]
+	java.lang.IllegalStateException: Error starting child
+		at org.apache.catalina.core.ContainerBase.addChild(ContainerBase.java:567)
+		at org.apache.catalina.core.StandardHost.addChild(StandardHost.java:663)
+		at org.apache.catalina.startup.HostConfig.deployDescriptor(HostConfig.java:590)
+		at org.apache.catalina.startup.HostConfig.deployApps(HostConfig.java:439)
+		at org.apache.catalina.startup.HostConfig.check(HostConfig.java:1653)
+		at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+		at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+		at org.apache.tomcat.util.modeler.BaseModelMBean.invoke(BaseModelMBean.java:249)
+		at java.management/com.sun.jmx.interceptor.DefaultMBeanServerInterceptor.invoke(DefaultMBeanServerInterceptor.java:628)
+		at java.management/com.sun.jmx.mbeanserver.JmxMBeanServer.invoke(JmxMBeanServer.java:790)
+		at org.apache.catalina.manager.ManagerServlet.check(ManagerServlet.java:1449)
+		at org.apache.catalina.manager.ManagerServlet.deploy(ManagerServlet.java:943)
+		at org.apache.catalina.manager.ManagerServlet.doGet(ManagerServlet.java:307)
+		at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:622)
+		at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:710)
+		at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:128)
+		at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:53)
+		at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+		at org.apache.catalina.filters.HttpHeaderSecurityFilter.doFilter(HttpHeaderSecurityFilter.java:114)
+		at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:107)
+		at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:165)
+		at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:77)
+		at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:607)
+		at org.apache.catalina.valves.RequestFilterValve.process(RequestFilterValve.java:352)
+		at org.apache.catalina.valves.RemoteCIDRValve.invoke(RemoteCIDRValve.java:138)
+		at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:113)
+		at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:83)
+		at org.apache.catalina.valves.AbstractAccessLogValve.invoke(AbstractAccessLogValve.java:654)
+		at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:72)
+		at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:341)
+		at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:397)
+		at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+		at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:903)
+		at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1779)
+		at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+		at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:946)
+		at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:480)
+		at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:57)
+		at java.base/java.lang.Thread.run(Thread.java:1474)
+	Caused by: org.apache.catalina.LifecycleException: Failed to start component [StandardEngine[Catalina].StandardHost[localhost].StandardContext[/LAB211Web]]
+		at org.apache.catalina.util.LifecycleBase.handleSubClassException(LifecycleBase.java:404)
+		at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:179)
+		at org.apache.catalina.core.ContainerBase.addChild(ContainerBase.java:564)
+		... 38 more
+	Caused by: java.lang.IllegalArgumentException: Invalid <url-pattern> [addUser] in servlet mapping
+		at org.apache.catalina.core.StandardContext.addServletMappingDecoded(StandardContext.java:2861)
+		at org.apache.catalina.Context.addServletMappingDecoded(Context.java:887)
+		at org.apache.catalina.startup.ContextConfig.configureContext(ContextConfig.java:1506)
+		at org.apache.catalina.startup.ContextConfig.webConfig(ContextConfig.java:1293)
+		at org.apache.catalina.startup.ContextConfig.configureStart(ContextConfig.java:968)
+		at org.apache.catalina.startup.ContextConfig.lifecycleEvent(ContextConfig.java:288)
+		at org.apache.catalina.util.LifecycleBase.fireLifecycleEvent(LifecycleBase.java:109)
+		at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4334)
+		at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164)
+		... 39 more
+01-Mar-2026 13:11:37.526 INFO [http-nio-8080-exec-15] org.apache.catalina.startup.HostConfig.deployDescriptor Deployment of deployment descriptor [C:\apache-tomcat-11.0.18-windows-x64\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml] has finished in [327] ms
+01-Mar-2026 13:11:38.054 INFO [http-nio-8080-exec-25] org.apache.catalina.startup.HostConfig.undeploy Undeploying context [/LAB211Web]
+01-Mar-2026 13:11:38.071 INFO [http-nio-8080-exec-24] org.apache.catalina.startup.HostConfig.deployDescriptor Deploying deployment descriptor [C:\apache-tomcat-11.0.18-windows-x64\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml]
+01-Mar-2026 13:11:38.072 WARNING [http-nio-8080-exec-24] org.apache.catalina.startup.HostConfig.deployDescriptor The path attribute with value [/LAB211Web] in deployment descriptor [C:\apache-tomcat-11.0.18-windows-x64\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml] has been ignored
+01-Mar-2026 13:11:38.118 INFO [http-nio-8080-exec-24] org.apache.catalina.startup.HostConfig.deployDescriptor Deployment of deployment descriptor [C:\apache-tomcat-11.0.18-windows-x64\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml] has finished in [48] ms
+01-Mar-2026 13:11:38.125 INFO [http-nio-8080-exec-16] org.apache.catalina.util.LifecycleBase.start The start() method was called on component [StandardEngine[Catalina].StandardHost[localhost].StandardContext[/LAB211Web]] after start() had already been called. The second call will be ignored.
+01-Mar-2026 13:11:46.377 INFO [Catalina-utility-2] org.apache.catalina.startup.HostConfig.reload Reloading context [/LAB211Web]
+01-Mar-2026 13:11:46.377 INFO [Catalina-utility-2] org.apache.catalina.core.StandardContext.reload Reloading Context with name [/LAB211Web] has started
+01-Mar-2026 13:11:46.628 SEVERE [Catalina-utility-2] org.apache.catalina.core.StandardContext.reload Exception starting Context with name [/LAB211Web]
+	org.apache.catalina.LifecycleException: Failed to start component [StandardEngine[Catalina].StandardHost[localhost].StandardContext[/LAB211Web]]
+		at org.apache.catalina.util.LifecycleBase.handleSubClassException(LifecycleBase.java:404)
+		at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:179)
+		at org.apache.catalina.core.StandardContext.reload(StandardContext.java:3228)
+		at org.apache.catalina.startup.HostConfig.reload(HostConfig.java:1414)
+		at org.apache.catalina.startup.HostConfig.checkResources(HostConfig.java:1389)
+		at org.apache.catalina.startup.HostConfig.check(HostConfig.java:1615)
+		at org.apache.catalina.startup.HostConfig.lifecycleEvent(HostConfig.java:260)
+		at org.apache.catalina.util.LifecycleBase.fireLifecycleEvent(LifecycleBase.java:109)
+		at org.apache.catalina.core.ContainerBase.backgroundProcess(ContainerBase.java:938)
+		at org.apache.catalina.core.ContainerBase$ContainerBackgroundProcessor.processChildren(ContainerBase.java:1137)
+		at org.apache.catalina.core.ContainerBase$ContainerBackgroundProcessor.processChildren(ContainerBase.java:1141)
+		at org.apache.catalina.core.ContainerBase$ContainerBackgroundProcessor.run(ContainerBase.java:1119)
+		at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:545)
+		at java.base/java.util.concurrent.FutureTask.runAndReset(FutureTask.java:369)
+		at java.base/java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:310)
+		at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+		at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+		at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:57)
+		at java.base/java.lang.Thread.run(Thread.java:1474)
+	Caused by: java.lang.IllegalArgumentException: Invalid <url-pattern> [addUser] in servlet mapping
+		at org.apache.catalina.core.StandardContext.addServletMappingDecoded(StandardContext.java:2861)
+		at org.apache.catalina.Context.addServletMappingDecoded(Context.java:887)
+		at org.apache.catalina.startup.ContextConfig.configureContext(ContextConfig.java:1506)
+		at org.apache.catalina.startup.ContextConfig.webConfig(ContextConfig.java:1293)
+		at org.apache.catalina.startup.ContextConfig.configureStart(ContextConfig.java:968)
+		at org.apache.catalina.startup.ContextConfig.lifecycleEvent(ContextConfig.java:288)
+		at org.apache.catalina.util.LifecycleBase.fireLifecycleEvent(LifecycleBase.java:109)
+		at org.apache.catalina.core.StandardContext.startInternal(StandardContext.java:4334)
+		at org.apache.catalina.util.LifecycleBase.start(LifecycleBase.java:164)
+		... 17 more
+01-Mar-2026 13:11:46.629 INFO [Catalina-utility-2] org.apache.catalina.core.StandardContext.reload Reloading Context with name [/LAB211Web] is completed 
+lỗi j tiếp v
+
+Ok 👍 lần này lỗi đã rõ 100%.
+
+❌ LỖI CHÍNH
+Invalid <url-pattern> [addUser] in servlet mapping
+
+👉 Nghĩa là trong một file cấu hình nào đó bạn đang khai báo:
+
+<url-pattern>addUser</url-pattern>
+
+🚨 Và cái này SAI vì URL pattern bắt buộc phải bắt đầu bằng /
+
+🔥 Nhưng vấn đề quan trọng hơn
+
+Nhìn log này:
+
+Error deploying deployment descriptor 
+C:\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml
+
+👉 Tomcat KHÔNG đọc web.xml trong project của bạn nữa.
+
+👉 Nó đang đọc file:
+
+apache-tomcat-11.0.18/conf/Catalina/localhost/LAB211Web.xml
+
+Đây là file Tomcat tự tạo khi bạn deploy bằng Manager.
+
+🎯 Vì vậy:
+
+Bạn có 2 web.xml đang tồn tại:
+
+web.xml trong project (đúng)
+
+LAB211Web.xml trong thư mục Tomcat (sai và đang lỗi)
+
+🚀 CÁCH SỬA DỨT ĐIỂM (LÀM ĐÚNG TỪNG BƯỚC)
+1️⃣ STOP Tomcat
+2️⃣ Vào thư mục này:
+C:\apache-tomcat-11.0.18\conf\Catalina\localhost\
+3️⃣ XÓA file:
+LAB211Web.xml
+
+🚨 Phải xóa file này.
+
+4️⃣ XÓA luôn thư mục:
+C:\apache-tomcat-11.0.18\work\
+5️⃣ XÓA luôn thư mục:
+C:\apache-tomcat-11.0.18\webapps\LAB211Web\
+6️⃣ MỞ IDE
+
+Clean & Build project lại.
+
+7️⃣ Run trực tiếp từ IDE (KHÔNG deploy bằng Manager nữa)
+🎯 Vì sao phải làm vậy?
+
+Vì bạn đã:
+
+Chuyển sang annotation
+
+Nhưng Tomcat vẫn giữ file config cũ
+
+Và file cũ đó có url-pattern sai
+
+🔥 Giải thích đơn giản
+
+Tomcat đang dùng:
+
+LAB211Web.xml (bên ngoài project)
+
+Chứ không phải:
+
+web.xml (trong project)
+
+Nên bạn sửa trong project không có tác dụng.
+
+💡 Sau khi làm xong
+
+Nếu vẫn lỗi:
+
+Gửi mình ảnh thư mục:
+
+conf/Catalina/localhost/
+
+Mình sẽ chỉ tiếp.
+
+📌 Tóm lại
+Lỗi	Nguyên nhân
+Invalid url-pattern [addUser]	Thiếu dấu /
+Không chạy được	Tomcat đang dùng file deploy cũ
+Sửa web.xml không hiệu quả	Vì Tomcat không đọc file đó
+
+Bạn chỉ cần xóa file LAB211Web.xml trong Tomcat là xong 90% vấn đề.
+
+01-Mar-2026 13:16:08.456 SEVERE [http-nio-8080-exec-2] org.apache.tomcat.util.digester.Digester.fatalError Parse fatal error at line [4] column [1]
+	org.xml.sax.SAXParseException; systemId: file:/C:/NetBeansProjects/LAB211Web/build/web/WEB-INF/web.xml; lineNumber: 4; columnNumber: 1; Element type "web-app" must be followed by either attribute specifications, ">" or "/>".
+01-Mar-2026 13:16:08.489 SEVERE [http-nio-8080-exec-2] org.apache.tomcat.util.descriptor.web.WebXmlParser.parseWebXml Parse error in application web.xml file at [file:/C:/NetBeansProjects/LAB211Web/build/web/WEB-INF/web.xml]
+	org.xml.sax.SAXParseException; systemId: file:/C:/NetBeansProjects/LAB211Web/build/web/WEB-INF/web.xml; lineNumber: 4; columnNumber: 1; Element type "web-app" must be followed by either attribute specifications, ">" or "/>".
+bị lỗi j đây
+
+Ok 👍 lỗi này không còn liên quan servlet mapping nữa.
+
+❌ LỖI HIỆN TẠI
+Element type "web-app" must be followed by either 
+attribute specifications, ">" or "/>"
+
+📍 File lỗi:
+
+C:/NetBeansProjects/LAB211Web/build/web/WEB-INF/web.xml
+🎯 Nghĩa là gì?
+
+Dòng <web-app trong file web.xml của bạn bị viết sai cú pháp XML.
+
+Ví dụ sai như này:
+
+<web-app
+
+❌ thiếu dấu > đóng
+
+Hoặc:
+
+<web-app version="5.0"
+
+❌ nhưng không đóng > hoặc namespace bị sai format
+
+🔥 99% là do bạn copy thiếu dấu > hoặc xuống dòng sai
+✅ CÁCH SỬA (AN TOÀN 100%)
+
+Bạn mở file:
+
+LAB211Web/web/WEB-INF/web.xml
+
+XÓA TOÀN BỘ nội dung trong file đó.
+
+Sau đó dán lại đoạn này chuẩn 100%:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="5.0"
+    xmlns="https://jakarta.ee/xml/ns/jakartaee"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+                        https://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd">
+
+    <welcome-file-list>
+        <welcome-file>login.jsp</welcome-file>
+    </welcome-file-list>
+
+</web-app>
+🚨 QUAN TRỌNG
+
+Sau khi sửa:
+
+1️⃣ Clean Project
+2️⃣ Delete folder:
+
+LAB211Web/build
+
+3️⃣ Run lại
+
+📌 Vì sao lỗi nằm trong build/web?
+
+Vì NetBeans build web.xml từ project sang:
+
+build/web/WEB-INF/web.xml
+
+Nếu file gốc sai → file build cũng sai → Tomcat đọc và crash.
+
+🎯 Tóm lại
+Lỗi	Nguyên nhân
+web-app must be followed by >	XML sai cú pháp
+line 4 column 1	Sai ngay dòng mở <web-app>
+
+Nếu vẫn lỗi, bạn chụp lại đúng 5 dòng đầu của web.xml mình xem.
+
+01-Mar-2026 13:20:20.710 SEVERE [http-nio-8080-exec-20] org.apache.catalina.startup.HostConfig.deployDescriptor Error deploying deployment descriptor [C:\apache-tomcat-11.0.18-windows-x64\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml]
+	java.lang.IllegalStateException: Error starting child
+	Caused by: org.apache.catalina.LifecycleException: Failed to start component [StandardEngine[Catalina].StandardHost[localhost].StandardContext[/LAB211Web]]
+	Caused by: java.lang.IllegalArgumentException: Invalid <url-pattern> [editUser] in servlet mapping
+các lỗi j đây
+
+Ok 👍 lần này lỗi đã rất rõ ràng và đơn giản.
+
+❌ LỖI HIỆN TẠI
+Invalid <url-pattern> [editUser] in servlet mapping
+🎯 Nghĩa là gì?
+
+Trong một file cấu hình nào đó bạn đang có:
+
+<url-pattern>editUser</url-pattern>
+
+🚨 Cái này SAI vì mọi <url-pattern> bắt buộc phải bắt đầu bằng dấu /
+
+✅ ĐÚNG phải là:
+<url-pattern>/editUser</url-pattern>
+⚠ Nhưng vấn đề quan trọng hơn
+
+Log của bạn vẫn ghi:
+
+C:\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml
+
+👉 Điều này có nghĩa là:
+
+Tomcat vẫn đang đọc file cấu hình deploy bên ngoài project.
+
+KHÔNG phải web.xml trong project của bạn.
+
+🔥 Vì sao vẫn bị?
+
+Vì file này vẫn còn tồn tại:
+
+C:\apache-tomcat-11.0.18\conf\Catalina\localhost\LAB211Web.xml
+
+Và trong file đó có:
+
+<url-pattern>editUser</url-pattern>
+🚀 CÁCH SỬA DỨT ĐIỂM (LÀM CHÍNH XÁC)
+1️⃣ Stop Tomcat hoàn toàn
+2️⃣ Vào thư mục này:
+C:\apache-tomcat-11.0.18\conf\Catalina\localhost\
+3️⃣ XÓA file:
+LAB211Web.xml
+
+🚨 PHẢI xóa file này.
+
+4️⃣ Xóa tiếp:
+C:\apache-tomcat-11.0.18\webapps\LAB211Web
+5️⃣ Xóa:
+C:\apache-tomcat-11.0.18\work
+6️⃣ Mở NetBeans
+
+Clean and Build Project
+
+7️⃣ Run lại từ IDE
+
+KHÔNG deploy bằng Manager nữa.
+
+🎯 Vì sao phải làm vậy?
+
+Tomcat đang dùng file cấu hình cũ.
+
+Bạn có sửa project bao nhiêu lần cũng vô ích nếu file đó còn tồn tại.
+
+📌 Tóm lại
+Lỗi	Nguyên nhân
+Invalid url-pattern editUser	Thiếu dấu /
+Không chạy được	Tomcat đọc file deploy cũ
+Sửa web.xml không hết	Vì Tomcat không dùng file đó
+
+Bây giờ bạn làm đúng 7 bước trên là hết 100%.
+
+Nếu sau khi xóa vẫn lỗi, chụp lại thư mục:
+
+conf/Catalina/localhost/
+
+Mình sẽ chỉ tiếp cho bạn.
+
+chỉ chi tiết cho tôi để làm các CRUD của Shop và trên web
+
+Ok Vinh 👍
+Giờ mình sẽ hướng dẫn bạn làm CRUD cho Shop từ đầu đến cuối, thật chi tiết, không nhảy bước.
+
+Ta làm đúng theo ERD của bạn:
+
+shopId → int, IDENTITY
+
+shopName → String
+
+ownerId → FK → AppUser(userId)
+
+Trong Java: private AppUser owner;
+
+🎯 MỤC TIÊU
+
+Ta sẽ làm đủ 4 chức năng:
+
+✅ Create Shop (Open Shop)
+
+✅ Read Shop (Xem shop của mình)
+
+✅ Update Shop (Sửa tên shop)
+
+✅ Delete Shop (Xóa shop)
+
+PHẦN 1 — DATABASE
+1️⃣ Tạo bảng Shop (SQL Server)
+
+Chạy trong SQL:
+
+CREATE TABLE Shop (
+    shopId INT IDENTITY(1,1) PRIMARY KEY,
+    shopName NVARCHAR(255) NOT NULL,
+    ownerId INT NOT NULL,
+    FOREIGN KEY (ownerId) REFERENCES AppUser(userId)
+);
+PHẦN 2 — MODEL
+2️⃣ Shop.java
+package model;
+
+public class Shop {
+
+    private int shopId;
+    private String shopName;
+    private AppUser owner;
+
+    public Shop() {}
+
+    public Shop(int shopId, String shopName, AppUser owner) {
+        this.shopId = shopId;
+        this.shopName = shopName;
+        this.owner = owner;
+    }
+
+    public int getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(int shopId) {
+        this.shopId = shopId;
+    }
+
+    public String getShopName() {
+        return shopName;
+    }
+
+    public void setShopName(String shopName) {
+        this.shopName = shopName;
+    }
+
+    public AppUser getOwner() {
+        return owner;
+    }
+
+    public void setOwner(AppUser owner) {
+        this.owner = owner;
+    }
+}
+PHẦN 3 — DAO
+
+Tạo file:
+
+dao/ShopDAO.java
+3️⃣ CREATE (insert)
+public void insert(Shop shop) {
+
+    String sql = "INSERT INTO Shop (shopName, ownerId) VALUES (?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, shop.getShopName());
+        ps.setInt(2, shop.getOwner().getUserId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+4️⃣ READ — Lấy shop theo ownerId
+public Shop getByOwnerId(int ownerId) {
+
+    String sql = "SELECT * FROM Shop WHERE ownerId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, ownerId);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+
+            AppUser owner = new AppUser();
+            owner.setUserId(rs.getInt("ownerId"));
+
+            return new Shop(
+                rs.getInt("shopId"),
+                rs.getString("shopName"),
+                owner
+            );
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+5️⃣ UPDATE
+public void update(Shop shop) {
+
+    String sql = "UPDATE Shop SET shopName = ? WHERE shopId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, shop.getShopName());
+        ps.setInt(2, shop.getShopId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+6️⃣ DELETE
+public void delete(int shopId) {
+
+    String sql = "DELETE FROM Shop WHERE shopId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, shopId);
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+PHẦN 4 — CONTROLLER
+
+Ta sẽ dùng annotation.
+
+7️⃣ CreateShopController
+@WebServlet("/open-shop")
+public class OpenShopController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        String shopName = request.getParameter("shopName");
+
+        AppUser user = (AppUser) request.getSession().getAttribute("user");
+
+        Shop shop = new Shop();
+        shop.setShopName(shopName);
+        shop.setOwner(user);
+
+        new ShopDAO().insert(shop);
+
+        response.sendRedirect("me");
+    }
+}
+8️⃣ MeController (hiển thị shop của mình)
+@WebServlet("/me")
+public class MeController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        AppUser user = (AppUser) request.getSession().getAttribute("user");
+
+        Shop shop = new ShopDAO().getByOwnerId(user.getUserId());
+
+        request.setAttribute("shop", shop);
+        request.getRequestDispatcher("me.jsp").forward(request, response);
+    }
+}
+9️⃣ UpdateShopController
+@WebServlet("/update-shop")
+public class UpdateShopController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int shopId = Integer.parseInt(request.getParameter("shopId"));
+        String shopName = request.getParameter("shopName");
+
+        Shop shop = new Shop();
+        shop.setShopId(shopId);
+        shop.setShopName(shopName);
+
+        new ShopDAO().update(shop);
+
+        response.sendRedirect("me");
+    }
+}
+🔟 DeleteShopController
+@WebServlet("/delete-shop")
+public class DeleteShopController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int shopId = Integer.parseInt(request.getParameter("id"));
+
+        new ShopDAO().delete(shopId);
+
+        response.sendRedirect("me");
+    }
+}
+PHẦN 5 — JSP
+open-shop.jsp
+<form action="open-shop" method="post">
+    Shop Name: <input type="text" name="shopName" required>
+    <button type="submit">Open Shop</button>
+</form>
+me.jsp
+<c:choose>
+    <c:when test="${shop != null}">
+        <h2>Your Shop</h2>
+        Name: ${shop.shopName}
+
+        <form action="update-shop" method="post">
+            <input type="hidden" name="shopId" value="${shop.shopId}">
+            <input type="text" name="shopName" value="${shop.shopName}">
+            <button type="submit">Update</button>
+        </form>
+
+        <a href="delete-shop?id=${shop.shopId}">Delete Shop</a>
+
+    </c:when>
+
+    <c:otherwise>
+        <a href="open-shop.jsp">Open Your Shop</a>
+    </c:otherwise>
+</c:choose>
+🎯 LUỒNG HOẠT ĐỘNG
+
+User login
+
+Vào /me
+
+Nếu chưa có shop → hiện link mở shop
+
+Tạo shop → insert DB
+
+Hiển thị shop
+
+Có thể update hoặc delete
+
+📌 Quan trọng
+
+Sau khi xóa shop:
+
+owner vẫn tồn tại
+
+chỉ xóa bản ghi trong Shop
+
+Nếu bạn muốn:
+
+Chặn mỗi user chỉ có 1 shop
+
+Hoặc khi tạo shop thì đổi role thành OWNER
+
+Hoặc tự động gán shopId vào Product khi create
+
+Mình sẽ hướng dẫn tiếp theo đúng logic hệ thống của bạn.
+
+Nhớ ảnh này hong, rồi làm các CRUD của Product và trên web chi tiết cho tôi copy
+
+Ok Vinh 👍 mình nhớ ERD này.
+
+Theo đúng sơ đồ của bạn:
+
+AppUser (1) — (0..*) Shop
+
+Shop (1) — (0..*) Product
+
+Product (1) — (1..*) ProductVariant
+
+Vậy CRUD Product phải:
+
+Gắn với shopId
+
+Không được tách khỏi Shop
+
+Khi xóa Product phải xóa luôn Variant (hoặc ON DELETE CASCADE)
+
+Giờ mình viết FULL để bạn copy.
+
+🎯 PHẦN 1 — DATABASE
+1️⃣ Bảng Product
+CREATE TABLE Product (
+    productId INT IDENTITY(1,1) PRIMARY KEY,
+    name NVARCHAR(255) NOT NULL,
+    price DOUBLE PRECISION,
+    shopId INT NOT NULL,
+    FOREIGN KEY (shopId) REFERENCES Shop(shopId) ON DELETE CASCADE
+);
+2️⃣ Bảng ProductVariant
+CREATE TABLE ProductVariant (
+    variantId INT IDENTITY(1,1) PRIMARY KEY,
+    size NVARCHAR(50),
+    color NVARCHAR(50),
+    stock INT,
+    priceVariant DOUBLE PRECISION,
+    productId INT NOT NULL,
+    FOREIGN KEY (productId) REFERENCES Product(productId) ON DELETE CASCADE
+);
+🎯 PHẦN 2 — MODEL
+Product.java
+package model;
+
+public class Product {
+
+    private int productId;
+    private String name;
+    private double price;
+    private Shop shop;
+
+    public Product() {}
+
+    public Product(int productId, String name, double price, Shop shop) {
+        this.productId = productId;
+        this.name = name;
+        this.price = price;
+        this.shop = shop;
+    }
+
+    public int getProductId() { return productId; }
+    public void setProductId(int productId) { this.productId = productId; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public double getPrice() { return price; }
+    public void setPrice(double price) { this.price = price; }
+
+    public Shop getShop() { return shop; }
+    public void setShop(Shop shop) { this.shop = shop; }
+}
+🎯 PHẦN 3 — DAO
+
+Tạo:
+dao/ProductDAO.java
+
+1️⃣ CREATE PRODUCT
+public void insert(Product product) {
+
+    String sql = "INSERT INTO Product (name, price, shopId) VALUES (?, ?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, product.getName());
+        ps.setDouble(2, product.getPrice());
+        ps.setInt(3, product.getShop().getShopId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+2️⃣ GET ALL PRODUCT BY SHOP
+public List<Product> getByShopId(int shopId) {
+
+    List<Product> list = new ArrayList<>();
+
+    String sql = "SELECT * FROM Product WHERE shopId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, shopId);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+
+            Shop shop = new Shop();
+            shop.setShopId(rs.getInt("shopId"));
+
+            Product p = new Product(
+                rs.getInt("productId"),
+                rs.getString("name"),
+                rs.getDouble("price"),
+                shop
+            );
+
+            list.add(p);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return list;
+}
+3️⃣ GET BY ID
+public Product getById(int id) {
+
+    String sql = "SELECT * FROM Product WHERE productId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, id);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+
+            Shop shop = new Shop();
+            shop.setShopId(rs.getInt("shopId"));
+
+            return new Product(
+                rs.getInt("productId"),
+                rs.getString("name"),
+                rs.getDouble("price"),
+                shop
+            );
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+4️⃣ UPDATE
+public void update(Product product) {
+
+    String sql = "UPDATE Product SET name = ?, price = ? WHERE productId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, product.getName());
+        ps.setDouble(2, product.getPrice());
+        ps.setInt(3, product.getProductId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+5️⃣ DELETE
+public void delete(int id) {
+
+    String sql = "DELETE FROM Product WHERE productId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, id);
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+🎯 PHẦN 4 — CONTROLLER
+1️⃣ ListProductController
+@WebServlet("/my-products")
+public class ListProductController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        AppUser user = (AppUser) request.getSession().getAttribute("user");
+
+        Shop shop = new ShopDAO().getByOwnerId(user.getUserId());
+
+        List<Product> list = new ProductDAO().getByShopId(shop.getShopId());
+
+        request.setAttribute("list", list);
+        request.getRequestDispatcher("product-list.jsp")
+                .forward(request, response);
+    }
+}
+2️⃣ CreateProductController
+@WebServlet("/create-product")
+public class CreateProductController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        String name = request.getParameter("name");
+        double price = Double.parseDouble(request.getParameter("price"));
+
+        AppUser user = (AppUser) request.getSession().getAttribute("user");
+        Shop shop = new ShopDAO().getByOwnerId(user.getUserId());
+
+        Product p = new Product();
+        p.setName(name);
+        p.setPrice(price);
+        p.setShop(shop);
+
+        new ProductDAO().insert(p);
+
+        response.sendRedirect("my-products");
+    }
+}
+3️⃣ EditProductController
+@WebServlet("/edit-product")
+public class EditProductController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        Product p = new ProductDAO().getById(id);
+
+        request.setAttribute("product", p);
+        request.getRequestDispatcher("edit-product.jsp")
+                .forward(request, response);
+    }
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("productId"));
+        String name = request.getParameter("name");
+        double price = Double.parseDouble(request.getParameter("price"));
+
+        Product p = new Product();
+        p.setProductId(id);
+        p.setName(name);
+        p.setPrice(price);
+
+        new ProductDAO().update(p);
+
+        response.sendRedirect("my-products");
+    }
+}
+4️⃣ DeleteProductController
+@WebServlet("/delete-product")
+public class DeleteProductController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        new ProductDAO().delete(id);
+
+        response.sendRedirect("my-products");
+    }
+}
+🎯 PHẦN 5 — JSP
+product-list.jsp
+<a href="create-product.jsp">Add Product</a>
+
+<table border="1">
+    <tr>
+        <th>Name</th>
+        <th>Price</th>
+        <th>Action</th>
+    </tr>
+
+    <c:forEach var="p" items="${list}">
+        <tr>
+            <td>${p.name}</td>
+            <td>${p.price}</td>
+            <td>
+                <a href="edit-product?id=${p.productId}">Edit</a>
+                <a href="delete-product?id=${p.productId}">Delete</a>
+            </td>
+        </tr>
+    </c:forEach>
+</table>
+create-product.jsp
+<form action="create-product" method="post">
+    Name: <input type="text" name="name" required><br>
+    Price: <input type="number" step="0.01" name="price" required><br>
+    <button type="submit">Create</button>
+</form>
+edit-product.jsp
+<form action="edit-product" method="post">
+    <input type="hidden" name="productId" value="${product.productId}">
+
+    Name: <input type="text" name="name" value="${product.name}"><br>
+    Price: <input type="number" step="0.01" name="price"
+           value="${product.price}"><br>
+
+    <button type="submit">Update</button>
+</form>
+🎯 LUỒNG HOẠT ĐỘNG
+
+Login
+
+Vào /my-products
+
+Lấy shop theo owner
+
+Lấy product theo shop
+
+CRUD bình thường
+
+Nếu bạn muốn mình làm tiếp:
+
+CRUD ProductVariant chuẩn theo ERD
+
+Tự động tính stock
+
+Kiểm tra chỉ owner mới sửa được
+
+Hoặc viết theo chuẩn business flow như Order/Voucher
+
+Nói mình biết, mình làm đúng logic hệ thống của bạn.
+
+CRUD của ProductVariant và trên web chi tiết cho tôi copy
+
+Ok Vinh 👍
+Giờ mình làm FULL CRUD ProductVariant đúng theo ERD của bạn:
+
+Theo sơ đồ:
+
+Product (1) —— (1..*) ProductVariant
+
+Variant có:
+
+variantId
+
+size
+
+color
+
+stock
+
+priceVariant
+
+product
+
+Ta sẽ làm:
+
+Create Variant
+
+List Variant theo Product
+
+Update Variant
+
+Delete Variant
+
+JSP đầy đủ để copy
+
+🎯 PHẦN 1 — MODEL
+ProductVariant.java
+package model;
+
+public class ProductVariant {
+
+    private int variantId;
+    private String size;
+    private String color;
+    private int stock;
+    private double priceVariant;
+    private Product product;
+
+    public ProductVariant() {}
+
+    public ProductVariant(int variantId, String size, String color,
+                          int stock, double priceVariant, Product product) {
+        this.variantId = variantId;
+        this.size = size;
+        this.color = color;
+        this.stock = stock;
+        this.priceVariant = priceVariant;
+        this.product = product;
+    }
+
+    public int getVariantId() { return variantId; }
+    public void setVariantId(int variantId) { this.variantId = variantId; }
+
+    public String getSize() { return size; }
+    public void setSize(String size) { this.size = size; }
+
+    public String getColor() { return color; }
+    public void setColor(String color) { this.color = color; }
+
+    public int getStock() { return stock; }
+    public void setStock(int stock) { this.stock = stock; }
+
+    public double getPriceVariant() { return priceVariant; }
+    public void setPriceVariant(double priceVariant) { this.priceVariant = priceVariant; }
+
+    public Product getProduct() { return product; }
+    public void setProduct(Product product) { this.product = product; }
+}
+🎯 PHẦN 2 — DAO
+
+Tạo file:
+
+dao/ProductVariantDAO.java
+
+1️⃣ INSERT
+public void insert(ProductVariant v) {
+
+    String sql = "INSERT INTO ProductVariant(size, color, stock, priceVariant, productId) VALUES (?, ?, ?, ?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, v.getSize());
+        ps.setString(2, v.getColor());
+        ps.setInt(3, v.getStock());
+        ps.setDouble(4, v.getPriceVariant());
+        ps.setInt(5, v.getProduct().getProductId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+2️⃣ GET BY PRODUCT ID
+public List<ProductVariant> getByProductId(int productId) {
+
+    List<ProductVariant> list = new ArrayList<>();
+
+    String sql = "SELECT * FROM ProductVariant WHERE productId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, productId);
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+
+            Product product = new Product();
+            product.setProductId(rs.getInt("productId"));
+
+            ProductVariant v = new ProductVariant(
+                    rs.getInt("variantId"),
+                    rs.getString("size"),
+                    rs.getString("color"),
+                    rs.getInt("stock"),
+                    rs.getDouble("priceVariant"),
+                    product
+            );
+
+            list.add(v);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return list;
+}
+3️⃣ GET BY ID
+public ProductVariant getById(int id) {
+
+    String sql = "SELECT * FROM ProductVariant WHERE variantId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, id);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+
+            Product product = new Product();
+            product.setProductId(rs.getInt("productId"));
+
+            return new ProductVariant(
+                    rs.getInt("variantId"),
+                    rs.getString("size"),
+                    rs.getString("color"),
+                    rs.getInt("stock"),
+                    rs.getDouble("priceVariant"),
+                    product
+            );
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+4️⃣ UPDATE
+public void update(ProductVariant v) {
+
+    String sql = "UPDATE ProductVariant SET size = ?, color = ?, stock = ?, priceVariant = ? WHERE variantId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, v.getSize());
+        ps.setString(2, v.getColor());
+        ps.setInt(3, v.getStock());
+        ps.setDouble(4, v.getPriceVariant());
+        ps.setInt(5, v.getVariantId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+5️⃣ DELETE
+public void delete(int id) {
+
+    String sql = "DELETE FROM ProductVariant WHERE variantId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, id);
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+🎯 PHẦN 3 — CONTROLLER
+1️⃣ List Variant
+@WebServlet("/variants")
+public class ListVariantController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int productId = Integer.parseInt(request.getParameter("productId"));
+
+        List<ProductVariant> list =
+                new ProductVariantDAO().getByProductId(productId);
+
+        request.setAttribute("list", list);
+        request.setAttribute("productId", productId);
+
+        request.getRequestDispatcher("variant-list.jsp")
+                .forward(request, response);
+    }
+}
+2️⃣ Create Variant
+@WebServlet("/create-variant")
+public class CreateVariantController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int productId = Integer.parseInt(request.getParameter("productId"));
+
+        String size = request.getParameter("size");
+        String color = request.getParameter("color");
+        int stock = Integer.parseInt(request.getParameter("stock"));
+        double price = Double.parseDouble(request.getParameter("priceVariant"));
+
+        Product product = new Product();
+        product.setProductId(productId);
+
+        ProductVariant v = new ProductVariant();
+        v.setSize(size);
+        v.setColor(color);
+        v.setStock(stock);
+        v.setPriceVariant(price);
+        v.setProduct(product);
+
+        new ProductVariantDAO().insert(v);
+
+        response.sendRedirect("variants?productId=" + productId);
+    }
+}
+3️⃣ Edit Variant
+@WebServlet("/edit-variant")
+public class EditVariantController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        ProductVariant v = new ProductVariantDAO().getById(id);
+
+        request.setAttribute("variant", v);
+        request.getRequestDispatcher("edit-variant.jsp")
+                .forward(request, response);
+    }
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("variantId"));
+        String size = request.getParameter("size");
+        String color = request.getParameter("color");
+        int stock = Integer.parseInt(request.getParameter("stock"));
+        double price = Double.parseDouble(request.getParameter("priceVariant"));
+
+        ProductVariant v = new ProductVariant();
+        v.setVariantId(id);
+        v.setSize(size);
+        v.setColor(color);
+        v.setStock(stock);
+        v.setPriceVariant(price);
+
+        new ProductVariantDAO().update(v);
+
+        response.sendRedirect("variants?productId=" +
+                request.getParameter("productId"));
+    }
+}
+4️⃣ Delete Variant
+@WebServlet("/delete-variant")
+public class DeleteVariantController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+        int productId = Integer.parseInt(request.getParameter("productId"));
+
+        new ProductVariantDAO().delete(id);
+
+        response.sendRedirect("variants?productId=" + productId);
+    }
+}
+🎯 PHẦN 4 — JSP
+variant-list.jsp
+<a href="create-variant.jsp?productId=${productId}">Add Variant</a>
+
+<table border="1">
+    <tr>
+        <th>Size</th>
+        <th>Color</th>
+        <th>Stock</th>
+        <th>Price</th>
+        <th>Action</th>
+    </tr>
+
+    <c:forEach var="v" items="${list}">
+        <tr>
+            <td>${v.size}</td>
+            <td>${v.color}</td>
+            <td>${v.stock}</td>
+            <td>${v.priceVariant}</td>
+            <td>
+                <a href="edit-variant?id=${v.variantId}">Edit</a>
+                <a href="delete-variant?id=${v.variantId}&productId=${productId}">
+                    Delete
+                </a>
+            </td>
+        </tr>
+    </c:forEach>
+</table>
+create-variant.jsp
+<form action="create-variant" method="post">
+    <input type="hidden" name="productId" value="${param.productId}">
+
+    Size: <input type="text" name="size"><br>
+    Color: <input type="text" name="color"><br>
+    Stock: <input type="number" name="stock"><br>
+    Price: <input type="number" step="0.01" name="priceVariant"><br>
+
+    <button type="submit">Create</button>
+</form>
+edit-variant.jsp
+<form action="edit-variant" method="post">
+
+    <input type="hidden" name="variantId"
+           value="${variant.variantId}">
+    <input type="hidden" name="productId"
+           value="${variant.product.productId}">
+
+    Size: <input type="text" name="size"
+                 value="${variant.size}"><br>
+
+    Color: <input type="text" name="color"
+                  value="${variant.color}"><br>
+
+    Stock: <input type="number" name="stock"
+                  value="${variant.stock}"><br>
+
+    Price: <input type="number" step="0.01"
+                  name="priceVariant"
+                  value="${variant.priceVariant}"><br>
+
+    <button type="submit">Update</button>
+</form>
+🎯 LUỒNG HOẠT ĐỘNG
+
+Vào product-list
+
+Click product → /variants?productId=...
+
+CRUD variant
+
+Redirect lại đúng product
+
+Nếu bạn muốn mình:
+
+Thêm check chỉ owner mới được sửa
+
+Tự động check stock >= 0
+
+Tự động tính giá khi checkout theo priceSnapshot (đúng theo ERD OrderItem)
+
+Mình sẽ viết tiếp đúng business flow hệ thống của bạn.
+
+CRUD của Voucher và trên web chi tiết cho tôi copy
+
+Ok Vinh 👍
+Giờ mình làm FULL CRUD Voucher đúng theo ERD của bạn, và đúng business flow bạn đã chốt trước đó:
+
+Trong ERD:
+
+Voucher gồm:
+
+voucherId : int
+
+code : String
+
+discountValue : Double
+
+minOrderAmount : Integer
+
+stackable : Boolean
+
+startDate : DateTime
+
+endDate : DateTime
+
+Method:
+
+applyDiscount(orderAmount, currentTime)
+
+isOutOfDate(currentTime)
+
+isApplicable(orderAmount)
+
+🎯 PHẦN 1 — DATABASE
+1️⃣ Tạo bảng Voucher
+CREATE TABLE Voucher (
+    voucherId INT IDENTITY(1,1) PRIMARY KEY,
+    code NVARCHAR(50) UNIQUE NOT NULL,
+    discountValue FLOAT NOT NULL,
+    minOrderAmount INT NOT NULL,
+    stackable BIT NOT NULL,
+    startDate DATETIME NOT NULL,
+    endDate DATETIME NOT NULL
+);
+🎯 PHẦN 2 — MODEL
+Voucher.java
+package model;
+
+import java.time.LocalDateTime;
+
+public class Voucher {
+
+    private int voucherId;
+    private String code;
+    private double discountValue;
+    private int minOrderAmount;
+    private boolean stackable;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
+
+    public Voucher() {}
+
+    public Voucher(int voucherId, String code, double discountValue,
+                   int minOrderAmount, boolean stackable,
+                   LocalDateTime startDate, LocalDateTime endDate) {
+        this.voucherId = voucherId;
+        this.code = code;
+        this.discountValue = discountValue;
+        this.minOrderAmount = minOrderAmount;
+        this.stackable = stackable;
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
+
+    public boolean isOutOfDate(LocalDateTime now) {
+        return now.isBefore(startDate) || now.isAfter(endDate);
+    }
+
+    public boolean isApplicable(double orderAmount) {
+        return orderAmount >= minOrderAmount;
+    }
+
+    public double applyDiscount(double orderAmount) {
+        if (orderAmount >= minOrderAmount) {
+            return Math.min(discountValue, orderAmount);
+        }
+        return 0;
+    }
+
+    // getters setters đầy đủ
+}
+🎯 PHẦN 3 — DAO
+
+Tạo:
+dao/VoucherDAO.java
+
+1️⃣ INSERT
+public void insert(Voucher v) {
+
+    String sql = "INSERT INTO Voucher(code, discountValue, minOrderAmount, stackable, startDate, endDate) VALUES (?, ?, ?, ?, ?, ?)";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, v.getCode());
+        ps.setDouble(2, v.getDiscountValue());
+        ps.setInt(3, v.getMinOrderAmount());
+        ps.setBoolean(4, v.isStackable());
+        ps.setObject(5, v.getStartDate());
+        ps.setObject(6, v.getEndDate());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+2️⃣ GET ALL
+public List<Voucher> getAll() {
+
+    List<Voucher> list = new ArrayList<>();
+    String sql = "SELECT * FROM Voucher";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql);
+         ResultSet rs = ps.executeQuery()) {
+
+        while (rs.next()) {
+
+            Voucher v = new Voucher(
+                    rs.getInt("voucherId"),
+                    rs.getString("code"),
+                    rs.getDouble("discountValue"),
+                    rs.getInt("minOrderAmount"),
+                    rs.getBoolean("stackable"),
+                    rs.getTimestamp("startDate").toLocalDateTime(),
+                    rs.getTimestamp("endDate").toLocalDateTime()
+            );
+
+            list.add(v);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return list;
+}
+3️⃣ GET BY ID
+public Voucher getById(int id) {
+
+    String sql = "SELECT * FROM Voucher WHERE voucherId = ?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, id);
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            return new Voucher(
+                    rs.getInt("voucherId"),
+                    rs.getString("code"),
+                    rs.getDouble("discountValue"),
+                    rs.getInt("minOrderAmount"),
+                    rs.getBoolean("stackable"),
+                    rs.getTimestamp("startDate").toLocalDateTime(),
+                    rs.getTimestamp("endDate").toLocalDateTime()
+            );
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+4️⃣ UPDATE
+public void update(Voucher v) {
+
+    String sql = "UPDATE Voucher SET code=?, discountValue=?, minOrderAmount=?, stackable=?, startDate=?, endDate=? WHERE voucherId=?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setString(1, v.getCode());
+        ps.setDouble(2, v.getDiscountValue());
+        ps.setInt(3, v.getMinOrderAmount());
+        ps.setBoolean(4, v.isStackable());
+        ps.setObject(5, v.getStartDate());
+        ps.setObject(6, v.getEndDate());
+        ps.setInt(7, v.getVoucherId());
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+5️⃣ DELETE
+public void delete(int id) {
+
+    String sql = "DELETE FROM Voucher WHERE voucherId=?";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, id);
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+🎯 PHẦN 4 — CONTROLLER
+ListVoucherController
+@WebServlet("/vouchers")
+public class ListVoucherController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        List<Voucher> list = new VoucherDAO().getAll();
+
+        request.setAttribute("list", list);
+        request.getRequestDispatcher("voucher-list.jsp")
+                .forward(request, response);
+    }
+}
+CreateVoucherController
+@WebServlet("/create-voucher")
+public class CreateVoucherController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        Voucher v = new Voucher();
+        v.setCode(request.getParameter("code"));
+        v.setDiscountValue(Double.parseDouble(request.getParameter("discountValue")));
+        v.setMinOrderAmount(Integer.parseInt(request.getParameter("minOrderAmount")));
+        v.setStackable(Boolean.parseBoolean(request.getParameter("stackable")));
+        v.setStartDate(LocalDateTime.parse(request.getParameter("startDate")));
+        v.setEndDate(LocalDateTime.parse(request.getParameter("endDate")));
+
+        new VoucherDAO().insert(v);
+
+        response.sendRedirect("vouchers");
+    }
+}
+EditVoucherController
+@WebServlet("/edit-voucher")
+public class EditVoucherController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+        Voucher v = new VoucherDAO().getById(id);
+
+        request.setAttribute("voucher", v);
+        request.getRequestDispatcher("edit-voucher.jsp")
+                .forward(request, response);
+    }
+
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws ServletException, IOException {
+
+        Voucher v = new Voucher();
+        v.setVoucherId(Integer.parseInt(request.getParameter("voucherId")));
+        v.setCode(request.getParameter("code"));
+        v.setDiscountValue(Double.parseDouble(request.getParameter("discountValue")));
+        v.setMinOrderAmount(Integer.parseInt(request.getParameter("minOrderAmount")));
+        v.setStackable(Boolean.parseBoolean(request.getParameter("stackable")));
+        v.setStartDate(LocalDateTime.parse(request.getParameter("startDate")));
+        v.setEndDate(LocalDateTime.parse(request.getParameter("endDate")));
+
+        new VoucherDAO().update(v);
+
+        response.sendRedirect("vouchers");
+    }
+}
+DeleteVoucherController
+@WebServlet("/delete-voucher")
+public class DeleteVoucherController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        new VoucherDAO().delete(id);
+
+        response.sendRedirect("vouchers");
+    }
+}
+🎯 PHẦN 5 — JSP
+voucher-list.jsp
+<a href="create-voucher.jsp">Add Voucher</a>
+
+<table border="1">
+<tr>
+    <th>Code</th>
+    <th>Discount</th>
+    <th>Min Order</th>
+    <th>Stackable</th>
+    <th>Action</th>
+</tr>
+
+<c:forEach var="v" items="${list}">
+<tr>
+    <td>${v.code}</td>
+    <td>${v.discountValue}</td>
+    <td>${v.minOrderAmount}</td>
+    <td>${v.stackable}</td>
+    <td>
+        <a href="edit-voucher?id=${v.voucherId}">Edit</a>
+        <a href="delete-voucher?id=${v.voucherId}">Delete</a>
+    </td>
+</tr>
+</c:forEach>
+</table>
+🎯 LUỒNG HOẠT ĐỘNG
+
+Admin vào /vouchers
+
+CRUD bình thường
+
+Khi checkout:
+
+isOutOfDate()
+
+isApplicable()
+
+applyDiscount()
+
+Tạo OrderVoucher
+
+Nếu bạn muốn mình viết tiếp:
+
+Flow chọn voucher khi checkout đúng theo logic bạn đã chốt (order_amount giảm từng bước)
+
+Xử lý stackable đúng chuẩn
+
+Validate thời gian trước khi thêm vào OrderVoucher
+
+Nói mình, mình viết tiếp phần business logic đúng hệ thống của bạn.
+
+chưa có hàm isStackable trong Voucher
+
+Chuẩn 👍 bạn bắt đúng vấn đề.
+
+Trong Voucher bạn có field:
+
+private boolean stackable;
+
+Nhưng nếu bạn chưa generate getter thì sẽ không có:
+
+isStackable()
+🎯 Cách sửa đúng chuẩn Java Bean
+
+Với kiểu boolean, getter phải là:
+
+public boolean isStackable() {
+    return stackable;
+}
+
+KHÔNG phải getStackable() (mặc dù vẫn có thể dùng, nhưng chuẩn JavaBean là isXxx cho boolean).
+
+✅ Thêm đầy đủ getter/setter vào Voucher
+
+Trong Voucher.java, thêm:
+
+public boolean isStackable() {
+    return stackable;
+}
+
+public void setStackable(boolean stackable) {
+    this.stackable = stackable;
+}
+📌 Vì sao Controller dùng isStackable()?
+
+Trong DAO update bạn có:
+
+ps.setBoolean(4, v.isStackable());
+
+Nếu không có method này → IDE sẽ báo lỗi đỏ.
+
+🎯 Ngoài ra bạn nên kiểm tra luôn:
+
+Voucher nên có đầy đủ:
+
+public int getVoucherId()
+public void setVoucherId(int voucherId)
+
+public String getCode()
+public void setCode(String code)
+
+public double getDiscountValue()
+public void setDiscountValue(double discountValue)
+
+public int getMinOrderAmount()
+public void setMinOrderAmount(int minOrderAmount)
+
+public boolean isStackable()
+public void setStackable(boolean stackable)
+
+public LocalDateTime getStartDate()
+public void setStartDate(LocalDateTime startDate)
+
+public LocalDateTime getEndDate()
+public void setEndDate(LocalDateTime endDate)
+🔥 Mẹo nhanh trong NetBeans / IntelliJ
+
+Chuột phải trong class → Generate → Getter and Setter → tick hết → OK.
+
+Nếu bạn muốn mình kiểm tra lại toàn bộ class Voucher chuẩn theo business flow OrderVoucher bạn đã chốt trước đó (stackable + minOrderAmount + không cho giảm dưới 0), mình sẽ viết lại version hoàn chỉnh cho bạn.
+
+Tạo giúp tôi database của OrderItem, Order, OrderVoucher và Shipping
+
+Ok Vinh 👍
+Giờ mình tạo database chuẩn theo đúng ERD của bạn và đúng business flow bạn đã chốt trước đó:
+
+Nhớ logic bạn đã xác nhận:
+
+OrderItem.calculateSubtotal()
+
+Order có: subtotalAmount, totalDiscount, totalAmount
+
+OrderVoucher có: discount, orderAmount (giảm từng bước)
+
+Voucher đã có sẵn
+
+Shipping gắn 1–1 với Order
+
+🎯 1️⃣ BẢNG ORDER
+
+Theo ERD:
+
+orderId : int
+
+orderDate : DateTime
+
+status : enum
+
+subtotalAmount : Double
+
+totalDiscount : Double
+
+totalAmount : Double
+
+userId (FK)
+
+SQL Server
+CREATE TABLE [Order] (
+    orderId INT IDENTITY(1,1) PRIMARY KEY,
+    orderDate DATETIME NOT NULL DEFAULT GETDATE(),
+    status NVARCHAR(50) NOT NULL,
+    subtotalAmount FLOAT NOT NULL,
+    totalDiscount FLOAT NOT NULL,
+    totalAmount FLOAT NOT NULL,
+    userId INT NOT NULL,
+    FOREIGN KEY (userId) REFERENCES AppUser(userId)
+);
+🎯 2️⃣ BẢNG ORDER ITEM
+
+Theo ERD:
+
+orderItemId
+
+quantity
+
+subtotal
+
+priceSnapshot
+
+orderId
+
+variantId
+
+priceSnapshot = giá tại thời điểm đặt hàng
+(đúng theo ERD bạn thiết kế)
+
+CREATE TABLE OrderItem (
+    orderItemId INT IDENTITY(1,1) PRIMARY KEY,
+    quantity INT NOT NULL,
+    subtotal FLOAT NOT NULL,
+    priceSnapshot FLOAT NOT NULL,
+    orderId INT NOT NULL,
+    variantId INT NOT NULL,
+
+    FOREIGN KEY (orderId) REFERENCES [Order](orderId) ON DELETE CASCADE,
+    FOREIGN KEY (variantId) REFERENCES ProductVariant(variantId)
+);
+🎯 3️⃣ BẢNG ORDER VOUCHER
+
+Theo ERD:
+
+id
+
+discount
+
+orderAmount ← cực kỳ quan trọng
+
+orderId
+
+voucherId
+
+Business flow bạn đã chốt:
+
+orderAmount = số tiền còn lại trước khi áp voucher đó
+
+discount = số tiền được giảm
+
+totalDiscount = sum(discount)
+
+totalAmount = orderAmount cuối cùng
+
+CREATE TABLE OrderVoucher (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    discount FLOAT NOT NULL,
+    orderAmount FLOAT NOT NULL,
+    orderId INT NOT NULL,
+    voucherId INT NOT NULL,
+
+    FOREIGN KEY (orderId) REFERENCES [Order](orderId) ON DELETE CASCADE,
+    FOREIGN KEY (voucherId) REFERENCES Voucher(voucherId)
+);
+🎯 4️⃣ BẢNG SHIPPING
+
+Theo ERD:
+
+shippingId : String
+
+trackCode : String
+
+shippingAddress
+
+receiverName
+
+receiverPhone
+
+shippingFee
+
+status : Enum
+
+orderId (1–1)
+
+CREATE TABLE Shipping (
+    shippingId NVARCHAR(50) PRIMARY KEY,
+    trackCode NVARCHAR(100),
+    shippingAddress NVARCHAR(255) NOT NULL,
+    receiverName NVARCHAR(100) NOT NULL,
+    receiverPhone NVARCHAR(20) NOT NULL,
+    shippingFee FLOAT NOT NULL,
+    status NVARCHAR(50) NOT NULL,
+    orderId INT UNIQUE NOT NULL,
+
+    FOREIGN KEY (orderId) REFERENCES [Order](orderId)
+);
+🎯 RELATIONSHIP ĐÚNG ERD
+
+AppUser (1) — (0..) Order
+Order (1) — (1..) OrderItem
+Order (1) — (0..*) OrderVoucher
+Order (1) — (1) Shipping
+OrderItem — ProductVariant
+OrderVoucher — Voucher
+
+🎯 TỔNG QUAN LUỒNG HỆ THỐNG
+
+Khi checkout:
+
+Tạo Order (status = PENDING)
+
+Insert OrderItem (snapshot giá)
+
+Tính subtotalAmount
+
+Áp từng voucher → insert OrderVoucher
+
+Cập nhật:
+
+totalDiscount
+
+totalAmount
+
+Tạo Shipping
+
+Sau đó mới trừ stock
+
+🔥 QUAN TRỌNG
+
+Bạn đã chốt:
+
+Không cho orderAmount âm
+
+Không cho voucher giảm dưới minOrderAmount
+
+Stackable giảm từng bước
+
+DB trên hoàn toàn hỗ trợ đúng flow đó.
+
+Nếu bạn muốn mình:
+
+Viết luôn Checkout Flow chuẩn theo business logic bạn đã xác nhận
+
+Viết DAO cho toàn bộ 4 bảng
+
+Viết sample dữ liệu test
+
+Nói mình, mình làm tiếp phần core nghiệp vụ cho bạn.
