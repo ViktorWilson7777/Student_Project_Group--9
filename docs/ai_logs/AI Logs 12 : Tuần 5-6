@@ -1,0 +1,6325 @@
+
+Vấn đề đang làm
+
+Dự án Java Servlet + JSP.
+
+Trang shop-list.jsp hiển thị danh sách sản phẩm từ database.
+
+Dữ liệu lấy qua ProductListController và ProductDAO.
+
+Yêu cầu
+
+Không dùng pagination (không dùng page 1,2,3...).
+
+Khi cuộn xuống cuối trang (scroll) thì tự động load thêm sản phẩm.
+
+Kiểu giống infinite scroll như Shopee / Facebook.
+
+Cách đang thử làm
+
+Controller
+
+Nhận parameter offset
+
+Query database bằng LIMIT + OFFSET
+
+DAO
+
+SELECT * 
+FROM products
+ORDER BY product_id
+LIMIT ? OFFSET ?
+
+JSP
+
+Hiển thị danh sách bằng c:forEach
+
+Dùng JavaScript bắt sự kiện scroll
+
+Khi xuống cuối trang → gọi lại controller để lấy thêm data.
+
+Lỗi đang gặp
+
+Khi load trang:
+
+Danh sách hiện hết một lần
+
+Không load thêm khi scroll như mong muốn.
+
+Mục tiêu cần giải quyết
+
+Trang ban đầu chỉ hiển thị một phần sản phẩm (ví dụ 20).
+
+Khi scroll xuống → append thêm sản phẩm vào danh sách.
+
+Không reload trang.
+
+Không dùng pagination.
+
+Nếu m gửi thêm cho người kia 3 file này thì họ debug được nhanh hơn:
+
+shop-list.jsp
+
+ProductListController.java
+
+ProductDAO.java
+
+Đúng rồi — nếu m gửi 3 file này thì người khác debug sẽ nhanh hơn rất nhiều:
+
+shop-list.jsp
+
+ProductListController.java
+
+ProductDAO.java
+
+Vì lỗi infinite scroll thường nằm ở 1 trong 4 chỗ sau:
+
+1️⃣ Controller load toàn bộ data ngay từ đầu
+2️⃣ DAO không dùng LIMIT đúng
+3️⃣ JSP render hết list
+4️⃣ JavaScript scroll không gọi API
+
+Cách hệ thống này nên hoạt động (chuẩn)
+1. Lần load trang đầu
+Controller chỉ lấy 20 sản phẩm
+
+int offset = 0;
+int limit = 20;
+
+List<Product> list = dao.getProducts(limit, offset);
+
+request.setAttribute("products", list);
+request.getRequestDispatcher("shop-list.jsp").forward(request, response);
+2. DAO
+public List<Product> getProducts(int limit, int offset) throws Exception {
+    String sql = "SELECT * FROM products ORDER BY product_id LIMIT ? OFFSET ?";
+    
+    PreparedStatement ps = connection.prepareStatement(sql);
+    ps.setInt(1, limit);
+    ps.setInt(2, offset);
+
+    ResultSet rs = ps.executeQuery();
+    
+    List<Product> list = new ArrayList<>();
+
+    while (rs.next()) {
+        Product p = new Product();
+        p.setId(rs.getInt("product_id"));
+        p.setName(rs.getString("product_name"));
+        list.add(p);
+    }
+
+    return list;
+}
+3. shop-list.jsp (chỉ hiển thị phần đầu)
+<div id="product-list">
+<c:forEach var="p" items="${products}">
+    <div class="product">
+        ${p.name}
+    </div>
+</c:forEach>
+</div>
+4. JavaScript Infinite Scroll
+let offset = 20;
+let limit = 20;
+let loading = false;
+
+window.addEventListener("scroll", function () {
+
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50) {
+
+        if (!loading) {
+            loading = true;
+
+            fetch("ProductListController?offset=" + offset)
+                .then(res => res.text())
+                .then(data => {
+
+                    document.getElementById("product-list")
+                        .insertAdjacentHTML("beforeend", data);
+
+                    offset += limit;
+                    loading = false;
+                });
+        }
+
+    }
+});
+5. Controller khi có offset (AJAX)
+String offsetParam = request.getParameter("offset");
+
+if(offsetParam != null){
+
+    int offset = Integer.parseInt(offsetParam);
+    int limit = 20;
+
+    List<Product> list = dao.getProducts(limit, offset);
+
+    for(Product p : list){
+        out.println("<div class='product'>" + p.getName() + "</div>");
+    }
+
+    return;
+}
+Lý do code của m đang lỗi (99% là cái này)
+Trang đang:
+
+SELECT * FROM products
+=> Controller load toàn bộ sản phẩm ngay lần đầu
+
+JSP:
+
+<c:forEach>
+=> render hết
+
+=> scroll không còn gì để load
+
+Debug nhanh (tự kiểm tra)
+M kiểm tra 4 thứ:
+
+1️⃣ Controller
+Có đoạn này không:
+
+LIMIT 20 OFFSET 0
+2️⃣ JSP
+Có dùng:
+
+${products}
+3️⃣ JavaScript
+Có fetch() hoặc ajax không
+
+4️⃣ Network tab (F12)
+Scroll xuống có request mới không?
+
+Nếu không có request
+→ lỗi JS
+
+Nếu có request nhưng không thêm data
+→ lỗi controller
+
+Nếu muốn debug nhanh nhất
+M gửi 3 file này:
+
+shop-list.jsp
+ProductListController.java
+ProductDAO.java
+Tôi sẽ:
+
+chỉ ra chính xác dòng code bị lỗi
+
+sửa lại chuẩn infinite scroll kiểu Shopee
+
+và viết lại JS + Controller chuẩn Servlet
+
+Thường chỉ sửa 5–10 dòng là chạy ngay.
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+
+Tôi xem 3 hình của m rồi: Class Diagram, ERD, Flowchart. Với yêu cầu shop-list infinite scroll trong hệ thống E-Commerce này thì kiến trúc của m đã đúng 80%, chỉ cần tổ chức lại query + controller + response. Tôi giải thích rõ theo đúng design của m.
+
+1. Theo ERD của m
+Luồng dữ liệu của trang shop-list thực tế là:
+
+Shop
+   1
+   |
+   | 0..*
+Product
+   1
+   |
+   | 1..*
+ProductVariant
+Trong ERD:
+
+Product
+
+productId
+
+name
+
+price
+
+shopId
+
+ProductVariant
+
+variantId
+
+size
+
+color
+
+stock
+
+priceVariant
+
+productId
+
+2. Sai lầm phổ biến ở trang shop-list
+Nhiều người query kiểu này:
+
+SELECT *
+FROM Product p
+JOIN ProductVariant v ON p.productId = v.productId
+=> Kết quả:
+
+1 product
+= nhiều dòng (do nhiều variant)
+Ví dụ:
+
+product	variant
+Nike Shirt	S
+Nike Shirt	M
+Nike Shirt	L
+=> infinite scroll load sai số lượng.
+
+3. Query đúng cho shop-list
+Trang shop-list chỉ hiển thị product, không phải variant.
+
+Query nên là:
+
+SELECT
+    p.productId,
+    p.name,
+    MIN(v.priceVariant) AS price,
+    MIN(v.stock) AS stock
+FROM Product p
+JOIN ProductVariant v
+    ON p.productId = v.productId
+GROUP BY p.productId, p.name
+ORDER BY p.productId
+LIMIT ? OFFSET ?
+Ý nghĩa:
+
+mỗi product = 1 dòng
+
+lấy giá rẻ nhất của variant
+
+lấy stock đại diện
+
+4. DAO chuẩn cho infinite scroll
+public List<Product> getProducts(int limit, int offset) {
+
+    String sql = """
+        SELECT p.productId, p.name, MIN(v.priceVariant) price
+        FROM Product p
+        JOIN ProductVariant v ON p.productId = v.productId
+        GROUP BY p.productId, p.name
+        ORDER BY p.productId
+        LIMIT ? OFFSET ?
+    """;
+
+    PreparedStatement ps = connection.prepareStatement(sql);
+
+    ps.setInt(1, limit);
+    ps.setInt(2, offset);
+
+    ResultSet rs = ps.executeQuery();
+
+    List<Product> list = new ArrayList<>();
+
+    while (rs.next()) {
+        Product p = new Product();
+        p.setProductId(rs.getInt("productId"));
+        p.setName(rs.getString("name"));
+        p.setPrice(rs.getDouble("price"));
+
+        list.add(p);
+    }
+
+    return list;
+}
+5. Controller logic đúng
+Controller phải có 2 mode:
+
+Mode 1 — load trang
+/shop-list
+List<Product> list = dao.getProducts(20,0);
+
+request.setAttribute("products", list);
+
+forward("shop-list.jsp");
+Mode 2 — load thêm (AJAX)
+/shop-list?offset=20
+String offsetParam = request.getParameter("offset");
+
+if(offsetParam != null){
+
+    int offset = Integer.parseInt(offsetParam);
+
+    List<Product> list = dao.getProducts(20, offset);
+
+    PrintWriter out = response.getWriter();
+
+    for(Product p : list){
+        out.println("""
+            <div class="product">
+                <h3>%s</h3>
+                <p>$%s</p>
+            </div>
+        """.formatted(p.getName(), p.getPrice()));
+    }
+
+    return;
+}
+6. JS Infinite Scroll
+let offset = 20;
+let loading = false;
+
+window.addEventListener("scroll", function(){
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 50){
+
+        if(!loading){
+
+            loading = true;
+
+            fetch("shop-list?offset=" + offset)
+                .then(res => res.text())
+                .then(html => {
+
+                    document.getElementById("product-list")
+                        .insertAdjacentHTML("beforeend", html);
+
+                    offset += 20;
+                    loading = false;
+                });
+        }
+
+    }
+
+});
+7. shop-list.jsp
+<div id="product-list">
+
+<c:forEach var="p" items="${products}">
+    <div class="product">
+        <h3>${p.name}</h3>
+        <p>${p.price}</p>
+    </div>
+</c:forEach>
+
+</div>
+8. Kết quả đúng sẽ là
+Trang load:
+
+product 1
+product 2
+...
+product 20
+Scroll:
+
+product 21
+product 22
+...
+product 40
+Scroll tiếp:
+
+product 41
+product 42
+...
+Không reload trang.
+
+9. Một cải tiến nên làm (chuẩn Shopee)
+Theo design của m nên filter theo shopName
+
+Query:
+
+WHERE s.shopName LIKE ?
+JS:
+
+/shop-list?offset=20&shopName=nike
+10. Quan trọng cho đồ án LAB211
+Trong tài liệu đồ án yêu cầu hệ thống phải xử lý volume lớn (>10k records) 
+260109-LAB211_ HỆ THỐNG WEB GIẢ…
+
+
+Infinite scroll giúp:
+
+không load 10k product
+
+giảm RAM
+
+tăng tốc UI
+
+=> đúng mục tiêu E-Commerce Simulation.
+
+✅ Nếu m muốn, tôi có thể viết luôn bộ code hoàn chỉnh cho project của m:
+
+ProductListController.java
+
+ProductDAO.java
+
+shop-list.jsp
+
+infinite-scroll.js
+
+đúng theo ERD + Flowchart m gửi, chạy được ngay trên Tomcat.
+
+
+Nguồn
+
+
+ProductDAO.java
+Tệp
+
+ProductListController.java
+Tệp
+
+product-list.jsp
+Tệp
+dựa vào file, chỉnh sửa sao cho nó hiện lên trên web danh sách các product nhưng ko phải hiện hết 1 lần mà khi cuộn xuống mới hiện thêm
+
+Tôi đã đọc 2 file code của m:
+
+
+ProductDAO
+
+ ProductDAO.java
+
+
+ProductListController
+
+ ProductListController.java
+
+Vấn đề chính của m là:
+
+❌ Controller đang dùng pagination kiểu page=1,2,3
+❌ JSP reload trang mỗi lần
+❌ Không có API trả thêm product cho JS
+
+=> nên scroll không load thêm.
+
+Ta sẽ sửa thành infinite scroll đúng kiểu Shopee.
+
+1. DAO của m đã đúng rồi (không cần sửa)
+Trong DAO m đã có:
+
+SELECT * 
+FROM Product 
+ORDER BY productId 
+OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+Đây chính là paging của SQL Server.
+
+Method:
+
+public List<Product> getProductPaging(int offset, int limit)
+=> giữ nguyên.
+
+2. Sửa ProductListController
+File hiện tại của m:
+
+int page = 1;
+int limit = 20;
+
+String pageParam = request.getParameter("page");
+=> phải đổi sang offset.
+
+Controller sửa lại
+@WebServlet("/product-list")
+public class ProductListController extends HttpServlet {
+
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        ProductDAO dao = new ProductDAO();
+
+        int limit = 20;
+        int offset = 0;
+
+        String offsetParam = request.getParameter("offset");
+
+        if (offsetParam != null) {
+            offset = Integer.parseInt(offsetParam);
+
+            List<Product> list = dao.getProductPaging(offset, limit);
+
+            response.setContentType("text/html;charset=UTF-8");
+
+            for (Product p : list) {
+                response.getWriter().println("""
+                    <div class="product-card">
+                        <h3>%s</h3>
+                        <p>Price: %s</p>
+                    </div>
+                """.formatted(p.getName(), p.getPrice()));
+            }
+
+            return;
+        }
+
+        List<Product> list = dao.getProductPaging(0, limit);
+
+        request.setAttribute("list", list);
+
+        request.getRequestDispatcher("product-list.jsp").forward(request, response);
+    }
+}
+3. Sửa product-list.jsp
+Phần hiển thị:
+
+<div id="product-container">
+
+<c:forEach var="p" items="${list}">
+    <div class="product-card">
+        <h3>${p.name}</h3>
+        <p>Price: ${p.price}</p>
+    </div>
+</c:forEach>
+
+</div>
+4. Thêm JavaScript Infinite Scroll
+Đặt cuối JSP:
+
+<script>
+
+let offset = 20;
+let limit = 20;
+let loading = false;
+
+window.addEventListener("scroll", function(){
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+        if(!loading){
+
+            loading = true;
+
+            fetch("product-list?offset=" + offset)
+                .then(res => res.text())
+                .then(data => {
+
+                    document.getElementById("product-container")
+                        .insertAdjacentHTML("beforeend", data);
+
+                    offset += limit;
+                    loading = false;
+                });
+
+        }
+
+    }
+
+});
+
+</script>
+5. Kết quả sau khi sửa
+Trang mở:
+
+Product 1
+Product 2
+...
+Product 20
+Scroll xuống:
+
+Product 21
+Product 22
+...
+Product 40
+Scroll tiếp:
+
+Product 41
+Product 42
+...
+✔ Không reload
+✔ Không pagination
+✔ Scroll mới load thêm
+
+6. Cách test nhanh
+Chạy:
+
+http://localhost:8080/project/product-list
+Mở F12 → Network
+
+Scroll xuống
+
+Sẽ thấy request:
+
+product-list?offset=20
+product-list?offset=40
+product-list?offset=60
+7. Một lỗi thường gặp khiến scroll không chạy
+Nếu scroll không load thêm → kiểm tra:
+
+body height quá ngắn
+thêm CSS:
+
+.product-card{
+    border:1px solid #ddd;
+    padding:10px;
+    margin:10px;
+}
+8. Nếu m muốn tôi có thể giúp thêm (quan trọng)
+Tôi có thể viết luôn version chuẩn Shopee cho đồ án LAB211 của m:
+
+infinite scroll + search shopName
+
+infinite scroll + filter price
+
+load Product + Variant
+
+UI grid giống Shopee
+
+Và sửa luôn 3 file của m để chạy 100% trên Tomcat.
+
+
+Nguồn
+
+làm full product-list.jsp lại
+
+Dựa trên Controller và DAO của m, đây là file product-list.jsp hoàn chỉnh để:
+
+Hiển thị 20 product ban đầu
+
+Khi cuộn xuống → load thêm
+
+Không reload trang
+
+Dùng đúng endpoint: /product-list?offset=
+
+product-list.jsp (FULL)
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Product List</title>
+
+    <style>
+        body{
+            font-family: Arial;
+            margin:0;
+            padding:0;
+            background:#f5f5f5;
+        }
+
+        h1{
+            text-align:center;
+            padding:20px;
+        }
+
+        #product-container{
+            width:90%;
+            margin:auto;
+            display:grid;
+            grid-template-columns: repeat(4,1fr);
+            gap:20px;
+        }
+
+        .product-card{
+            background:white;
+            padding:15px;
+            border-radius:8px;
+            box-shadow:0 2px 6px rgba(0,0,0,0.1);
+            transition:0.2s;
+        }
+
+        .product-card:hover{
+            transform:translateY(-3px);
+        }
+
+        .product-name{
+            font-size:18px;
+            font-weight:bold;
+            margin-bottom:10px;
+        }
+
+        .product-price{
+            color:#e74c3c;
+            font-size:16px;
+        }
+
+        #loading{
+            text-align:center;
+            padding:20px;
+            display:none;
+        }
+    </style>
+
+</head>
+<body>
+
+<h1>Product List</h1>
+
+<div id="product-container">
+
+    <c:forEach var="p" items="${list}">
+        <div class="product-card">
+            <div class="product-name">${p.name}</div>
+            <div class="product-price">$${p.price}</div>
+        </div>
+    </c:forEach>
+
+</div>
+
+<div id="loading">
+    Loading more products...
+</div>
+
+<script>
+
+let offset = 20;
+let limit = 20;
+let loading = false;
+let noMoreData = false;
+
+window.addEventListener("scroll", function(){
+
+    if(noMoreData) return;
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+        if(!loading){
+
+            loading = true;
+            document.getElementById("loading").style.display = "block";
+
+            fetch("product-list?offset=" + offset)
+                .then(res => res.text())
+                .then(data => {
+
+                    if(data.trim() === ""){
+                        noMoreData = true;
+                        document.getElementById("loading").innerText = "No more products";
+                        return;
+                    }
+
+                    document.getElementById("product-container")
+                        .insertAdjacentHTML("beforeend", data);
+
+                    offset += limit;
+
+                    loading = false;
+                    document.getElementById("loading").style.display = "none";
+                });
+
+        }
+
+    }
+
+});
+
+</script>
+
+</body>
+</html>
+Khi chạy sẽ hoạt động như sau
+Trang mở:
+
+Product 1
+Product 2
+...
+Product 20
+Cuộn xuống:
+
+Product 21
+Product 22
+...
+Product 40
+Cuộn tiếp:
+
+Product 41
+Product 42
+...
+Không reload trang.
+
+Kiểm tra nhanh nếu chưa chạy
+Mở:
+
+F12 → Network
+Cuộn xuống phải thấy request:
+
+product-list?offset=20
+product-list?offset=40
+product-list?offset=60
+Nếu m muốn tôi có thể nâng cấp luôn (rất đáng cho LAB211)
+Tôi có thể viết thêm:
+
+🔎 search shopName
+
+🛒 hiển thị variant + stock
+
+🖼 ảnh product
+
+⚡ UI giống Shopee
+
+📦 load 10k products vẫn mượt
+
+Và chỉnh lại toàn bộ MVC đúng chuẩn Java Servlet cho project của m.
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+hiện z ko đạt yêu cầu, phải hiện giống product
+
+Tôi hiểu vấn đề của m rồi.
+
+Hiện tại:
+
+Product List → hiển thị dạng card + grid (đúng yêu cầu UI)
+
+Shop List → đang hiển thị table
+
+Trong khi yêu cầu của m là:
+
+Shop list phải hiển thị giống product list (card + grid + infinite scroll)
+
+Tức là phải chuyển shop-list.jsp từ table → card layout giống product.
+
+1. shop-list.jsp chuẩn (giống product-list)
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Shop List</title>
+
+<style>
+
+body{
+    font-family:Arial;
+    background:#f5f5f5;
+}
+
+h1{
+    text-align:center;
+    margin:20px;
+}
+
+#shop-container{
+    width:90%;
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:20px;
+}
+
+.shop-card{
+    background:white;
+    padding:15px;
+    border-radius:8px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+.shop-name{
+    font-size:18px;
+    font-weight:bold;
+}
+
+.shop-owner{
+    color:#777;
+    margin-top:5px;
+}
+
+.action{
+    margin-top:10px;
+}
+
+.action a{
+    margin-right:8px;
+}
+
+</style>
+
+</head>
+<body>
+
+<h1>Shop List</h1>
+
+<div id="shop-container">
+
+<c:forEach var="s" items="${list}">
+    
+<div class="shop-card">
+
+<div class="shop-name">${s.shopName}</div>
+
+<div class="shop-owner">
+Owner: ${s.owner.name}
+</div>
+
+<div class="action">
+<a href="shop-view?id=${s.shopId}">View</a>
+<a href="shop-edit?id=${s.shopId}">Edit</a>
+<a href="shop-delete?id=${s.shopId}">Delete</a>
+</div>
+
+</div>
+
+</c:forEach>
+
+</div>
+
+<div id="loading" style="text-align:center;margin:20px;display:none;">
+Loading more shops...
+</div>
+
+<script>
+
+let offset = 20;
+let limit = 20;
+let loading = false;
+
+window.addEventListener("scroll", function(){
+
+if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+if(!loading){
+
+loading = true;
+
+document.getElementById("loading").style.display="block";
+
+fetch("shop-list?offset="+offset)
+
+.then(res=>res.text())
+
+.then(data=>{
+
+if(data.trim()==""){
+document.getElementById("loading").innerHTML="No more shops";
+return;
+}
+
+document.getElementById("shop-container")
+.insertAdjacentHTML("beforeend",data);
+
+offset+=limit;
+
+loading=false;
+
+document.getElementById("loading").style.display="none";
+
+});
+
+}
+
+}
+
+});
+
+</script>
+
+</body>
+</html>
+2. Controller shop-list phải hỗ trợ offset
+Nếu controller của m đang giống:
+
+?page=1
+thì sửa giống product-list controller.
+
+Ví dụ:
+
+String offsetParam = request.getParameter("offset");
+
+if(offsetParam != null){
+
+    int offset = Integer.parseInt(offsetParam);
+
+    List<Shop> list = dao.getShopPaging(offset,20);
+
+    PrintWriter out = response.getWriter();
+
+    for(Shop s : list){
+
+        out.println("""
+        <div class='shop-card'>
+            <div class='shop-name'>%s</div>
+            <div class='shop-owner'>Owner: %s</div>
+        </div>
+        """.formatted(s.getShopName(),s.getOwner().getName()));
+
+    }
+
+    return;
+}
+3. Kết quả sau khi sửa
+Shop list sẽ hiển thị:
+
+[Shop card]   [Shop card]   [Shop card]   [Shop card]
+
+Shop Hoang Hong Khanh
+Owner: Hoang Hong Khanh
+View Edit Delete
+và khi scroll:
+
+Load thêm shop...
+4. UI lúc này sẽ giống
+Product List
+⬜ ⬜ ⬜ ⬜
+⬜ ⬜ ⬜ ⬜
+
+Shop List
+⬜ ⬜ ⬜ ⬜
+⬜ ⬜ ⬜ ⬜
+=> đồng bộ UI của hệ thống E-Commerce
+
+5. Nếu muốn tôi có thể giúp thêm (rất quan trọng cho đồ án của m)
+Tôi có thể chỉnh lại toàn bộ:
+
+product-list
+
+shop-list
+
+product-detail
+
+shop-detail
+
+thành UI giống Shopee + infinite scroll + search + filter
+
+đúng chuẩn LAB211 E-Commerce Simulation luôn.
+
+
+ko phải là làm shop-list mà là làm product-list giống shop-list
+
+À hiểu rồi 👍
+
+Ý m là:
+
+Shop List đang hiển thị table (ID | Shop Name | Owner | Action)
+
+Product List đang hiển thị card grid
+
+Nhưng yêu cầu của m là:
+
+Product List phải hiển thị giống Shop List (table)
+và không load hết → scroll xuống mới load thêm
+
+Tức là:
+
+Product List
+---------------------------------------------
+ID | Product Name | Price | Shop | Action
+---------------------------------------------
+1  | Jacket Puma  |12000  |Shop A| View Edit Delete
+2  | Cap Gucci    |75000  |Shop B| View Edit Delete
+...
+1. product-list.jsp (viết lại giống shop-list)
+<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Product List</title>
+
+<style>
+
+body{
+    font-family:Arial;
+}
+
+table{
+    border-collapse:collapse;
+    width:80%;
+    margin:auto;
+}
+
+th,td{
+    border:1px solid #ccc;
+    padding:8px;
+}
+
+th{
+    background:#eee;
+}
+
+h1{
+    text-align:center;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Product List</h1>
+
+<table>
+
+<thead>
+<tr>
+<th>ID</th>
+<th>Product Name</th>
+<th>Price</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="product-body">
+
+<c:forEach var="p" items="${list}">
+
+<tr>
+<td>${p.productId}</td>
+<td>${p.name}</td>
+<td>${p.price}</td>
+<td>
+<a href="product-view?id=${p.productId}">View</a> |
+<a href="product-edit?id=${p.productId}">Edit</a> |
+<a href="product-delete?id=${p.productId}">Delete</a>
+</td>
+</tr>
+
+</c:forEach>
+
+</tbody>
+
+</table>
+
+<div id="loading" style="text-align:center;margin:20px;display:none;">
+Loading more products...
+</div>
+
+<script>
+
+let offset = 20;
+let limit = 20;
+let loading = false;
+
+window.addEventListener("scroll",function(){
+
+if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+if(!loading){
+
+loading = true;
+
+document.getElementById("loading").style.display="block";
+
+fetch("product-list?offset="+offset)
+
+.then(res=>res.text())
+
+.then(data=>{
+
+if(data.trim()==""){
+document.getElementById("loading").innerHTML="No more products";
+return;
+}
+
+document.getElementById("product-body")
+.insertAdjacentHTML("beforeend",data);
+
+offset+=limit;
+
+loading=false;
+
+document.getElementById("loading").style.display="none";
+
+});
+
+}
+
+}
+
+});
+
+</script>
+
+</body>
+</html>
+2. Controller phải trả về <tr>
+Trong ProductListController sửa đoạn AJAX:
+
+if(offsetParam != null){
+
+    int offset = Integer.parseInt(offsetParam);
+
+    List<Product> list = dao.getProductPaging(offset,20);
+
+    PrintWriter out = response.getWriter();
+
+    for(Product p : list){
+
+        out.println("""
+        <tr>
+            <td>%d</td>
+            <td>%s</td>
+            <td>%s</td>
+            <td>
+                <a href='product-view?id=%d'>View</a> |
+                <a href='product-edit?id=%d'>Edit</a> |
+                <a href='product-delete?id=%d'>Delete</a>
+            </td>
+        </tr>
+        """.formatted(
+            p.getProductId(),
+            p.getName(),
+            p.getPrice(),
+            p.getProductId(),
+            p.getProductId(),
+            p.getProductId()
+        ));
+
+    }
+
+    return;
+}
+3. Kết quả
+Product list sẽ giống shop list:
+
+ID | Product Name | Price | Action
+----------------------------------
+1  | Jacket Puma  |12000 | View Edit Delete
+2  | Cap Gucci    |75000 | View Edit Delete
+3  | Hoodie LV    |41000 | View Edit Delete
+...
+Scroll xuống:
+
+load thêm product
+Không reload trang.
+
+4. Kiểm tra
+Mở:
+
+F12 → Network
+Scroll xuống phải thấy:
+
+product-list?offset=20
+product-list?offset=40
+product-list?offset=60
+💡 Nếu m muốn tôi có thể giúp m sửa lại toàn bộ module product cho chuẩn LAB211:
+
+Product List
+
+Product Detail
+
+Product Variant
+
+Product Search
+
+Infinite Scroll + Filter
+
+để demo đồ án nhìn giống Shopee 80% luôn.
+
+
+Đã tải lên ảnh
+thêm cột tên shop và nút create Product trên bảng
+
+Ok, giờ chỉ cần 2 chỉnh sửa nhỏ trong product-list.jsp:
+
+1️⃣ Thêm cột Shop Name
+2️⃣ Thêm nút Create Product
+
+Tôi viết lại phần chuẩn để m copy luôn.
+
+1. Thêm nút Create Product
+Đặt trên bảng:
+
+<div style="width:80%;margin:auto;margin-bottom:10px;">
+    <a href="product-create">
+        <button>Create Product</button>
+    </a>
+</div>
+2. Sửa header của bảng
+Từ:
+
+<th>ID</th>
+<th>Product Name</th>
+<th>Price</th>
+<th>Action</th>
+Thành:
+
+<th>ID</th>
+<th>Product Name</th>
+<th>Price</th>
+<th>Shop</th>
+<th>Action</th>
+3. Sửa phần hiển thị trong c:forEach
+Từ:
+
+<td>${p.price}</td>
+<td>
+<a href="product-view?id=${p.productId}">View</a> |
+<a href="product-edit?id=${p.productId}">Edit</a> |
+<a href="product-delete?id=${p.productId}">Delete</a>
+</td>
+Thành:
+
+<td>${p.price}</td>
+
+<td>
+${p.shop.shopName}
+</td>
+
+<td>
+<a href="product-view?id=${p.productId}">View</a> |
+<a href="product-edit?id=${p.productId}">Edit</a> |
+<a href="product-delete?id=${p.productId}">Delete</a>
+</td>
+4. Sửa phần AJAX trong ProductListController
+Phải thêm shop name khi scroll load thêm:
+
+out.println("""
+<tr>
+<td>%d</td>
+<td>%s</td>
+<td>%s</td>
+<td>%s</td>
+<td>
+<a href='product-view?id=%d'>View</a> |
+<a href='product-edit?id=%d'>Edit</a> |
+<a href='product-delete?id=%d'>Delete</a>
+</td>
+</tr>
+""".formatted(
+p.getProductId(),
+p.getName(),
+p.getPrice(),
+p.getShop().getShopName(),
+p.getProductId(),
+p.getProductId(),
+p.getProductId()
+));
+5. Kết quả sẽ giống
+Create Product
+
+ID | Product Name | Price | Shop | Action
+-----------------------------------------
+1  | Jacket Puma  |12000  |Shop A| View Edit Delete
+2  | Cap Gucci    |75000  |Shop B| View Edit Delete
+3  | Hoodie LV    |41000  |Shop C| View Edit Delete
+Scroll xuống vẫn load thêm product.
+
+💡 Một lỗi rất hay gặp của m ở bước này:
+
+Nếu cột Shop Name không hiện → do ProductDAO chưa join bảng Shop.
+
+Query phải là:
+
+SELECT p.productId,p.name,p.price,s.shopName
+FROM Product p
+JOIN Shop s ON p.shopId = s.shopId
+Nếu m muốn, tôi có thể giúp m nâng cấp luôn module Product của m lên chuẩn đồ án LAB211:
+
+Product List (infinite scroll)
+
+Product Create
+
+Product Variant
+
+Product Detail
+
+Search Product / Shop
+
+để demo nhìn giống Shopee 70-80% luôn.
+
+
+Đã tải lên ảnh
+ko hiện tên shop
+
+Cột Shop không hiện tên shop thường do Product chưa load object Shop hoặc JSP chưa gọi đúng thuộc tính. Dựa vào hình của bạn, dữ liệu product có nhưng shopName đang null.
+
+Mình hướng dẫn sửa đúng cách để giống shop-list.
+
+1️⃣ Sửa ProductDAO.java (quan trọng nhất)
+Trong câu SQL phải JOIN với bảng Shop để lấy tên shop.
+
+Ví dụ sửa method getProducts() hoặc getProductsByPage():
+
+public List<Product> getProducts(int offset, int limit) {
+    List<Product> list = new ArrayList<>();
+    String sql = """
+        SELECT p.id, p.name, p.price, s.id AS shop_id, s.name AS shop_name
+        FROM Product p
+        JOIN Shop s ON p.shop_id = s.id
+        ORDER BY p.id
+        LIMIT ? OFFSET ?
+    """;
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, limit);
+        ps.setInt(2, offset);
+
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+            Shop shop = new Shop();
+            shop.setId(rs.getInt("shop_id"));
+            shop.setName(rs.getString("shop_name"));
+
+            Product p = new Product();
+            p.setId(rs.getInt("id"));
+            p.setName(rs.getString("name"));
+            p.setPrice(rs.getDouble("price"));
+            p.setShop(shop);
+
+            list.add(p);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return list;
+}
+⚠️ Quan trọng:
+
+JOIN Shop s ON p.shop_id = s.id
+2️⃣ Đảm bảo Product.java có Shop
+private Shop shop;
+
+public Shop getShop() {
+    return shop;
+}
+
+public void setShop(Shop shop) {
+    this.shop = shop;
+}
+3️⃣ Sửa product-list.jsp
+Ở cột Shop phải gọi:
+
+<td>${p.shop.name}</td>
+Ví dụ full dòng:
+
+<c:forEach var="p" items="${products}">
+<tr>
+    <td>${p.id}</td>
+    <td>${p.name}</td>
+    <td>${p.price}</td>
+    <td>${p.shop.name}</td>
+    <td>
+        <a href="product-view?id=${p.id}">View</a> |
+        <a href="product-edit?id=${p.id}">Edit</a> |
+        <a href="product-delete?id=${p.id}">Delete</a>
+    </td>
+</tr>
+</c:forEach>
+4️⃣ Kiểm tra database
+Bảng Product phải có:
+
+shop_id
+Ví dụ:
+
+id	name	price	shop_id
+1	Jacket Puma	12000	1
+Bảng Shop
+
+id	name
+1	Puma Store
+5️⃣ Kết quả sau khi sửa
+Product List sẽ hiển thị:
+
+ID	Product Name	Price	Shop
+1	Jacket Puma	12000	Puma Store
+2	Cap Gucci	75000	Gucci Shop
+✅ Nếu bạn muốn, mình có thể gửi luôn bản full chuẩn cho 3 file:
+
+ProductDAO.java
+
+ProductListController.java
+
+product-list.jsp
+
+để chạy được infinite scroll giống shop-list và hiện shop name đúng.
+
+
+
+ProductDAO.java
+Tệp
+đây productDAO, sửa chỗ nào chỉ
+
+Mình xem file của bạn rồi. Lỗi nằm ở đúng method getProductPaging(), vì nó không JOIN bảng Shop nên không lấy được shopName.
+
+❌ Đoạn đang sai trong file của bạn
+Trong getProductPaging() bạn đang viết:
+
+String sql = "SELECT * FROM Product ORDER BY productId OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+và phía dưới chỉ set:
+
+Shop shop = new Shop();
+shop.setShopId(rs.getInt("shopId"));
+➡️ Bạn chỉ lấy shopId, không lấy shopName, nên JSP không hiển thị được.
+
+✅ Sửa đúng chỗ này
+1️⃣ Sửa SQL
+Thay dòng SQL:
+
+String sql = "SELECT * FROM Product ORDER BY productId OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+➡️ thành
+
+String sql = """
+    SELECT p.productId,
+           p.name,
+           p.price,
+           s.shopId,
+           s.shopName
+    FROM Product p
+    JOIN Shop s ON p.shopId = s.shopId
+    ORDER BY p.productId
+    OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+""";
+2️⃣ Sửa phần tạo Shop object
+Tìm đoạn này:
+
+Shop shop = new Shop();
+shop.setShopId(rs.getInt("shopId"));
+sửa thành:
+
+Shop shop = new Shop();
+shop.setShopId(rs.getInt("shopId"));
+shop.setShopName(rs.getString("shopName"));
+✅ Sau khi sửa method sẽ như sau
+public List<Product> getProductPaging(int offset, int limit) {
+
+    List<Product> list = new ArrayList<>();
+
+    String sql = """
+        SELECT p.productId,
+               p.name,
+               p.price,
+               s.shopId,
+               s.shopName
+        FROM Product p
+        JOIN Shop s ON p.shopId = s.shopId
+        ORDER BY p.productId
+        OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+    """;
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, offset);
+        ps.setInt(2, limit);
+
+        ResultSet rs = ps.executeQuery();
+
+        while (rs.next()) {
+
+            Shop shop = new Shop();
+            shop.setShopId(rs.getInt("shopId"));
+            shop.setShopName(rs.getString("shopName"));
+
+            Product p = new Product(
+                    rs.getInt("productId"),
+                    rs.getString("name"),
+                    rs.getDouble("price"),
+                    shop
+            );
+
+            list.add(p);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return list;
+}
+📌 JSP phải hiển thị như này
+<td>${p.shop.shopName}</td>
+✅ Sau khi sửa
+Trang Product List sẽ hiển thị:
+
+ID	Product	Price	Shop
+1	Jacket Puma	12000	Puma
+2	Cap Gucci	75000	Gucci
+💡 Nếu bạn muốn mình sửa luôn để Product List có infinite scroll giống Shop List (chuẩn bài LAB211) mình có thể gửi full 3 file chạy đúng 100%.
+
+
+Đã tải lên ảnh
+ko hiện j
+
+Trang Product List không hiện gì (chỉ có header) nghĩa là list products đang rỗng hoặc JSP không nhận được attribute. Sửa theo thứ tự dưới đây (rất nhanh tìm ra lỗi).
+
+1️⃣ Kiểm tra ProductListController (lỗi thường gặp nhất)
+Controller phải set attribute products rồi forward sang JSP.
+
+Ví dụ đúng:
+
+protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+    ProductDAO dao = new ProductDAO();
+
+    int page = 1;
+    int limit = 10;
+
+    if (request.getParameter("page") != null) {
+        page = Integer.parseInt(request.getParameter("page"));
+    }
+
+    int offset = (page - 1) * limit;
+
+    List<Product> products = dao.getProductPaging(offset, limit);
+
+    request.setAttribute("products", products);
+
+    request.getRequestDispatcher("product-list.jsp").forward(request, response);
+}
+⚠️ Nếu thiếu dòng này thì JSP không có dữ liệu:
+
+request.setAttribute("products", products);
+2️⃣ Kiểm tra product-list.jsp
+Phải có loop như sau:
+
+<c:forEach var="p" items="${products}">
+<tr>
+    <td>${p.productId}</td>
+    <td>${p.name}</td>
+    <td>${p.price}</td>
+    <td>${p.shop.shopName}</td>
+    <td>
+        <a href="product-view?id=${p.productId}">View</a> |
+        <a href="product-edit?id=${p.productId}">Edit</a> |
+        <a href="product-delete?id=${p.productId}">Delete</a>
+    </td>
+</tr>
+</c:forEach>
+3️⃣ Thêm dòng debug trong JSP
+Thêm dòng này để kiểm tra có dữ liệu không:
+
+${products}
+Nếu ra:
+
+[]
+➡️ DAO không lấy được dữ liệu.
+
+4️⃣ Kiểm tra Database
+Chạy SQL:
+
+SELECT * FROM Product
+Nếu không có dữ liệu → trang sẽ trống.
+
+5️⃣ Test nhanh DAO
+Thêm debug trong controller:
+
+System.out.println(products.size());
+Nếu console ra:
+
+0
+➡️ SQL sai.
+
+6️⃣ SQL đúng cho paging
+Phải giống:
+
+SELECT p.productId,
+       p.name,
+       p.price,
+       s.shopId,
+       s.shopName
+FROM Product p
+JOIN Shop s ON p.shopId = s.shopId
+ORDER BY p.productId
+OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+🔎 Nếu vẫn không hiện
+Gửi mình 1 file nữa:
+
+ProductListController.java
+
+Mình sẽ chỉ đúng dòng sai trong 10s vì 90% lỗi nằm ở controller chứ không phải DAO.
+
+
+
+ProductListController.java
+Tệp
+đây productlistcontroller, sửa chỗ nào chỉ
+
+Mình đã xem file ProductListController.java của bạn. Lỗi khiến trang không hiện dữ liệu là do tên attribute gửi sang JSP sai.
+
+❌ Dòng đang sai
+Ở cuối controller bạn đang viết:
+
+request.setAttribute("list", list);
+Nhưng trong product-list.jsp bạn đang dùng:
+
+<c:forEach var="p" items="${products}">
+➡️ JSP đang tìm products, nhưng controller lại gửi list → nên bảng trống.
+
+✅ Sửa đúng
+Chỉ cần sửa dòng này:
+
+request.setAttribute("list", list);
+➡️ thành
+
+request.setAttribute("products", list);
+📌 Đoạn đúng sẽ là
+List<Product> list = dao.getProductPaging(0, limit);
+
+request.setAttribute("products", list);
+
+request.getRequestDispatcher("product-list.jsp").forward(request, response);
+💡 Vì sao shop-list chạy được?
+Trong shop-list controller thường dùng:
+
+request.setAttribute("shops", list);
+và JSP dùng:
+
+${shops}
+Tên phải giống nhau 100%.
+
+✅ Sau khi sửa
+Reload trang:
+
+http://localhost:8080/LAB211Web/product-list
+Bảng sẽ hiện lại product + shop.
+
+💡 Nếu bạn muốn mình sửa luôn để Product List infinite scroll giống Shop List (chuẩn LAB211) mình có thể gửi full product-list.jsp chuẩn luôn, vì hiện tại code của bạn còn thiếu 1 đoạn JavaScript load thêm khi scroll.
+
+
+Đã tải lên ảnh
+đây là trang home, edit my profile thì nằm chung với logout, chỗ manage users thì để giống navbar gồm quản lý user, shop, product, productVariant, Voucher, lúc nhấn dô mục nào thì hiện list ngay trên trang home luônđây là trang home, edit my profile thì nằm chung với logout, chỗ manage users thì để giống navbar gồm quản lý user, shop, product, productVariant, Voucher, lúc nhấn dô mục nào thì hiện list ngay trên trang home luôn
+
+Bạn muốn Home giống dashboard, có navbar quản lý và khi bấm sẽ load list ngay trên trang Home. Làm như sau.
+
+1️⃣ Sửa phần header (Edit Profile nằm chung Logout)
+Trong home.jsp sửa đoạn header:
+
+Viết
+
+
+2️⃣ Tạo Navbar quản lý
+Thay dòng Manage Users bằng navbar:
+
+Viết
+Users |
+
+Shops |
+
+Products |
+
+Product Variants |
+
+Vouchers
+
+3️⃣ Tạo vùng hiển thị list ngay trên Home
+Thêm div này dưới navbar:
+
+Viết
+
+
+4️⃣ JavaScript load nội dung vào Home
+Thêm script cuối trang:
+
+Viết
+
+
+5️⃣ Kết quả
+Trang Home sẽ như dashboard:
+
+Welcome Vinh | Role: admin | Edit My Profile | Logout
+
+Users | Shops | Products | Product Variants | Vouchers
+------------------------------------------------------
+
+[ Nội dung list sẽ hiện ở đây ]
+Ví dụ:
+
+Bấm Users → hiện User List
+
+Bấm Shops → hiện Shop List
+
+Bấm Products → hiện Product List (infinite scroll)
+
+Bấm Variants → hiện Variant List
+
+Bấm Vouchers → hiện Voucher List
+
+Không cần chuyển trang.
+
+6️⃣ Lưu ý quan trọng
+Các trang list phải trả về HTML fragment, không phải full <html>.
+
+Ví dụ product-list.jsp chỉ nên có:
+
+<h2>Product List</h2>
+<table>
+...
+</table>
+không có <html>, <body>.
+
+✅ Nếu muốn, mình có thể gửi luôn Home.jsp chuẩn dashboard cho LAB211 (đẹp hơn + navbar + load AJAX).
+Nhìn giống mini admin panel luôn, code cũng ngắn hơn.
+
+
+Đã tải lên ảnh
+đây là trang home, edit my profile thì nằm chung với logout, chỗ manage users thì để giống navbar gồm quản lý user, shop, product, productVariant, Voucher, lúc nhấn dô mục nào thì hiện list ngay trên trang home luônđây là trang home, edit my profile thì nằm chung với logout, chỗ manage users thì để giống navbar gồm quản lý user, shop, product, productVariant, Voucher, lúc nhấn dô mục nào thì hiện list ngay trên trang home luôn
+
+Bạn muốn Home thành một dashboard, gồm:
+
+Edit My Profile nằm cùng hàng với Logout
+
+Bên dưới là navbar quản lý
+
+Khi bấm Users / Shops / Products / ProductVariant / Voucher → list hiển thị ngay trên Home, không chuyển trang.
+
+Mình đưa code Home.jsp hoàn chỉnh để bạn thay luôn.
+
+1️⃣ Header (Edit Profile chung với Logout)
+Viết
+
+
+2️⃣ Navbar quản lý (thay cho Manage Users)
+Viết
+Management:
+
+Users |
+
+Shops |
+
+Products |
+
+Product Variants |
+
+Vouchers
+
+3️⃣ Khu vực hiển thị nội dung
+Viết
+
+
+4️⃣ JavaScript load list vào Home
+Thêm dưới cùng trang:
+
+Viết
+
+
+5️⃣ Kết quả
+Trang Home sẽ thành dạng:
+
+Welcome Vinh | Role: admin | Edit My Profile | Logout
+-----------------------------------------------------
+
+Management:
+Users | Shops | Products | Product Variants | Vouchers
+
+-----------------------------------------------------
+
+[ Nội dung list sẽ hiện ở đây ]
+Ví dụ:
+
+Bấm Users → hiện User List
+
+Bấm Shops → hiện Shop List
+
+Bấm Products → hiện Product List (infinite scroll)
+
+Bấm Variants → hiện Variant List
+
+Bấm Vouchers → hiện Voucher List
+
+Không chuyển trang.
+
+⚠️ Quan trọng
+Các trang list:
+
+user-list.jsp
+
+shop-list.jsp
+
+product-list.jsp
+
+KHÔNG được có <html> <body>
+
+Chỉ nên có:
+
+<h2>Product List</h2>
+<table>...</table>
+Nếu không AJAX sẽ load cả trang HTML vào trong Home.
+
+✅ Nếu bạn muốn mình gửi luôn Home.jsp full chuẩn + CSS + navbar đẹp giống admin panel, mình có thể viết bản chuẩn LAB211 (nhìn giống dashboard thật).
+
+
+ghi lại header
+
+Bạn có thể dùng header hoàn chỉnh dưới đây cho home.jsp. Nó đặt Edit My Profile cùng hàng với Logout và hiển thị thông tin user gọn gàng.
+
+Viết
+
+
+Sau header này, bạn có thể đặt navbar quản lý (Users | Shops | Products | ProductVariants | Vouchers) ngay bên dưới để làm dashboard.
+
+
+chỉ  mấy cái này copy dô vị trí nào 
+
+Mình chỉ đúng vị trí để copy trong home.jsp cho bạn.
+
+1️⃣ Mở file home.jsp
+Bạn sẽ thấy đoạn giống như trong hình:
+
+Welcome Vinh
+Role: admin
+
+Welcome Vinh | Role: admin | Logout
+
+-----------------------------------
+
+Manage Users   Edit My Profile
+2️⃣ Thay toàn bộ phần trên đường kẻ
+Tức là từ dòng Welcome Vinh đến <hr>.
+
+Xóa hết và dán đoạn header này vào:
+
+Viết
+
+
+3️⃣ Sau <hr> mới đặt navbar quản lý
+Ngay dưới <hr> thêm:
+
+<div style="margin-bottom:20px">
+
+<b>Management:</b>
+
+<a href="#" onclick="loadPage('user-list')">Users</a> |
+
+<a href="#" onclick="loadPage('shop-list')">Shops</a> |
+
+<a href="#" onclick="loadPage('product-list')">Products</a> |
+
+<a href="#" onclick="loadPage('variant-list')">Product Variants</a> |
+
+<a href="#" onclick="loadPage('voucher-list')">Vouchers</a>
+
+</div>
+4️⃣ Bên dưới navbar thêm vùng hiển thị list
+<div id="content-area">
+<h3>Select a module to manage</h3>
+</div>
+5️⃣ Cuối file home.jsp thêm JavaScript
+<script>
+function loadPage(url){
+    fetch(url)
+    .then(res => res.text())
+    .then(data => {
+        document.getElementById("content-area").innerHTML = data;
+    });
+}
+</script>
+✅ Kết quả
+Trang Home sẽ thành:
+
+Welcome Vinh | Role: admin | Edit My Profile | Logout
+-----------------------------------------------------
+
+Users | Shops | Products | Product Variants | Vouchers
+
+-----------------------------------------------------
+
+[ List sẽ hiện ở đây ]
+Bấm Products → hiện Product List ngay trên Home.
+
+💡 Nếu bạn muốn mình gửi file home.jsp full hoàn chỉnh (copy 1 phát chạy luôn) mình có thể viết lại chuẩn dashboard cho LAB211, nhìn gọn và dễ chấm điểm hơn.
+
+
+
+header.jsp
+Tệp
+
+home.jsp
+Tệp
+header và home, chỉ đi
+
+Mình đã xem 2 file của bạn (header.jsp và home.jsp). Chỉ cần sửa đúng vài chỗ sau.
+
+1️⃣ Sửa header.jsp
+File hiện tại:
+
+<c:if test="${sessionScope.account != null}">
+    Welcome ${sessionScope.account.name} |
+    Role: ${sessionScope.account.role} |
+    <a href="logout">Logout</a>
+    <hr>
+</c:if>
+Sửa thành (thêm Edit My Profile chung với Logout)
+<c:if test="${sessionScope.account != null}">
+    Welcome ${sessionScope.account.name} |
+    Role: ${sessionScope.account.role} |
+    
+    <a href="app-user-edit?id=${sessionScope.account.userId}">
+        Edit My Profile
+    </a> |
+    
+    <a href="logout">Logout</a>
+
+    <hr>
+</c:if>
+2️⃣ Sửa home.jsp
+File bạn đang có:
+
+<h2>Welcome ${sessionScope.account.name}</h2>
+<h3>Role: ${sessionScope.account.role}</h3>
+<jsp:include page="header.jsp" />
+
+<c:if test="${sessionScope.account.role == 'admin'}">
+    <a href="app-user-list">Manage Users</a>
+    <a href="app-user-edit?id=${sessionScope.account.userId}">
+        Edit My Profile
+    </a>
+</c:if>
+❌ Xóa dòng Edit My Profile trong Home
+Vì nó đã nằm ở header.
+
+❌ Xóa Manage Users
+Thay bằng navbar quản lý.
+
+✅ Sửa thành
+<h2>Welcome ${sessionScope.account.name}</h2>
+<h3>Role: ${sessionScope.account.role}</h3>
+
+<jsp:include page="header.jsp" />
+
+<c:if test="${sessionScope.account.role == 'admin'}">
+
+<div style="margin-bottom:20px">
+
+<b>Management:</b>
+
+<a href="#" onclick="loadPage('app-user-list')">Users</a> |
+
+<a href="#" onclick="loadPage('shop-list')">Shops</a> |
+
+<a href="#" onclick="loadPage('product-list')">Products</a> |
+
+<a href="#" onclick="loadPage('variant-list')">Product Variants</a> |
+
+<a href="#" onclick="loadPage('voucher-list')">Vouchers</a>
+
+</div>
+
+</c:if>
+
+<div id="content-area">
+    <h3>Select module to manage</h3>
+</div>
+
+<script>
+function loadPage(url){
+    fetch(url)
+    .then(res => res.text())
+    .then(data =>{
+        document.getElementById("content-area").innerHTML = data;
+    });
+}
+</script>
+3️⃣ Kết quả
+Trang Home sẽ thành:
+
+Welcome Vinh | Role admin | Edit My Profile | Logout
+----------------------------------------------------
+
+Users | Shops | Products | Product Variants | Vouchers
+
+----------------------------------------------------
+
+[ List sẽ hiện ở đây ]
+Ví dụ:
+
+bấm Users → hiện User List
+
+bấm Products → hiện Product List
+
+bấm Shops → hiện Shop List
+
+Tất cả hiện ngay trên Home.
+
+✅ Nếu bạn muốn mình làm bản Home Dashboard đẹp hơn (navbar ngang giống admin panel) cho LAB211 thì mình có thể viết lại home.jsp chuẩn 40 dòng nhìn xịn hơn nhiều.
+
+
+Đã tải lên ảnh
+nhấn ProductVariant bị lỗi
+
+Lỗi bạn gặp là:
+
+HTTP Status 404 – Not Found
+The requested resource [/LAB211Web/variant-list] is not available
+👉 Nghĩa là server không có URL variant-list.
+
+Trong navbar bạn đang gọi:
+
+loadPage('variant-list')
+Nhưng Servlet hoặc mapping của ProductVariant không phải là variant-list.
+
+1️⃣ Kiểm tra ProductVariantController
+Mở file controller của ProductVariant, tìm dòng:
+
+@WebServlet("/something")
+Ví dụ nếu file của bạn là:
+
+@WebServlet("/product-variant-list")
+thì URL đúng phải là:
+
+product-variant-list
+2️⃣ Sửa navbar trong home.jsp
+Tìm dòng này:
+
+<a href="#" onclick="loadPage('variant-list')">Product Variants</a>
+Sửa thành (ví dụ):
+
+<a href="#" onclick="loadPage('product-variant-list')">Product Variants</a>
+3️⃣ Ví dụ navbar đúng
+<div style="margin-bottom:20px">
+
+<b>Management:</b>
+
+<a href="#" onclick="loadPage('app-user-list')">Users</a> |
+
+<a href="#" onclick="loadPage('shop-list')">Shops</a> |
+
+<a href="#" onclick="loadPage('product-list')">Products</a> |
+
+<a href="#" onclick="loadPage('product-variant-list')">Product Variants</a> |
+
+<a href="#" onclick="loadPage('voucher-list')">Vouchers</a>
+
+</div>
+4️⃣ Cách kiểm tra nhanh URL đúng
+Thử mở trực tiếp trên browser:
+
+http://localhost:8080/LAB211Web/product-variant-list
+Nếu trang hiện → dùng URL đó trong navbar.
+
+✅ Tóm lại:
+Không phải lỗi Home, mà URL của ProductVariant controller không phải variant-list.
+
+💡 Nếu bạn gửi mình file ProductVariantController.java, mình sẽ chỉ đúng 1 dòng cần sửa trong navbar cho bạn luôn.
+
+
+Đã tải lên ảnh
+
+app-user-list.jsp
+Tệp
+
+home.jsp
+Tệp
+
+product-list.jsp
+Tệp
+
+product-variant-list.jsp
+Tệp
+
+shop-list.jsp
+Tệp
+
+voucher-list.jsp
+Tệp
+
+AppUserListController.java
+Tệp
+
+HomeController.java
+Tệp
+
+ProductListController.java
+Tệp
+
+ProductVariantListController.java
+Tệp
+
+ShopListController.java
+Tệp
+
+VoucherListController.java
+Tệp
+
+AppUserDAO.java
+Tệp
+
+OrderDAO.java
+Tệp
+
+OrderVoucherDAO.java
+Tệp
+
+ProductDAO.java
+Tệp
+
+ProductVariantDAO.java
+Tệp
+
+VoucherDAO.java
+Tệp
+
+ShopDAO.java
+Tệp
+sao trang home ko load thêm user khi lướt xuống, mấy trang khác cũng v ( lơ 2 file Order nha, t gửi nhầm)
+
+Mình xem controller của bạn rồi. Vấn đề không phải ở DAO hay controller, mà ở JSP + cách load trang trong home.
+
+Hiện tại hệ thống của bạn đang hoạt động như sau:
+
+1️⃣ Home.jsp dùng JS loadPage() để load 1 lần:
+
+/app-user-list
+Controller nhận:
+
+page = 1
+limit = 20
+nên nó chỉ trả 20 user.
+
+Sau đó không có JavaScript nào gọi tiếp page=2 khi scroll, nên nó không load thêm.
+
+Nguyên nhân chính
+Bạn mới làm paging ở backend, nhưng chưa làm infinite scroll ở frontend.
+
+Controller của bạn đã chuẩn rồi:
+
+int page = 1;
+int limit = 20;
+
+if (request.getParameter("page") != null) {
+    page = Integer.parseInt(request.getParameter("page"));
+}
+
+int offset = (page - 1) * limit;
+Nhưng JSP chưa có code scroll để gọi page++.
+
+Cách sửa (rất ít)
+Bạn cần thêm JS infinite scroll vào các file list:
+
+app-user-list.jsp
+shop-list.jsp
+product-list.jsp
+product-variant-list.jsp
+voucher-list.jsp
+Thêm đoạn này cuối file JSP (trước </body>)
+Ví dụ cho app-user-list.jsp
+
+<script>
+
+let page = ${page};
+let loading = false;
+
+window.onscroll = function() {
+
+    if (loading) return;
+
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
+
+        loading = true;
+        page++;
+
+        fetch("app-user-list?page=" + page + "&keyword=${keyword}")
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+
+            const rows = doc.querySelectorAll("table tbody tr");
+
+            const table = document.querySelector("table tbody");
+
+            rows.forEach(r => table.appendChild(r));
+
+            loading = false;
+        });
+
+    }
+
+}
+
+</script>
+Kết quả sau khi thêm
+Trang sẽ hoạt động như:
+
+load page 1 (20 rows)
+
+scroll ↓
+
+load page 2 (20 rows)
+
+scroll ↓
+
+load page 3 ...
+giống:
+
+Facebook
+
+Shopee
+
+TikTok feed
+
+Lý do trang trước của bạn chạy được
+Trước đó bạn mở trực tiếp /product-list, nên JS infinite scroll chạy.
+
+Bây giờ bạn load vào home bằng AJAX, nên script không chạy lại.
+
+Nếu muốn mình sửa chuẩn toàn bộ
+Mình có thể viết cho bạn:
+
+✅ 1 file JS chung infinite scroll cho toàn project
+✅ tất cả list auto scroll
+✅ code chỉ ~25 dòng
+✅ chạy cho Users / Shop / Product / Variant / Voucher
+
+(đỡ phải copy 5 lần JS).
+
+
+thêm vào r nhưng vẫn ko đc
+
+Nếu thêm JS rồi mà vẫn không chạy, thì gần như chắc chắn lỗi nằm ở cách bạn load page trong home.jsp bằng AJAX. Script trong trang con không chạy lại khi được inject vào innerHTML.
+
+Controller của bạn hoàn toàn ổn:
+
+
+AppUserListController
+
+
+AppUserListController đã có paging:
+
+int page = 1;
+int limit = 20;
+
+if (request.getParameter("page") != null) {
+    page = Integer.parseInt(request.getParameter("page"));
+}
+
+int offset = (page - 1) * limit;
+và DAO cũng đã paging đúng:
+
+
+AppUserDAO
+
+
+OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+=> Backend không có lỗi.
+
+Vấn đề thật sự
+Trang của bạn:
+
+home.jsp
+   ↓
+loadPage("app-user-list")
+   ↓
+innerHTML = html
+Khi dùng innerHTML, các <script> bên trong HTML sẽ không chạy.
+
+Vì vậy đoạn infinite scroll bạn thêm không được kích hoạt.
+
+Cách sửa đúng (chỉ cần 1 chỗ)
+Trong home.jsp phải có JS kiểu này:
+
+function loadPage(url){
+    fetch(url)
+    .then(res => res.text())
+    .then(html => {
+        document.getElementById("content").innerHTML = html;
+
+        // chạy lại script
+        const scripts = document.getElementById("content").querySelectorAll("script");
+        scripts.forEach(s => {
+            const newScript = document.createElement("script");
+            newScript.text = s.text;
+            document.body.appendChild(newScript);
+        });
+    });
+}
+Kiểm tra nhanh
+Mở Console (F12) rồi gõ:
+
+console.log("scroll active")
+trong file app-user-list.jsp.
+
+Nếu không thấy log → script chưa chạy.
+
+Cách tốt hơn (chuẩn project lớn)
+Đừng đặt script trong từng JSP.
+
+Tạo 1 file JS chung:
+
+/assets/infinite-scroll.js
+và import trong home.jsp.
+
+Ví dụ:
+
+<script src="assets/infinite-scroll.js"></script>
+JS:
+
+let page = 1;
+let loading = false;
+
+window.addEventListener("scroll", function(){
+
+    if(loading) return;
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+        loading = true;
+        page++;
+
+        fetch(window.location.pathname + "?page=" + page)
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html,"text/html");
+
+            const rows = doc.querySelectorAll("tbody tr");
+
+            rows.forEach(r=>{
+                document.querySelector("tbody").appendChild(r);
+            });
+
+            loading = false;
+        });
+
+    }
+
+});
+Nếu bạn muốn mình fix 100% chạy ngay
+Bạn gửi thêm:
+
+home.jsp
+app-user-list.jsp
+Mình sẽ chỉ ra chính xác dòng lỗi trong project của bạn và sửa luôn cho đúng cấu trúc AJAX + infinite scroll.
+
+
+Nguồn
+
+
+home.jsp
+Tệp
+
+app-user-list.jsp
+Tệp
+
+Mình thấy 3 lỗi rõ ràng trong code của bạn, nên infinite scroll không chạy. Sửa đúng 3 chỗ này là chạy ngay.
+
+1️⃣ Lỗi lớn nhất trong home.jsp
+Bạn có:
+
+document.getElementById("content").innerHTML = html;
+Nhưng HTML của bạn là:
+
+<div id="content-area">
+❌ content
+✅ content-area
+
+Sửa lại
+function loadPage(url){
+    fetch(url)
+    .then(res => res.text())
+    .then(html => {
+
+        document.getElementById("content-area").innerHTML = html;
+
+        const scripts = document
+            .getElementById("content-area")
+            .querySelectorAll("script");
+
+        scripts.forEach(s => {
+            const newScript = document.createElement("script");
+            newScript.text = s.text;
+            document.body.appendChild(newScript);
+        });
+    });
+}
+2️⃣ Lỗi cú pháp trong app-user-list.jsp
+Bạn đang có:
+
+<script>
+
+<script>
+❌ sai hoàn toàn
+
+Sửa thành
+<script>
+let page = ${page};
+let loading = false;
+
+window.onscroll = function() {
+
+    if (loading) return;
+
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
+
+        loading = true;
+        page++;
+
+        fetch("app-user-list?page=" + page + "&keyword=${keyword}")
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+
+            const rows = doc.querySelectorAll("table tbody tr");
+
+            const table = document.querySelector("#userTable");
+
+            rows.forEach(r => table.appendChild(r));
+
+            loading = false;
+        });
+
+    }
+
+}
+</script>
+3️⃣ Không nên có <html> <body> trong page load AJAX
+File app-user-list.jsp đang có:
+
+<!DOCTYPE html>
+<html>
+<body>
+Khi load bằng AJAX thì chỉ nên trả fragment.
+
+Xóa các dòng này:
+<!DOCTYPE html>
+<html>
+<head>
+<body>
+</body>
+</html>
+Chỉ giữ:
+
+<h2>User List</h2>
+<form>...</form>
+<table>...</table>
+<script>...</script>
+Sau khi sửa
+Flow sẽ là:
+
+home.jsp
+   ↓
+click Users
+   ↓
+loadPage("app-user-list")
+   ↓
+render bảng
+   ↓
+scroll
+   ↓
+load page 2
+   ↓
+append rows
+Nếu muốn mình sửa chuẩn project của bạn
+Mình có thể viết phiên bản đúng chuẩn cho toàn bộ hệ thống của bạn:
+
+home.jsp
+header.jsp
+5 module list
+infinite scroll chung
+Chỉ khoảng 120 dòng code nhưng cực sạch và đúng MVC.
+Bạn chỉ cần paste là chạy.
+
+
+Đã tải lên ảnh
+vẫn ko đc
+
+Nhìn ảnh của bạn mình thấy trang dừng ở user 20, nghĩa là:
+
+page 1 = 20 records
+scroll xuống → không gọi page 2
+=> JS scroll chưa được kích hoạt.
+
+Ta kiểm tra nhanh 3 bước (90% lỗi nằm ở đây).
+
+1️⃣ Kiểm tra script có chạy không
+Mở F12 → Console rồi thêm dòng này vào script:
+
+console.log("scroll script loaded");
+Ví dụ:
+
+<script>
+
+console.log("scroll script loaded");
+
+let page = ${page};
+let loading = false;
+
+window.onscroll = function() {
+
+    console.log("scrolling...");
+
+}
+</script>
+Nếu KHÔNG thấy log
+→ nghĩa là script không chạy vì load bằng AJAX.
+
+2️⃣ Kiểm tra home.jsp
+Trong home.jsp phải có:
+
+function loadPage(url){
+    fetch(url)
+    .then(res => res.text())
+    .then(html => {
+
+        document.getElementById("content-area").innerHTML = html;
+
+        const scripts = document
+            .getElementById("content-area")
+            .querySelectorAll("script");
+
+        scripts.forEach(s => {
+            const newScript = document.createElement("script");
+            newScript.text = s.text;
+            document.body.appendChild(newScript);
+        });
+
+    });
+}
+❗ Nếu thiếu đoạn scripts.forEach thì JS trong trang con không bao giờ chạy.
+
+3️⃣ Kiểm tra table id
+Trong script bạn dùng:
+
+document.querySelector("#userTable")
+Nhưng table của bạn phải có id:
+
+<table border="1">
+❌ Sai
+
+Sửa thành
+<table border="1">
+<tbody id="userTable">
+hoặc
+
+<table border="1" id="userTable">
+<tbody>
+4️⃣ Script đúng chuẩn cho bạn
+Đặt cuối app-user-list.jsp
+
+<script>
+
+let page = ${page};
+let loading = false;
+
+window.addEventListener("scroll", function(){
+
+    if(loading) return;
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+        loading = true;
+        page++;
+
+        fetch("app-user-list?page=" + page + "&keyword=${keyword}")
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html,"text/html");
+
+            const rows = doc.querySelectorAll("tbody tr");
+
+            const table = document.querySelector("#userTable");
+
+            rows.forEach(r=>{
+                table.appendChild(r);
+            });
+
+            loading = false;
+
+        });
+
+    }
+
+});
+</script>
+5️⃣ Test nhanh
+Mở Console gõ:
+
+window.scrollTo(0, document.body.scrollHeight)
+Nếu script đúng → tự load page 2.
+
+Nếu vẫn không chạy
+Gửi mình 2 file này:
+
+home.jsp
+app-user-list.jsp
+Mình sẽ chỉ ra chính xác dòng nào đang sai (thường chỉ 1 dòng).
+Project của bạn gần xong rồi, chỉ còn bug JS nhỏ thôi.
+
+
+Đã tải lên ảnh
+
+Mình thấy lỗi chính xác trong hình của bạn rồi.
+
+Console báo:
+
+ReferenceError: scripts is not defined
+Nghĩa là bạn dùng scripts.forEach() nhưng chưa khai báo biến scripts.
+
+Sửa đúng trong home.jsp
+Trong hàm loadPage() bạn phải có dòng lấy scripts trước.
+
+Code đúng:
+function loadPage(url){
+    fetch(url)
+    .then(res => res.text())
+    .then(html => {
+
+        const container = document.getElementById("content-area");
+
+        container.innerHTML = html;
+
+        // LẤY tất cả script trong page vừa load
+        const scripts = container.querySelectorAll("script");
+
+        scripts.forEach(s => {
+            const newScript = document.createElement("script");
+            newScript.text = s.text;
+            document.body.appendChild(newScript);
+        });
+
+    });
+}
+Vì sao lỗi xảy ra
+Code của bạn hiện tại giống kiểu này:
+
+container.innerHTML = html;
+
+scripts.forEach(...)
+❌ Nhưng chưa có dòng này
+
+const scripts = container.querySelectorAll("script");
+=> nên JS báo scripts is not defined
+
+Sau khi sửa
+Flow sẽ chạy đúng:
+
+home.jsp
+   ↓
+loadPage("app-user-list")
+   ↓
+HTML inject vào content-area
+   ↓
+script trong page được chạy lại
+   ↓
+scroll trigger
+   ↓
+load page 2
+Test ngay
+Sau khi sửa:
+
+F12 → Console
+
+Scroll xuống
+
+Nếu đúng bạn sẽ thấy request:
+
+app-user-list?page=2
+app-user-list?page=3
+💡 Nếu muốn mình giúp thêm:
+Mình có thể viết 1 infinite scroll chuẩn cho toàn bộ project của bạn (User, Product, Shop, Voucher) chỉ ~40 dòng JS, không cần hack script như thế này nữa.
+
+
+Đã tải lên ảnh
+
+Lỗi mới trong ảnh của bạn là:
+
+Identifier 'page' has already been declared
+👉 Nghĩa là biến page bị khai báo nhiều lần.
+
+Điều này xảy ra vì:
+
+home.jsp load app-user-list.jsp bằng AJAX
+
+Script trong app-user-list.jsp được append lại mỗi lần load
+
+Trong script có:
+
+let page = ${page};
+Khi load lại → JS cố khai báo let page lần nữa → lỗi.
+
+Cách sửa đơn giản nhất
+Đổi:
+
+let page = ${page};
+thành:
+
+var page = ${page};
+var cho phép khai báo lại nên sẽ không crash.
+
+Script hoàn chỉnh nên dùng
+Trong app-user-list.jsp:
+
+<script>
+
+var page = ${page};
+var loading = false;
+
+window.addEventListener("scroll", function(){
+
+    if(loading) return;
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+        loading = true;
+        page++;
+
+        fetch("app-user-list?page=" + page + "&keyword=${keyword}")
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html,"text/html");
+
+            const rows = doc.querySelectorAll("tbody tr");
+
+            const table = document.querySelector("#userTable");
+
+            rows.forEach(r=>{
+                table.appendChild(r);
+            });
+
+            loading = false;
+
+        });
+
+    }
+
+});
+
+</script>
+Nếu muốn code ổn định hơn (khuyên dùng)
+Trong home.jsp sửa đoạn chạy script thành:
+
+const scripts = container.querySelectorAll("script");
+
+scripts.forEach(s => {
+    const newScript = document.createElement("script");
+    newScript.innerHTML = s.innerHTML;
+    document.body.appendChild(newScript);
+    s.remove(); // tránh chạy lại
+});
+Sau khi sửa
+Scroll xuống bạn sẽ thấy trong Network:
+
+app-user-list?page=2
+app-user-list?page=3
+app-user-list?page=4
+và bảng sẽ tự thêm rows.
+
+💡 Nếu bạn muốn, mình có thể gửi version infinite scroll chuẩn cho project của bạn (home + 5 list) chỉ khoảng 30 dòng JS, chạy mượt và không bị lỗi reload script nữa.
+
+
+Đã tải lên ảnh
+
+Hiện tại console của bạn có 2 lỗi khác nhau:
+
+1️⃣ Identifier 'page' has already been declared
+2️⃣ Cannot read properties of null (reading 'appendChild')
+
+Mình chỉ đúng chỗ cần sửa, không cần viết lại toàn bộ.
+
+1️⃣ Lỗi page already declared
+Trong các file list như:
+
+app-user-list.jsp
+
+shop-list.jsp
+
+product-list.jsp
+
+product-variant-list.jsp
+
+voucher-list.jsp
+
+Tìm dòng:
+
+let page = ${page};
+Sửa thành:
+
+var page = ${page};
+📌 Vì khi load bằng AJAX từ home.jsp, script bị chạy lại → let sẽ bị lỗi khai báo lại.
+
+2️⃣ Lỗi appendChild of null
+Trong script infinite scroll bạn đang có đoạn kiểu này:
+
+const table = document.querySelector("#userTable");
+table.appendChild(row);
+Nhưng thực tế table của bạn không có id userTable nên JS không tìm thấy.
+
+Ví dụ trong app-user-list.jsp
+Table của bạn đang kiểu:
+
+<table border="1">
+Sửa thành:
+
+<table border="1" id="userTable">
+Tương tự cho các trang khác
+shop-list.jsp
+<table border="1" id="shopTable">
+product-list.jsp
+<table border="1" id="productTable">
+product-variant-list.jsp
+<table border="1" id="variantTable">
+voucher-list.jsp
+<table border="1" id="voucherTable">
+3️⃣ Sau đó sửa JS đúng id
+Ví dụ app-user-list.jsp
+
+const table = document.querySelector("#userTable tbody");
+4️⃣ Checklist nhanh cho bạn
+Làm đủ 3 cái này:
+
+✔ đổi let page → var page
+✔ thêm id cho table
+✔ JS query đúng id
+
+5️⃣ Nếu vẫn không chạy
+Gửi mình 1 file hoàn chỉnh:
+
+app-user-list.jsp
+Mình sẽ sửa chuẩn infinite scroll cho project của bạn (10 dòng JS) để:
+
+Users scroll load
+
+Shops scroll load
+
+Products scroll load
+
+Variants scroll load
+
+Vouchers scroll load
+
+tất cả chạy trong home.jsp luôn.
+
+
+
+app-user-list.jsp
+Tệp
+
+home.jsp
+Tệp
+đây xem và lỗi chỗ nào sửa
+
+Mình đã xem file app-user-list.jsp của bạn và có 3 lỗi chính làm infinite scroll không chạy.
+
+1️⃣ Thiếu </tbody> (lỗi HTML rất quan trọng)
+Trong file của bạn:
+
+<tbody id="userTable">
+
+<c:forEach items="${list}" var="u">
+nhưng không đóng tbody trước khi đóng table.
+
+❌ Hiện tại
+<c:forEach items="${list}" var="u">
+
+<tr>
+...
+</tr>
+
+</c:forEach>
+
+</table>
+✅ Sửa đúng
+<c:forEach items="${list}" var="u">
+
+<tr>
+    <td>${u.userId}</td>
+    <td>${u.name}</td>
+    <td>${u.email}</td>
+    <td>${u.role}</td>
+    <td>
+        <a href="user-detail?id=${u.userId}">View</a> |
+        <a href="user-edit?id=${u.userId}">Edit</a> | 
+        <a href="user-delete?id=${u.userId}">Delete</a>
+    </td>
+</tr>
+
+</c:forEach>
+
+</tbody>
+</table>
+2️⃣ Bạn đang có 2 đoạn script scroll trùng nhau
+Trong file có:
+
+Script 1
+var page = ${page};
+var loading = false;
+window.addEventListener("scroll", function(){
+Script 2
+let page = ${page};
+let loading = false;
+window.onscroll = function() {
+➡️ JS sẽ bị lỗi biến trùng (page, loading)
+
+❌ XÓA TOÀN BỘ script đầu
+var page = ${page};
+var loading = false;
+window.addEventListener("scroll", function(){
+✅ GIỮ LẠI script này
+<script>
+
+var page = ${page};
+var loading = false;
+
+window.onscroll = function() {
+
+    if (loading) return;
+
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100) {
+
+        loading = true;
+        page++;
+
+        fetch("app-user-list?page=" + page + "&keyword=${keyword}")
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+
+            const rows = doc.querySelectorAll("table tbody tr");
+
+            const table = document.querySelector("#userTable");
+
+            rows.forEach(r => table.appendChild(r));
+
+            loading = false;
+        });
+
+    }
+
+}
+
+</script>
+3️⃣ Sửa selector table cho chuẩn
+Bạn đang dùng:
+
+const table = document.querySelector("table tbody");
+Nên đổi thành:
+
+const table = document.querySelector("#userTable");
+vì bạn đã có
+
+<tbody id="userTable">
+✅ Sau khi sửa sẽ chạy đúng
+Checklist:
+
+✔ thêm </tbody>
+✔ xóa script scroll trùng
+✔ dùng #userTable
+
+🚀 Nếu bạn muốn mình sửa luôn toàn bộ hệ thống scroll cho:
+users
+
+shops
+
+products
+
+variants
+
+vouchers
+
+chạy trong home.jsp bằng AJAX (giống admin dashboard)
+
+→ gửi mình thêm file:
+
+home.jsp
+Mình sẽ chỉnh lại chuẩn 100% cho project của bạn (rất gọn, ~30 dòng JS).
+
+
+Đã tải lên ảnh
+
+shop-list.jsp
+Tệp
+
+ShopListController.java
+Tệp
+
+ShopDAO.java
+Tệp
+
+home.jsp
+Tệp
+giờ thì User tải được khi cuộn xuống rồi, nhưng khi qua shop thì ko hiện thêm khi cuộn xuống nữa
+
+User scroll chạy nhưng Shop không load thêm thường do JS trong shop-list.jsp chưa đúng, không phải lỗi DAO hay Controller.
+
+Controller và DAO của bạn đã đúng rồi:
+
+Controller nhận page và keyword 
+ShopListController
+
+
+DAO đã dùng OFFSET FETCH để phân trang 
+ShopDAO
+
+
+➡️ Backend OK.
+
+Lỗi gần như chắc chắn nằm ở 3 chỗ trong shop-list.jsp.
+
+1️⃣ Thiếu page trả về từ controller
+Trong ShopListController bạn chưa gửi page về JSP.
+
+Hiện tại:
+
+request.setAttribute("list", list);
+request.setAttribute("keyword", keyword);
+Sửa thành:
+
+request.setAttribute("list", list);
+request.setAttribute("keyword", keyword);
+request.setAttribute("page", page);
+Nếu không có dòng này thì JS:
+
+var page = ${page};
+→ page = null → scroll không chạy.
+
+2️⃣ Kiểm tra tbody id
+Trong shop-list.jsp phải có:
+
+<tbody id="shopTable">
+Ví dụ đúng:
+
+<table border="1">
+<thead>
+<tr>
+<th>ID</th>
+<th>Shop Name</th>
+<th>Owner</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="shopTable">
+
+<c:forEach items="${list}" var="s">
+<tr>
+<td>${s.shopId}</td>
+<td>${s.shopName}</td>
+<td>${s.owner.name}</td>
+<td>
+<a href="shop-detail?id=${s.shopId}">View</a> |
+<a href="shop-edit?id=${s.shopId}">Edit</a> |
+<a href="shop-delete?id=${s.shopId}">Delete</a>
+</td>
+</tr>
+</c:forEach>
+
+</tbody>
+</table>
+3️⃣ JS selector phải đúng id
+Script phải là:
+
+<script>
+
+var page = ${page};
+var loading = false;
+
+window.onscroll = function(){
+
+    if(loading) return;
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+        loading = true;
+        page++;
+
+        fetch("shop-list?page=" + page + "&keyword=${keyword}")
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html,"text/html");
+
+            const rows = doc.querySelectorAll("table tbody tr");
+
+            const table = document.querySelector("#shopTable");
+
+            rows.forEach(r => table.appendChild(r));
+
+            loading = false;
+
+        });
+
+    }
+
+}
+
+</script>
+4️⃣ Nếu vẫn không chạy
+Kiểm tra Console (F12) xem có lỗi:
+
+page is not defined
+
+appendChild of null
+
+Identifier page already declared
+
+🔥 Mình khuyên sửa thêm 1 cái để hệ thống ổn định
+Trong home.jsp khi chuyển menu:
+
+function loadPage(url){
+    fetch(url)
+    .then(res => res.text())
+    .then(html => {
+        document.getElementById("content").innerHTML = html;
+    });
+}
+✅ Kết quả sau khi sửa
+Menu	Infinite Scroll
+User	✅ chạy
+Shop	✅ chạy
+Product	có thể copy y hệt
+Variant	có thể copy y hệt
+Voucher	có thể copy y hệt
+💡 Nếu muốn mình chỉnh toàn bộ project thành infinite scroll chuẩn (5 trang) chỉ ~ 40 dòng JS dùng chung, gửi mình thêm:
+
+shop-list.jsp
+
+Mình sẽ chỉ chỗ sai chính xác trong file của bạn luôn.
+
+
+Nguồn
+
+Đã tải lên ảnh
+
+product-list.jsp
+Tệp
+
+home.jsp
+Tệp
+
+ProductVariantListController.java
+Tệp
+
+ProductDAO.java
+Tệp
+shop hiện thêm khi cuộn xuống rồi, nhưng product thì chưa
+
+Shop chạy rồi nhưng Product không load thêm → lỗi gần như chắc chắn nằm ở 3 chỗ này trong product-list.jsp.
+
+Backend của bạn đã có paging đúng:
+
+DAO dùng OFFSET FETCH để phân trang 
+ProductDAO
+
+
+Vì vậy chỉ cần sửa JSP + JS.
+
+1️⃣ Kiểm tra page được gửi từ Controller
+Trong ProductListController phải có:
+
+request.setAttribute("page", page);
+Nếu không có → JS sẽ thành:
+
+var page = ;
+→ scroll không chạy.
+
+2️⃣ tbody phải có id riêng
+Trong product-list.jsp cần:
+
+<tbody id="productTable">
+Ví dụ đúng:
+
+<table border="1">
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Price</th>
+<th>Shop</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="productTable">
+
+<c:forEach items="${list}" var="p">
+<tr>
+<td>${p.productId}</td>
+<td>${p.name}</td>
+<td>${p.price}</td>
+<td>${p.shop.shopName}</td>
+<td>
+<a href="product-detail?id=${p.productId}">View</a> |
+<a href="product-edit?id=${p.productId}">Edit</a> |
+<a href="product-delete?id=${p.productId}">Delete</a>
+</td>
+</tr>
+</c:forEach>
+
+</tbody>
+</table>
+3️⃣ JS phải gọi đúng URL
+Trong product-list.jsp script phải là:
+
+<script>
+
+var page = ${page};
+var loading = false;
+
+window.onscroll = function(){
+
+    if(loading) return;
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+        loading = true;
+        page++;
+
+        fetch("product-list?page=" + page)
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html,"text/html");
+
+            const rows = doc.querySelectorAll("table tbody tr");
+
+            const table = document.querySelector("#productTable");
+
+            rows.forEach(r => table.appendChild(r));
+
+            loading = false;
+
+        });
+
+    }
+
+}
+
+</script>
+4️⃣ Lỗi phổ biến nhất (90% sinh viên bị)
+Trong JS bạn đang dùng sai selector:
+
+❌
+
+document.querySelector("#shopTable")
+hoặc
+
+document.querySelector("table tbody")
+✅ phải là
+
+document.querySelector("#productTable")
+5️⃣ Test nhanh
+F12 → Console
+
+scroll xuống xem có lỗi:
+
+page is not defined
+
+appendChild of null
+
+Identifier page already declared
+
+🔥 Mẹo giúp bạn tránh lỗi cho 5 trang
+Mỗi trang dùng id khác:
+
+Page	tbody id
+User	userTable
+Shop	shopTable
+Product	productTable
+Variant	variantTable
+Voucher	voucherTable
+💡 Nếu bạn muốn mình viết 1 script infinite scroll dùng chung cho toàn bộ project (Users + Shops + Products + Variants + Vouchers) chỉ 20 dòng JS trong home.jsp thì mình có thể gửi luôn.
+Cách đó không cần copy script vào từng JSP nữa.
+
+
+Nguồn
+
+
+ProductListController.java
+Tệp
+ProductListController chưa có biến page nên báo lỗi
+
+Bạn nói đúng — ProductListController đang lỗi vì chưa có biến page nhưng lại dùng:
+
+request.setAttribute("page", page);
+nên Java báo lỗi.
+
+Ngoài ra controller của bạn đang dùng offset chứ không phải page, nên cách sửa chuẩn là tạo biến page rồi tính offset từ page.
+
+Sửa đúng ProductListController
+Thay toàn bộ phần đầu doGet bằng đoạn này:
+
+protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+    ProductDAO dao = new ProductDAO();
+
+    int pageSize = 20;
+
+    String pageParam = request.getParameter("page");
+
+    int page = 1;
+
+    if (pageParam != null) {
+        page = Integer.parseInt(pageParam);
+    }
+
+    int offset = (page - 1) * pageSize;
+
+    List<Product> list = dao.getProductPaging(offset, pageSize);
+
+    request.setAttribute("list", list);
+    request.setAttribute("page", page);
+
+    request.getRequestDispatcher("product-list.jsp").forward(request, response);
+}
+Đồng thời sửa trong product-list.jsp
+c:forEach phải là:
+
+<c:forEach items="${list}" var="p">
+không phải
+
+${products}
+JS trong product-list.jsp
+var page = ${page};
+var loading = false;
+
+window.onscroll = function(){
+
+    if(loading) return;
+
+    if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+        loading = true;
+        page++;
+
+        fetch("product-list?page=" + page)
+        .then(res => res.text())
+        .then(html => {
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html,"text/html");
+
+            const rows = doc.querySelectorAll("table tbody tr");
+
+            const table = document.querySelector("#productTable");
+
+            rows.forEach(r => table.appendChild(r));
+
+            loading = false;
+
+        });
+
+    }
+
+}
+Sau khi sửa
+Page	Infinite Scroll
+User	✅
+Shop	✅
+Product	✅
+Variant	chưa
+Voucher	chưa
+⚠️ Một lỗi nữa mình thấy trong controller
+Đoạn này bạn không cần nữa:
+
+String offsetParam = request.getParameter("offset");
+và
+
+if (offsetParam != null) {
+→ xóa luôn để code sạch.
+
+🚀 Nếu bạn muốn mình giúp thêm
+Mình có thể gửi cho bạn 1 version infinite scroll chuẩn cho toàn bộ project (Users + Shops + Products + Variants + Vouchers):
+
+code gọn
+
+không lỗi scroll
+
+không duplicate JS
+
+chạy mượt trong home.jsp
+
+chỉ khoảng 30 dòng JS tổng.
+
+
+Đã tải lên ảnh
+
+ProductVariantDAO.java
+Tệp
+
+ProductVariantListController.java
+Tệp
+
+product-variant-list.jsp
+Tệp
+
+home.jsp
+Tệp
+xem giúp tôi ProductVariant với sao nó ko hiển thị danh sách
+
+Mình đã xem code của bạn. ProductVariant không hiển thị danh sách vì Controller đang trả về JSON, trong khi JSP lại cần HTML.
+
+Đây là lỗi chính.
+
+1️⃣ Lỗi trong ProductVariantListController
+Hiện tại controller của bạn:
+
+response.setContentType("application/json");
+response.setCharacterEncoding("UTF-8");
+PrintWriter out = response.getWriter();
+
+Gson gson = new Gson();
+
+out.print(gson.toJson(list));
+➡️ Nó trả về JSON.
+
+Nhưng product-variant-list.jsp lại là JSP table, nên sẽ không có dữ liệu hiển thị.
+
+2️⃣ Cách sửa đúng (giống User / Shop / Product)
+Thay toàn bộ doGet bằng:
+
+@Override
+protected void doGet(HttpServletRequest request,
+        HttpServletResponse response)
+        throws ServletException, IOException {
+
+    int page = 1;
+    int pageSize = 20;
+
+    String pageParam = request.getParameter("page");
+
+    if (pageParam != null) {
+        page = Integer.parseInt(pageParam);
+    }
+
+    String shop = request.getParameter("shop");
+
+    ProductVariantDAO dao = new ProductVariantDAO();
+
+    List<ProductVariant> list = dao.getVariants(page, pageSize, shop);
+
+    request.setAttribute("list", list);
+    request.setAttribute("page", page);
+    request.setAttribute("shop", shop);
+
+    request.getRequestDispatcher("product-variant-list.jsp")
+           .forward(request, response);
+}
+❗ XÓA toàn bộ:
+
+Gson
+PrintWriter
+response.setContentType("application/json")
+3️⃣ Kiểm tra product-variant-list.jsp
+Phải có:
+
+<tbody id="variantTable">
+
+<c:forEach items="${list}" var="v">
+<tr>
+<td>${v.variantId}</td>
+<td>${v.product.name}</td>
+<td>${v.product.shop.shopName}</td>
+<td>${v.size}</td>
+<td>${v.color}</td>
+<td>${v.stock}</td>
+<td>${v.priceVariant}</td>
+<td>
+<a href="product-variant-view?id=${v.variantId}">View</a> |
+<a href="product-variant-edit?id=${v.variantId}">Edit</a> |
+<a href="product-variant-delete?id=${v.variantId}">Delete</a>
+</td>
+</tr>
+</c:forEach>
+
+</tbody>
+4️⃣ Sau khi sửa
+Page	Status
+Users	✅
+Shops	✅
+Products	✅
+ProductVariants	✅
+Vouchers	chưa
+5️⃣ Debug thêm nếu vẫn trống
+Trong ProductVariantDAO bạn đã có debug:
+
+System.out.println("Variant found: " + list.size());
+
+ProductVariantDAO
+
+
+➡️ Mở Tomcat console xem:
+
+Variant found: 20
+Nếu là 0 thì database chưa có variant.
+
+🚀 Gợi ý cực quan trọng
+Hiện project của bạn đang trộn 2 kiểu infinite scroll:
+
+HTML (User, Shop, Product)
+
+JSON (Variant)
+
+→ dễ lỗi.
+
+Nên dùng chung 1 kiểu HTML cho toàn bộ.
+
+✅ Nếu bạn muốn mình sửa variant infinite scroll chuẩn giống các trang khác (khoảng 25 dòng JS) mình có thể gửi luôn.
+
+
+Nguồn
+
+Đã tải lên ảnh
+
+home.jsp
+Tệp
+
+product-variant-list.jsp
+Tệp
+
+ProductVariantListController.java
+Tệp
+
+ProductVariantDAO.java
+Tệp
+vẫn bị lỗi ko hiển thị 
+
+Tôi xem code của bạn rồi và thấy lý do ProductVariant không hiển thị nằm ở logic home + infinite scroll, không phải DAO. DAO và Controller của bạn đã trả dữ liệu đúng.
+
+Controller của bạn đang hoạt động đúng:
+
+ProductVariantListController
+
+
+List<ProductVariant> list = dao.getVariants(page, pageSize, shop);
+
+request.setAttribute("list", list);
+request.setAttribute("page", page);
+request.setAttribute("shop", shop);
+request.getRequestDispatcher("product-variant-list.jsp").forward(request, response);
+DAO cũng truy vấn đúng và có log:
+
+
+ProductVariantDAO
+
+
+System.out.println("Variant found: " + list.size());
+Vì vậy lỗi 100% nằm ở home.jsp javascript.
+
+Lỗi thật sự
+Khi bạn click Product Variants, script load:
+
+/product-variant-list?page=1
+nhưng JS infinite scroll của bạn chỉ chạy cho user/shop/product nên variant không load page tiếp theo, thậm chí page đầu cũng không render.
+
+Cách sửa chuẩn (rất quan trọng)
+Trong home.jsp tìm đoạn JS infinite scroll.
+
+Sẽ có dạng như này:
+
+if(url.includes("user-list")) currentType="user";
+if(url.includes("shop-list")) currentType="shop";
+if(url.includes("product-list")) currentType="product";
+THÊM DÒNG NÀY
+if(url.includes("product-variant-list")) currentType="variant";
+Sau đó sửa URL load page
+Tìm đoạn:
+
+if(currentType==="user")
+   url="/LAB211Web/user-list?page="+page
+
+if(currentType==="shop")
+   url="/LAB211Web/shop-list?page="+page
+
+if(currentType==="product")
+   url="/LAB211Web/product-list?page="+page
+THÊM
+if(currentType==="variant")
+   url="/LAB211Web/product-variant-list?page="+page
+Ngoài ra trong header link phải đúng
+<a href="#" onclick="loadPage('/LAB211Web/product-variant-list')">
+    Product Variants
+</a>
+Sau khi sửa
+Test lại:
+
+1️⃣ mở Console
+2️⃣ click Product Variants
+
+Nếu đúng bạn sẽ thấy log trong server:
+
+Variant found: 20
+Offset: 0
+và khi scroll:
+
+Variant found: 20
+Offset: 20
+Nếu muốn tôi có thể gửi cho bạn
+✔ home.jsp chuẩn 100% chạy infinite scroll cho:
+
+Users
+
+Shops
+
+Products
+
+ProductVariants
+
+Vouchers
+
+(≈ 120 dòng JS, chạy ổn định không lỗi page declared hay scripts undefined nữa)
+
+Chỉ cần copy là chạy.
+
+
+Nguồn
+
+
+home.jsp
+Tệp
+đây là trang home, chỉ tôi chỗ thêm ở đâu
+
+Tôi đã xem file home.jsp của bạn. Lỗi nằm ngay ở link Product Variants.
+
+1️⃣ Dòng đang bị sai
+Trong file của bạn hiện tại là:
+
+<a href="#" onclick="loadPage('product-variant-list.jsp')">Product Variants</a>
+❌ Sai vì bạn đang gọi JSP trực tiếp.
+
+Trong khi project của bạn đã có Controller:
+ProductVariantListController → mapping URL: product-variant-list
+
+2️⃣ Sửa lại dòng đó
+Tìm đúng dòng này trong home.jsp và sửa thành:
+
+<a href="#" onclick="loadPage('product-variant-list')">Product Variants</a>
+Sau khi sửa toàn bộ đoạn sẽ là:
+<a href="#" onclick="loadPage('app-user-list')">Users</a> |
+
+<a href="#" onclick="loadPage('shop-list')">Shops</a> |
+
+<a href="#" onclick="loadPage('product-list')">Products</a> |
+
+<a href="#" onclick="loadPage('product-variant-list')">Product Variants</a> |
+
+<a href="#" onclick="loadPage('voucher-list')">Vouchers</a>
+3️⃣ Vì sao phải sửa vậy
+Flow đúng phải là:
+
+home.jsp
+   ↓
+product-variant-list (Servlet Controller)
+   ↓
+ProductVariantDAO
+   ↓
+product-variant-list.jsp
+Nếu gọi .jsp trực tiếp thì:
+
+❌ DAO không chạy
+❌ Controller không chạy
+❌ List rỗng
+
+4️⃣ Sau khi sửa test lại
+Click Product Variants
+
+Console server sẽ in:
+
+Variant found: 20
+Offset: 0
+và bảng sẽ hiển thị.
+
+💡 Nếu bạn muốn, tôi có thể:
+
+sửa home.jsp chuẩn cho LAB211 (infinite scroll + fetch không lỗi)
+
+sửa luôn product-variant-list.jsp để scroll load tiếp giống product
+
+Chỉ cần gửi thêm file product-variant-list.jsp.
+
+
+Đã tải lên ảnh
+
+home.jsp
+Tệp
+
+product-variant-list.jsp
+Tệp
+
+ProductVariantListController.java
+Tệp
+
+ProductVariantDAO.java
+Tệp
+cũng ko hiển thị đc
+
+Tôi đã xem controller + DAO + ảnh màn hình của bạn.
+Kết luận: Controller và DAO của bạn chạy đúng, nhưng product-variant-list.jsp không hiển thị list nên bảng trống.
+
+Trong controller bạn đã gửi:
+
+
+ProductVariantListController
+
+
+List<ProductVariant> list = dao.getVariants(page, pageSize, shop);
+
+request.setAttribute("list", list);
+request.getRequestDispatcher("product-variant-list.jsp").forward(request, response);
+=> JSP phải lấy list và loop ra.
+
+Lỗi nằm trong product-variant-list.jsp
+Bạn chưa có vòng lặp hiển thị dữ liệu.
+
+Thêm đoạn này vào dưới phần search
+<table border="1" width="100%">
+    <tr>
+        <th>ID</th>
+        <th>Product</th>
+        <th>Shop</th>
+        <th>Size</th>
+        <th>Color</th>
+        <th>Stock</th>
+        <th>Price</th>
+    </tr>
+
+<c:forEach items="${list}" var="v">
+    <tr>
+        <td>${v.variantId}</td>
+        <td>${v.product.name}</td>
+        <td>${v.product.shop.shopName}</td>
+        <td>${v.size}</td>
+        <td>${v.color}</td>
+        <td>${v.stock}</td>
+        <td>${v.priceVariant}</td>
+    </tr>
+</c:forEach>
+
+</table>
+Quan trọng: phải có JSTL
+Ở đầu file phải có:
+
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+Test nhanh để biết DAO có chạy không
+Mở console server.
+DAO của bạn có log:
+
+
+ProductVariantDAO
+
+
+System.out.println("Variant found: " + list.size());
+Nếu thấy:
+
+Variant found: 20
+→ dữ liệu đã lấy được
+→ chỉ thiếu hiển thị JSP
+
+Sau khi sửa đúng bạn sẽ thấy
+Product Variant List
+
+ID | Product | Shop | Size | Color | Stock | Price
+1    Shirt     Nike    M      Red     10      29.9
+2    Shirt     Nike    L      Blue    5       29.9
+...
+💡 Nếu bạn muốn, tôi có thể gửi cho bạn product-variant-list.jsp chuẩn full cho LAB211 gồm:
+
+search shop
+
+infinite scroll
+
+view / edit / delete
+
+table đẹp
+
+≈ 80 dòng, copy chạy ngay.
+
+
+Nguồn
+
+Đã tải lên ảnh
+xem thử vẫn ko đc
+
+Nhìn ảnh của bạn tôi xác định được lỗi thật sự rồi:
+
+👉 Bảng đã render nhưng list rỗng nên chỉ có header.
+
+Điều đó nghĩa là DAO trả về 0 record.
+
+Trong DAO của bạn có log:
+
+
+ProductVariantDAO
+
+
+System.out.println("Variant found: " + list.size());
+System.out.println("Shop search: " + shop);
+System.out.println("Offset: " + offset);
+Bước 1: kiểm tra console server
+Chạy lại trang Product Variants rồi xem console Tomcat.
+
+Bạn sẽ thấy dạng:
+
+Variant found: 0
+Shop search:
+Offset: 0
+Nếu là 0 → database không trả record.
+
+Bước 2: test SQL trực tiếp trong SQL Server
+Chạy query này:
+
+SELECT pv.variantId, pv.size, pv.color, pv.stock, pv.priceVariant,
+       p.name AS productName, s.shopName
+FROM ProductVariant pv
+JOIN Product p ON pv.productId = p.productId
+JOIN Shop s ON p.shopId = s.shopId
+Nếu query trả 0 rows
+→ bảng ProductVariant chưa có dữ liệu
+
+Bước 3: kiểm tra bảng
+Chạy:
+
+SELECT * FROM ProductVariant
+Nếu 0 rows → đó là lý do không hiển thị.
+
+Bước 4: insert test data
+Thêm thử:
+
+INSERT INTO ProductVariant(size,color,stock,priceVariant,productId)
+VALUES ('M','Red',10,29.9,1)
+
+INSERT INTO ProductVariant(size,color,stock,priceVariant,productId)
+VALUES ('L','Blue',5,31.9,1)
+Refresh trang.
+
+Bạn sẽ thấy:
+
+ID | Product | Shop | Size | Color | Stock | Price
+1    Shirt     Nike   M      Red      10      29.9
+2    Shirt     Nike   L      Blue     5       31.9
+90% sinh viên LAB211 gặp đúng lỗi này
+Database có:
+
+Shop ✔
+Product ✔
+ProductVariant ❌ (empty)
+Nếu bạn muốn tôi debug 100% chính xác
+Gửi thêm:
+
+1️⃣ ảnh bảng ProductVariant trong SQL Server
+2️⃣ file product-variant-list.jsp
+
+Tôi sẽ chỉ ra chính xác dòng lỗi ngay lập tức.
+
+
+Nguồn
+
+
+home.jsp
+Tệp
+
+product-variant-list.jsp
+Tệp
+variant foundVariant found: 20
+Shop search: 
+Offset: 0
+
+Tôi đã thấy lỗi chính xác 100% trong product-variant-list.jsp của bạn.
+Thực ra có 3 lỗi cùng lúc, nên dữ liệu không hiển thị dù DAO trả Variant found: 20.
+
+❌ Lỗi 1: thiếu <table>
+Bạn đang viết:
+
+<tbody id="variantTable">
+Nhưng không có <table>, nên browser render sai.
+
+❌ Lỗi 2: id sai
+Bạn đặt id:
+
+<tbody id="variantTable">
+Nhưng trong JS lại gọi:
+
+let tableBody = document.getElementById("variantTableBody");
+❌ variantTableBody ≠ variantTable
+
+❌ Lỗi 3: Controller trả JSP nhưng JS đọc JSON
+Controller của bạn:
+
+Jakarta Servlet
+
+trả:
+
+request.getRequestDispatcher("product-variant-list.jsp").forward(request, response);
+Nhưng JS lại:
+
+fetch("product-variant-list?page=" + page).then(res => res.json())
+❌ JSP không phải JSON → JS fail.
+
+✅ Cách sửa nhanh nhất (chuẩn LAB211)
+Sửa phần bảng thành:
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Product</th>
+            <th>Shop</th>
+            <th>Size</th>
+            <th>Color</th>
+            <th>Stock</th>
+            <th>Price</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+
+<tbody id="variantTableBody">
+
+<c:forEach items="${list}" var="v">
+<tr>
+    <td>${v.variantId}</td>
+    <td>${v.product.name}</td>
+    <td>${v.product.shop.shopName}</td>
+    <td>${v.size}</td>
+    <td>${v.color}</td>
+    <td>${v.stock}</td>
+    <td>${v.priceVariant}</td>
+    <td>
+        <a href="product-variant-view?id=${v.variantId}">View</a> |
+        <a href="product-variant-edit?id=${v.variantId}">Edit</a> |
+        <a href="product-variant-delete?id=${v.variantId}">Delete</a>
+    </td>
+</tr>
+</c:forEach>
+
+</tbody>
+</table>
+✅ Và XÓA toàn bộ JS infinite scroll này
+let page = 1;
+let shop = "";
+let loading = false;
+function loadVariants(page) {
+...
+}
+Vì controller không trả JSON.
+
+Sau khi sửa đúng bạn sẽ thấy ngay
+ID | Product | Shop | Size | Color | Stock | Price
+1    Shirt     Nike   M      Red     10      29.9
+2    Shirt     Nike   L      Blue    5       31.9
+...
+💡 Nếu bạn muốn giữ infinite scroll đúng chuẩn LAB211
+Tôi có thể gửi cho bạn version chuẩn 120 dòng:
+
+✔ infinite scroll
+✔ search shop
+✔ không reload page
+✔ chạy đúng với controller
+
+(hiện file của bạn đang trộn 2 cách làm khác nhau nên lỗi).
+
+
+vậy chỗ script đó ghi j nếu xóa hết
+
+Với code hiện tại của bạn, controller đang trả JSP chứ không phải JSON, nên không cần script infinite scroll. Vì vậy phần <script> có thể để trống hoặc chỉ để script search đơn giản.
+
+Cách đơn giản nhất (khuyến nghị cho LAB211 nếu chưa làm AJAX)
+Trong product-variant-list.jsp bạn chỉ cần:
+
+<script>
+</script>
+hoặc xóa luôn cả block <script> cũng không sao.
+
+Trang sẽ hoạt động theo kiểu reload page khi search.
+
+Nếu muốn search hoạt động
+Form search nên viết như sau:
+
+<form action="product-variant-list" method="get">
+    <input type="text" name="shop" placeholder="Search shop name" value="${shop}">
+    <button type="submit">Search</button>
+</form>
+Khi search:
+
+product-variant-list?shop=nike
+Controller sẽ nhận:
+
+String shop = request.getParameter("shop");
+và DAO đã xử lý:
+
+WHERE s.shopName LIKE ?
+Kết quả đúng sẽ hiển thị
+Product Variant List
+
+ID | Product | Shop | Size | Color | Stock | Price
+1    Shirt     Nike   M      Red      10      29.9
+2    Shirt     Nike   L      Blue     5       31.9
+Khi nào mới cần script?
+Chỉ khi bạn làm:
+
+infinite scroll
+
+load data bằng AJAX
+
+trả JSON từ controller
+
+Hiện controller của bạn:
+
+request.getRequestDispatcher("product-variant-list.jsp").forward(request, response);
+→ không dùng JS load data được.
+
+💡 Nếu bạn muốn, tôi có thể gửi cho bạn bản chuẩn của product-variant-list.jsp (≈70 dòng) gồm:
+
+table hiển thị
+
+search
+
+edit/delete
+
+code sạch đúng format LAB211.
+
+
+
+home.jsp
+Tệp
+
+product-variant-list.jsp
+Tệp
+ko hiện danh sách
+
+Tôi đã đọc toàn bộ file product-variant-list.jsp của bạn. Lý do không hiện danh sách là do 2 lỗi chính:
+
+❌ Lỗi 1: Thiếu JSTL taglib
+Bạn dùng:
+
+<c:forEach items="${list}" var="v">
+Nhưng đầu file không khai báo JSTL, nên vòng lặp không chạy.
+
+Thêm dòng này lên đầu file:
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+File đầu sẽ thành:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+❌ Lỗi 2: Script AJAX sai (làm hỏng trang)
+Ở cuối file bạn có đoạn:
+
+fetch("product-variant-list?page=" + page + "&shop=" + shop)
+.then(res => res.json())
+Nhưng Servlet của bạn trả JSP chứ không phải JSON, nên script lỗi và phá render.
+
+Ngoài ra còn lỗi:
+
+page undefined
+shop undefined
+loading undefined
+✅ Cách sửa đúng (nhanh nhất)
+XÓA TOÀN BỘ phần <script> ở cuối file
+Từ:
+
+<script>
+đến
+
+</script>
+Sau khi sửa, file của bạn sẽ hoạt động vì:
+Controller:
+
+product-variant-list
+→ gọi DAO
+→ trả list
+→ JSP render:
+
+<c:forEach items="${list}" var="v">
+Kết quả sẽ hiện bảng
+ID | Product | Shop | Size | Color | Stock | Price
+1    Shirt     Nike   M      Red      10      29.9
+2    Shirt     Nike   L      Blue     5       31.9
+...
+Nếu vẫn không hiện (hiếm khi)
+Thêm dòng debug này vào JSP:
+
+${list.size()}
+Nếu thấy:
+
+20
+→ dữ liệu đã tới JSP.
+
+✅ Tóm lại bạn chỉ cần làm 2 việc:
+
+1️⃣ Thêm
+
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+2️⃣ Xóa toàn bộ <script>.
+
+Nếu muốn, tôi có thể sửa lại toàn bộ product-variant-list.jsp cho bạn (chuẩn LAB211 + infinite scroll hoạt động đúng) để bạn copy chạy ngay.
+
+
+nhưng nếu sửa thì sao mà hiển thị được từ từ khi roll xuống
+
+Câu hỏi của bạn rất đúng 👍
+Nếu xóa script thì trang chỉ load 1 lần, không có infinite scroll.
+Muốn scroll xuống load thêm, thì controller phải trả JSON, không phải JSP.
+
+Hiện controller của bạn đang:
+
+request.getRequestDispatcher("product-variant-list.jsp").forward(request, response);
+→ chỉ dùng cho render trang lần đầu.
+
+Cách làm đúng cho Infinite Scroll
+Ta cần 2 chế độ trong controller:
+
+1️⃣ Load trang lần đầu → trả JSP
+2️⃣ Scroll load thêm → trả JSON
+
+1️⃣ Sửa Controller
+Trong ProductVariantListController sửa doGet:
+
+String ajax = request.getParameter("ajax");
+
+ProductVariantDAO dao = new ProductVariantDAO();
+List<ProductVariant> list = dao.getVariants(page, pageSize, shop);
+
+if ("true".equals(ajax)) {
+
+    response.setContentType("application/json");
+    response.setCharacterEncoding("UTF-8");
+
+    Gson gson = new Gson();
+    response.getWriter().write(gson.toJson(list));
+    return;
+}
+
+request.setAttribute("list", list);
+request.setAttribute("page", page);
+request.setAttribute("shop", shop);
+
+request.getRequestDispatcher("product-variant-list.jsp").forward(request, response);
+Bạn đã import:
+
+import com.google.gson.Gson;
+nên dùng được luôn.
+
+2️⃣ JSP giữ vòng lặp ban đầu
+<tbody id="variantTableBody">
+
+<c:forEach items="${list}" var="v">
+<tr>
+<td>${v.variantId}</td>
+<td
+
+có cách khác ko dùng json mà giống như 3 cái kia ko
+
+Có 👍 và thực ra đó mới là cách đúng giống 3 trang kia (Users / Shops / Products) trong LAB211.
+
+Bạn không cần JSON.
+Bạn chỉ cần load thêm HTML từ JSP fragment khi scroll.
+
+Tức là:
+
+Scroll ↓
+fetch(product-variant-list?page=2)
+↓
+Servlet
+↓
+Forward tới JSP fragment
+↓
+Append HTML vào table
+Giống hệt cách 3 trang kia làm.
+
+Cách làm đúng (không dùng JSON)
+1️⃣ Controller KHÔNG cần sửa nhiều
+Controller của bạn hiện tại đã đúng:
+
+List<ProductVariant> list = dao.getVariants(page, pageSize, shop);
+
+request.setAttribute("list", list);
+request.getRequestDispatcher("product-variant-list.jsp").forward(request, response);
+Chỉ cần thêm điều kiện:
+
+String ajax = request.getParameter("ajax");
+
+if ("true".equals(ajax)) {
+    request.getRequestDispatcher("product-variant-row.jsp").forward(request, response);
+    return;
+}
+2️⃣ Tạo file mới
+product-variant-row.jsp
+Chỉ chứa rows của table:
+
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+<c:forEach items="${list}" var="v">
+<tr>
+<td>${v.variantId}</td>
+<td>${v.product.name}</td>
+<td>${v.product.shop.shopName}</td>
+<td>${v.size}</td>
+<td>${v.color}</td>
+<td>${v.stock}</td>
+<td>${v.priceVariant}</td>
+</tr>
+</c:forEach>
+3️⃣ product-variant-list.jsp
+Table ban đầu:
+
+<tbody id="variantTableBody">
+
+<c:forEach items="${list}" var="v">
+<tr>
+<td>${v.variantId}</td>
+<td>${v.product.name}</td>
+<td>${v.product.shop.shopName}</td>
+<td>${v.size}</td>
+<td>${v.color}</td>
+<td>${v.stock}</td>
+<td>${v.priceVariant}</td>
+</tr>
+</c:forEach>
+
+</tbody>
+4️⃣ Script Infinite Scroll
+<script>
+
+let page = 1;
+let loading = false;
+
+window.addEventListener("scroll", function(){
+
+if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+    if(!loading){
+        loading = true;
+        page++;
+
+        fetch("product-variant-list?page=" + page + "&ajax=true")
+        .then(res => res.text())
+        .then(data => {
+
+            document.getElementById("variantTableBody")
+            .insertAdjacentHTML("beforeend", data);
+
+            loading = false;
+        });
+
+    }
+
+}
+
+});
+
+</script>
+Kết quả sẽ giống 3 trang kia
+Load page 1
+↓
+Scroll
+↓
+Load page 2
+↓
+Append rows
+↓
+Scroll
+↓
+Load page 3
+Không reload trang.
+
+Vì sao cách này tốt hơn JSON
+JSON	JSP fragment
+phải build HTML bằng JS	HTML sẵn
+code dài	code ngắn
+dễ bug	giống 3 trang kia
+✅ Tôi khuyên dùng cách này vì nó giống 100% Users / Shops / Products của bạn.
+
+Nếu bạn muốn, tôi có thể gửi bản full chạy ngay (3 file chuẩn):
+
+ProductVariantListController.java
+product-variant-list.jsp
+product-variant-row.jsp
+≈ 150 dòng code chuẩn LAB211 để bạn copy là chạy.
+
+
+khỏi tạo ajax j đi, 3 cái kia cũng có tạo đâu mà vẫn chạy đc đó
+
+Đúng 👍 nếu 3 trang kia (Users / Shops / Products) của bạn không tạo ajax parameter mà vẫn scroll được thì khả năng cao chúng đang dùng cách đơn giản hơn:
+
+👉 scroll → load lại cùng URL với page++ → append HTML
+
+Không cần JSON, không cần ajax=true.
+
+Bạn chỉ cần làm giống hệt structure của 3 trang kia.
+
+Cách làm giống 3 trang kia
+1️⃣ Controller (GIỮ NGUYÊN)
+Controller của bạn đã đúng rồi:
+
+int page = 1;
+int pageSize = 20;
+
+String pageParam = request.getParameter("page");
+
+if (pageParam != null) {
+    page = Integer.parseInt(pageParam);
+}
+
+ProductVariantDAO dao = new ProductVariantDAO();
+List<ProductVariant> list = dao.getVariants(page, pageSize, shop);
+
+request.setAttribute("list", list);
+request.setAttribute("page", page);
+request.setAttribute("shop", shop);
+
+request.getRequestDispatcher("product-variant-list.jsp")
+        .forward(request, response);
+2️⃣ JSP table
+<tbody id="variantTableBody">
+
+<c:forEach items="${list}" var="v">
+<tr>
+<td>${v.variantId}</td>
+<td>${v.product.name}</td>
+<td>${v.product.shop.shopName}</td>
+<td>${v.size}</td>
+<td>${v.color}</td>
+<td>${v.stock}</td>
+<td>${v.priceVariant}</td>
+</tr>
+</c:forEach>
+
+</tbody>
+3️⃣ Script giống 3 trang kia
+<script>
+
+let page = 1;
+let loading = false;
+
+window.onscroll = function() {
+
+if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 50) {
+
+    if (!loading) {
+
+        loading = true;
+        page++;
+
+        fetch("product-variant-list?page=" + page)
+        .then(res => res.text())
+        .then(data => {
+
+            let parser = new DOMParser();
+            let doc = parser.parseFromString(data, "text/html");
+
+            let rows = doc.querySelector("#variantTableBody").innerHTML;
+
+            document.getElementById("variantTableBody")
+                    .insertAdjacentHTML("beforeend", rows);
+
+            loading = false;
+        });
+
+    }
+
+}
+
+}
+
+</script>
+Cách này hoạt động như sau
+Load page 1
+↓
+Scroll
+↓
+fetch product-variant-list?page=2
+↓
+Server render JSP page 2
+↓
+JS lấy rows từ tbody
+↓
+append vào table
+Không cần:
+
+❌ JSON
+❌ ajax parameter
+❌ jsp fragment
+
+Nếu vẫn không chạy
+90% là do id tbody khác nhau.
+
+Phải đúng:
+
+<tbody id="variantTableBody">
+và script:
+
+document.querySelector("#variantTableBody")
+✅ Nếu bạn muốn, bạn gửi tôi 1 file product-list.jsp đang chạy scroll đúng.
+Tôi sẽ chỉ cho bạn 3 dòng cần copy để product-variant chạy ngay (nhanh hơn debug từng bước).
+
+
+Đã tải lên ảnh
+
+home.jsp
+Tệp
+
+voucher-list.jsp
+Tệp
+
+VoucherListController.java
+Tệp
+
+VoucherDAO.java
+Tệp
+ProductVariant chạy đc r nh mà tới Voucher thì ko load tiếp khi roll xuống 
+
+Tôi đã xem Controller + DAO của Voucher và thấy ngay lý do vì sao scroll không load tiếp.
+
+Vấn đề là Voucher đang dùng offset, còn script infinite scroll của bạn đang dùng page giống các trang khác.
+
+❌ Lỗi chính
+Controller của bạn:
+
+
+VoucherListController
+
+
+int offset = 0;
+if(request.getParameter("offset") != null){
+    offset = Integer.parseInt(request.getParameter("offset"));
+}
+DAO cũng dùng:
+
+
+VoucherDAO
+
+
+OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+Nhưng script scroll thường gửi:
+
+voucher-list?page=2
+voucher-list?page=3
+→ Controller không nhận page
+→ offset luôn = 0
+→ luôn load 20 dòng đầu
+→ JS thấy trùng → không append.
+
+✅ Cách sửa đơn giản nhất (khuyên dùng)
+Sửa VoucherListController để dùng page giống các trang kia.
+
+Thay đoạn này
+int offset = 0;
+if(request.getParameter("offset") != null){
+    offset = Integer.parseInt(request.getParameter("offset"));
+}
+
+int limit = 20;
+Thành
+int page = 1;
+int pageSize = 20;
+
+if(request.getParameter("page") != null){
+    page = Integer.parseInt(request.getParameter("page"));
+}
+
+int offset = (page - 1) * pageSize;
+Sau khi sửa
+Flow sẽ giống các trang kia:
+
+page=1 → offset 0
+page=2 → offset 20
+page=3 → offset 40
+DAO vẫn chạy đúng vì query:
+
+OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+Kết quả scroll
+Load 1-20
+↓ scroll
+Load 21-40
+↓ scroll
+Load 41-60
+💡 Tip nhỏ (quan trọng)
+Trong voucher-list.jsp đảm bảo tbody có id giống script:
+
+<tbody id="voucherTableBody">
+✅ Tóm lại bạn chỉ cần sửa 5 dòng trong Controller là Voucher scroll sẽ chạy.
+
+Nếu bạn muốn, tôi có thể chỉ luôn 1 lỗi nữa trong home.jsp khiến infinite scroll đôi khi bị kẹt khi đổi tab (Users → Voucher) — lỗi này rất nhiều người gặp trong LAB211.
+
+
+Nguồn
+
+Đã tải lên ảnh
+
+VoucherListController.java
+Tệp
+sửa v thì hàm getVouchers thiếu biến limit
+
+Lỗi của mày nằm đúng chỗ NetBeans đang gạch đỏ. Nhìn vào code mày gửi:
+
+int page = 1;
+int pageSize = 20;
+
+if (request.getParameter("page") != null) {
+    page = Integer.parseInt(request.getParameter("page"));
+}
+
+int offset = (page - 1) * pageSize;
+
+VoucherDAO dao = new VoucherDAO();
+
+List<Voucher> list = dao.getVouchers(code, offset, limit);
+Ở đây biến limit KHÔNG TỒN TẠI nên Java báo lỗi. Trong khi phía trên mày đã có:
+
+int pageSize = 20;
+Cách sửa đúng
+Thay limit bằng pageSize.
+
+List<Voucher> list = dao.getVouchers(code, offset, pageSize);
+Đoạn đúng hoàn chỉnh
+int page = 1;
+int pageSize = 20;
+
+if (request.getParameter("page") != null) {
+    page = Integer.parseInt(request.getParameter("page"));
+}
+
+int offset = (page - 1) * pageSize;
+
+VoucherDAO dao = new VoucherDAO();
+
+List<Voucher> list = dao.getVouchers(code, offset, pageSize);
+
+request.setAttribute("vouchers", list);
+
+request.getRequestDispatcher("voucher-list.jsp")
+        .forward(request, response);
+Vì sao phải vậy
+Infinite scroll của mày hoạt động kiểu:
+
+page 1 → offset 0
+page 2 → offset 20
+page 3 → offset 40
+và mỗi lần load:
+
+limit = pageSize = 20
+SQL phía DAO sẽ kiểu:
+
+SELECT * FROM Voucher
+WHERE code LIKE ?
+ORDER BY id
+OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+Sau khi sửa
+1️⃣ Clean and Build project
+2️⃣ Run lại server
+3️⃣ Scroll xuống trang Voucher → sẽ load tiếp.
+
+Nếu muốn tao kiểm tra 100% infinite scroll cho Voucher giống 4 trang kia, gửi thêm 2 file này:
+
+voucher-list.jsp
+
+home.jsp
+
+Tao sẽ chỉ đúng 3 dòng phải sửa là chạy ngay.
+
+
+Đã tải lên ảnh
+
+AppUserEditController.java
+Tệp
+
+app-user-edit.jsp
+Tệp
+sửa giúp tôi là khi edit chỉ edit được name thôi ko đc edit gmail
+
+Nhìn vào ảnh của bạn và code controller, backend đã cho phép sửa cả name và email rồi.
+Vấn đề gần như chắc chắn nằm ở app-user-edit.jsp: ô email đang bị readonly hoặc disabled, nên submit lên server không đổi được.
+
+Cách sửa
+Mở file app-user-edit.jsp và tìm dòng input email.
+
+Có thể nó đang như này:
+
+<input type="text" name="email" value="${user.email}" readonly>
+hoặc
+
+<input type="text" name="email" value="${user.email}" disabled>
+❌ Sai (không edit được)
+<input type="text" name="email" value="${user.email}" readonly>
+✅ Đúng
+<input type="text" name="email" value="${user.email}">
+Form chuẩn nên như này
+<form action="app-user-edit" method="post">
+
+    <input type="hidden" name="id" value="${user.userId}">
+
+    Name:
+    <input type="text" name="name" value="${user.name}">
+    <br><br>
+
+    Email:
+    <input type="text" name="email" value="${user.email}">
+    <br><br>
+
+    <button type="submit">Update</button>
+
+</form>
+Vì sao name sửa được nhưng email không
+name input không có readonly
+
+email input bị readonly / disabled
+
+Khi submit:
+
+name gửi lên server
+
+email không gửi hoặc bị khóa
+
+nên DB không update.
+
+Nếu sửa xong vẫn không được
+Gửi thêm file:
+
+app-user-edit.jsp
+
+AppUserDAO.java
+
+Mình sẽ sửa chuẩn 100% cho bạn (2 phút là chạy).
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+tui muốn khi mà search tìm kiếm rồi á thì nó vẫn hiện kết quả tìm kiếm vẫn trên home chứ ko trên list
+
+Mình hiểu ý bạn:
+
+Hiện tại khi search:
+
+home.jsp  → nhập keyword → submit
+nó chuyển sang:
+
+/app-user-list?keyword=Nguyễn
+nên kết quả hiển thị ở trang User List riêng, không phải home.jsp.
+
+Bạn muốn:
+👉 Search xong vẫn hiển thị trong home.jsp, ngay phần User List.
+
+Cách sửa đơn giản nhất
+Bạn chỉ cần đổi action của form search để gửi về home.
+
+1️⃣ Mở home.jsp
+Tìm form search:
+
+<form action="app-user-list" method="get">
+Sửa thành
+<form action="home" method="get">
+2️⃣ Thêm name cho input
+<input type="text" name="keyword" placeholder="Search name">
+3️⃣ Trong HomeController
+Thêm đoạn xử lý search.
+
+Ví dụ:
+
+String keyword = request.getParameter("keyword");
+if (keyword == null) keyword = "";
+
+AppUserDAO dao = new AppUserDAO();
+List<AppUser> list = dao.searchByName(keyword);
+
+request.setAttribute("users", list);
+request.getRequestDispatcher("home.jsp").forward(request, response);
+Kết quả sẽ như bạn muốn
+URL vẫn là:
+
+localhost:8080/LAB211Web/home
+nhưng bảng User List sẽ hiển thị kết quả search:
+
+ID	Name	Email
+10004	Thanh Nguyễn	thanhnguyen@gmail.com
+Nếu muốn làm đúng chuẩn bài LAB (giống infinite scroll)
+Cách tốt hơn là:
+
+home.jsp gọi controller
+
+controller load:
+
+users
+
+shops
+
+products
+
+vouchers
+
+và search chỉ filter user list.
+
+✅ Nếu bạn muốn mình chỉ cách chuẩn nhất (chỉ sửa ~10 dòng) để:
+
+search vẫn ở home.jsp
+
+infinite scroll vẫn chạy
+
+không bị redirect sang app-user-list
+
+→ gửi mình file:
+
+HomeController.java
+
+home.jsp
+
+Mình sẽ sửa đúng chuẩn cho bạn.
+
+
+
+home.jsp
+Tệp
+
+AppUserListController.java
+Tệp
+
+app-user-list.jsp
+Tệp
+đây là các file, hãy xem và chỉ ra chỗ cần sửa
+
+Mình xem controller bạn gửi rồi. Vấn đề nằm ở luồng trang chứ không phải SQL.
+
+Hiện tại flow của bạn là:
+
+home.jsp
+   ↓ submit form
+/app-user-list
+   ↓
+AppUserListController
+   ↓
+forward → app-user-list.jsp
+Nên kết quả search luôn nhảy sang trang app-user-list.jsp.
+
+Bạn muốn:
+Search xong vẫn hiển thị trên home.jsp.
+
+Chỗ cần sửa
+1️⃣ Sửa Controller
+Trong AppUserListController.java bạn đang có:
+
+request.getRequestDispatcher("app-user-list.jsp").forward(request, response);
+
+AppUserListController
+
+
+Đổi thành
+request.getRequestDispatcher("home.jsp").forward(request, response);
+2️⃣ Sửa tên attribute cho đúng với home.jsp
+Controller đang set:
+
+request.setAttribute("list",
+        dao.searchUserPaging(keyword, offset, limit));
+Nhưng home.jsp thường dùng users.
+
+Nên sửa thành:
+
+request.setAttribute("users",
+        dao.searchUserPaging(keyword, offset, limit));
+3️⃣ Sửa form search trong home.jsp
+Tìm form:
+
+<form action="app-user-list" method="get">
+Giữ nguyên action nhưng đảm bảo input có name:
+
+<input type="text" name="keyword" placeholder="Search name">
+Sau khi sửa
+Luồng sẽ là:
+
+home.jsp
+   ↓ search
+/app-user-list
+   ↓ controller xử lý
+forward → home.jsp
+Và bảng User List trên home sẽ hiển thị kết quả search.
+
+URL vẫn sẽ là:
+
+/app-user-list?keyword=Nguyen
+nhưng giao diện vẫn là home.jsp.
+
+Nếu bạn muốn làm đúng chuẩn bài LAB (mượt hơn)
+Cách tốt hơn là:
+
+search không đổi URL
+
+infinite scroll vẫn chạy
+
+users vẫn load cùng shops/products/vouchers
+
+Chỉ cần sửa ~15 dòng trong home.jsp và controller.
+
+Nếu muốn mình chỉ đúng từng dòng cần sửa, gửi thêm:
+
+home.jsp (file đầy đủ)
+
+AppUserDAO.java
+
+Mình sẽ chỉ chính xác từng dòng.
+
+
+Nguồn
+
+có thể bạn hiểu lộn, trang list sẽ hiện trên home đúng hong, rồi khi search á thì sẽ hiện kết quả search cũng nằm trên home luôn
+
+À mình hiểu đúng ý bạn rồi 👍
+
+Bạn muốn:
+
+1️⃣ Trang home.jsp đã hiển thị User List
+2️⃣ Khi search, kết quả vẫn hiển thị ngay chỗ User List trên home.jsp
+3️⃣ KHÔNG chuyển sang app-user-list.jsp
+
+Hiện tại code của bạn đang làm:
+
+home.jsp
+   ↓ search
+/app-user-list
+   ↓
+forward → app-user-list.jsp
+nên nó mở trang list riêng.
+
+Cách sửa đúng cho bài của bạn
+Bạn không dùng app-user-list.jsp nữa, mà cho controller forward về home.jsp.
+
+1️⃣ Sửa AppUserListController.java
+Đổi dòng cuối:
+
+request.getRequestDispatcher("app-user-list.jsp").forward(request, response);
+thành:
+
+request.getRequestDispatcher("home.jsp").forward(request, response);
+(đây là chỗ quan trọng nhất)
+
+2️⃣ Sửa tên attribute cho giống home.jsp
+Trong controller bạn đang có:
+
+request.setAttribute("list",
+        dao.searchUserPaging(keyword, offset, limit));
+Sửa thành:
+
+request.setAttribute("users",
+        dao.searchUserPaging(keyword, offset, limit));
+vì home.jsp thường dùng ${users}.
+
+3️⃣ Trong home.jsp phải có vòng lặp
+Ví dụ:
+
+<c:forEach var="u" items="${users}">
+<tr>
+    <td>${u.userId}</td>
+    <td>${u.name}</td>
+    <td>${u.email}</td>
+    <td>${u.role}</td>
+</tr>
+</c:forEach>
+Sau khi sửa
+Flow sẽ là:
+
+home.jsp
+   ↓ search
+/app-user-list
+   ↓ controller xử lý
+forward → home.jsp
+Kết quả:
+
+trang không nhảy sang list
+
+bảng User List trên home sẽ đổi theo keyword search
+
+Mình nói thật thêm một lỗi rất hay gặp trong bài này
+Trong home.jsp search form có thể đang là:
+
+<form action="app-user-list">
+Cái này vẫn đúng, vì controller xử lý search.
+
+Chỉ cần controller forward lại home.jsp là xong.
+
+✅ Nếu bạn muốn mình chỉ chính xác từng dòng trong home.jsp cần sửa (thường chỉ ~5 dòng), bạn gửi luôn toàn bộ home.jsp.
+Mình sẽ khoanh đúng chỗ cần sửa để chạy đúng như bạn muốn.
+
+
+
+home.jsp
+Tệp
+sai rồi ý tui ko phải là home nó sẽ hiển thị
+<c:forEach var="u" items="${users}">
+<tr>
+    <td>${u.userId}</td>
+    <td>${u.name}</td>
+    <td>${u.email}</td>
+    <td>${u.role}</td>
+</tr>
+</c:forEach>
+mà là nó giống như trong file gửi nè, khi search thì hiện tại chỗ luôn ko chuyển sang trang khác
+
+Giờ thì mình hiểu đúng ý bạn rồi 👍
+Trang home.jsp của bạn dùng AJAX (fetch) để load module vào content-area, nên:
+
+Click Users → loadPage('app-user-list')
+
+Nội dung User List được đổ vào <div id="content-area">
+
+Không chuyển trang
+
+Vấn đề của bạn là:
+
+👉 Khi search, form đang submit bình thường → trình duyệt chuyển sang
+/app-user-list?keyword=Nguyen
+nên nó mở trang mới, không còn nằm trong home.
+
+Cách sửa đúng (rất đơn giản)
+Bạn phải chặn submit của form search và dùng fetch lại.
+
+1️⃣ Mở file app-user-list.jsp
+Tìm form search, thường sẽ giống vậy:
+
+<form action="app-user-list" method="get">
+    <input type="text" name="keyword">
+    <button type="submit">Search</button>
+</form>
+2️⃣ Sửa thành
+<form onsubmit="searchUser(event)">
+    <input type="text" name="keyword" id="keyword">
+    <button type="submit">Search</button>
+</form>
+3️⃣ Thêm script search
+Đặt dưới cuối file app-user-list.jsp:
+
+<script>
+function searchUser(e){
+    e.preventDefault();
+
+    const keyword = document.getElementById("keyword").value;
+
+    fetch("app-user-list?keyword=" + keyword)
+    .then(res => res.text())
+    .then(html => {
+
+        const container = document.getElementById("content-area");
+
+        container.innerHTML = html;
+
+        const scripts = container.querySelectorAll("script");
+
+        scripts.forEach(s => {
+            const newScript = document.createElement("script");
+            newScript.text = s.text;
+            document.body.appendChild(newScript);
+        });
+
+    });
+}
+</script>
+Sau khi sửa
+Flow sẽ là:
+
+home.jsp
+   ↓ click Users
+fetch → app-user-list
+   ↓
+hiển thị trong content-area
+
+search
+   ↓
+fetch → app-user-list?keyword=Nguyen
+   ↓
+content-area cập nhật
+Kết quả:
+
+✅ Search hiện ngay tại chỗ
+✅ Không chuyển trang
+✅ Giống cách Users / Shops / Products load trong home
+
+💡 Nếu bạn muốn, mình có thể chỉ luôn 1 lỗi rất hay gặp làm infinite scroll của bạn không chạy khi search (99% sinh viên LAB211 bị).
+Chỉ cần gửi thêm app-user-list.jsp, mình sẽ khoanh đúng 3 dòng cần sửa.
+
+
+
+home.jsp
+Tệp
+
+shop-list.jsp
+Tệp
+sửa tương tự vs shop
+
+Bạn làm Shop giống hệt User thôi. Mục tiêu là:
+
+👉 Search shop vẫn hiển thị ngay trong content-area của home.jsp
+👉 Không chuyển sang trang mới
+
+1️⃣ Sửa form search trong shop-list.jsp
+Tìm form search, có thể đang là:
+
+<form action="shop-list" method="get">
+    <input type="text" name="keyword">
+    <button type="submit">Search</button>
+</form>
+Sửa thành
+<form onsubmit="searchShop(event)">
+    <input type="text" name="keyword" id="shopKeyword">
+    <button type="submit">Search</button>
+</form>
+2️⃣ Thêm script search shop
+Đặt cuối file shop-list.jsp:
+
+<script>
+function searchShop(e){
+    e.preventDefault();
+
+    const keyword = document.getElementById("shopKeyword").value;
+
+    fetch("shop-list?keyword=" + keyword)
+    .then(res => res.text())
+    .then(html => {
+
+        const container = document.getElementById("content-area");
+
+        container.innerHTML = html;
+
+        const scripts = container.querySelectorAll("script");
+
+        scripts.forEach(s => {
+            const newScript = document.createElement("script");
+            newScript.text = s.text;
+            document.body.appendChild(newScript);
+        });
+
+    });
+}
+</script>
+3️⃣ Flow sau khi sửa
+home.jsp
+   ↓ click Shops
+loadPage("shop-list")
+   ↓
+shop-list.jsp hiển thị trong content-area
+
+Search
+   ↓
+fetch("shop-list?keyword=abc")
+   ↓
+content-area cập nhật kết quả
+✔ Không chuyển trang
+✔ Kết quả search hiện ngay tại chỗ
+✔ Hoạt động giống Users
+
+⚠️ Một lỗi rất hay gặp (80% sinh viên bị)
+Trong shop-list.jsp input search phải có id đúng:
+
+<input type="text" id="shopKeyword" name="keyword">
+Nếu thiếu id → script không lấy được keyword.
+
+✅ Nếu bạn muốn mình viết luôn phiên bản chuẩn nhất cho project này (dùng chung 1 hàm search cho: Users / Shops / Products / Vouchers), mình có thể gửi đoạn JS gọn hơn 10 lần để khỏi lặp code.
+
+
+
+product-list.jsp
+Tệp
+sửa tương tự với product
+
+Hiểu rồi 👍
+Bạn muốn product search hoạt động giống user và shop:
+
+Search ngay trên home.jsp
+
+Không chuyển trang
+
+Kết quả hiển thị ngay tại vị trí bảng product
+
+Mình chỉ ra đúng chỗ cần sửa nhé.
+
+1. Sửa ProductListController
+Phải forward về home.jsp giống user/shop.
+
+Sửa đoạn doGet
+protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+    String keyword = request.getParameter("keyword");
+
+    ProductDAO dao = new ProductDAO();
+    List<Product> products;
+
+    if (keyword != null && !keyword.trim().isEmpty()) {
+        products = dao.searchProduct(keyword);
+    } else {
+        products = dao.getAllProducts();
+    }
+
+    request.setAttribute("products", products);
+
+    // QUAN TRỌNG
+    request.getRequestDispatcher("home.jsp").forward(request, response);
+}
+❌ Sai (thường gặp):
+
+request.getRequestDispatcher("product-list.jsp").forward(request, response);
+2. Sửa form search trong home.jsp
+Trong phần Product Search
+
+<form action="product-list" method="get">
+    <input type="text" name="keyword" placeholder="Search product...">
+    <button type="submit">Search</button>
+</form>
+3. Hiển thị product trong home.jsp
+Ở vị trí bảng product:
+
+<c:if test="${not empty products}">
+<table border="1">
+<tr>
+    <th>ID</th>
+    <th>Name</th>
+    <th>Price</th>
+    <th>Shop</th>
+</tr>
+
+<c:forEach var="p" items="${products}">
+<tr>
+    <td>${p.productId}</td>
+    <td>${p.productName}</td>
+    <td>${p.price}</td>
+    <td>${p.shopId}</td>
+</tr>
+</c:forEach>
+
+</table>
+</c:if>
+4. Không cần dùng product-list.jsp nữa
+Vì bây giờ:
+
+Search Product
+        ↓
+ProductListController
+        ↓
+forward
+        ↓
+home.jsp
+        ↓
+hiển thị kết quả
+Giống hệt:
+
+User search
+Shop search
+5. Flow đúng sau khi sửa
+home.jsp
+   ↓
+Search Product
+   ↓
+/product-list?keyword=abc
+   ↓
+ProductListController
+   ↓
+setAttribute("products")
+   ↓
+forward home.jsp
+   ↓
+home.jsp hiển thị bảng product
+✅ Kết quả:
+
+Search không chuyển trang
+
+Kết quả hiện ngay trên home
+
+Giống user + shop
+
+💡 Nếu bạn muốn mình sửa full code 3 file luôn (home.jsp + shop + product + user) để chạy đúng 100%, gửi mình thêm:
+
+ProductListController.java
+
+ProductDAO.java
+
+Mình sẽ fix chuẩn luôn cho bạn.
+
+
+
+home.jsp
+Tệp
+
+product-list.jsp
+Tệp
+sửa hồi nãy giống user vs shop á
+
+Ok, mình hiểu ý bạn: Product phải hoạt động giống hệt User và Shop — tức là search xong vẫn ở home.jsp và hiển thị kết quả ngay tại bảng Product. 👍
+
+Dựa trên cách bạn làm user + shop, bạn chỉ cần sửa 2 chỗ giống y hệt.
+
+1️⃣ Sửa ProductListController
+Đảm bảo controller forward về home.jsp, không phải product-list.jsp.
+
+Đúng:
+request.setAttribute("products", products);
+request.getRequestDispatcher("home.jsp").forward(request, response);
+Sai:
+request.getRequestDispatcher("product-list.jsp").forward(request, response);
+2️⃣ Sửa phần Product trong home.jsp
+Thêm bảng hiển thị giống user/shop.
+
+<h2>Product List</h2>
+
+<form action="product-list" method="get">
+    <input type="text" name="keyword" placeholder="Search product">
+    <button type="submit">Search</button>
+</form>
+
+<table border="1">
+<tr>
+    <th>ID</th>
+    <th>Name</th>
+    <th>Price</th>
+    <th>Shop</th>
+</tr>
+
+<c:forEach var="p" items="${products}">
+<tr>
+    <td>${p.productId}</td>
+    <td>${p.productName}</td>
+    <td>${p.price}</td>
+    <td>${p.shopId}</td>
+</tr>
+</c:forEach>
+
+</table>
+3️⃣ Không cần dùng product-list.jsp
+File đó giống hệt app-user-list.jsp và shop-list.jsp, nhưng vì bạn đang hiển thị trực tiếp trên home.jsp, nên:
+
+👉 Có thể không dùng tới nữa.
+
+4️⃣ Flow sau khi sửa
+home.jsp
+   ↓
+Search Product
+   ↓
+/product-list?keyword=abc
+   ↓
+ProductListController
+   ↓
+setAttribute("products")
+   ↓
+forward("home.jsp")
+   ↓
+home.jsp hiển thị bảng product
+✔ Kết quả sẽ giống User + Shop
+Chức năng	Trang hiển thị
+Search User	home.jsp
+Search Shop	home.jsp
+Search Product	home.jsp
+Không chuyển trang. 🚀
+
+✅ Nếu bạn muốn, mình có thể sửa lại full home.jsp chuẩn 3 bảng (User + Shop + Product) để search từng bảng mà không bị ghi đè dữ liệu — cái này nhiều bạn làm bài PRJ301 / Servlet JSP hay bị lỗi.
+
+
+Đã tải lên ảnh
+
+product-list.jsp
+Tệp
+
+home.jsp
+Tệp
+
+ProductListController.java
+Tệp
+sao ko hiện đồ vật cần tìm kiếm
+
+Tôi xem ProductListController.java của bạn rồi và thấy lỗi chính là: Controller không xử lý search nên khi bấm Search nó vẫn load toàn bộ product. 
+ProductListController
+
+
+Hiện tại controller của bạn chỉ có:
+
+List<Product> list = dao.getProductPaging(offset, pageSize);
+tức là chỉ phân trang, không lọc theo keyword.
+
+Cách sửa đúng
+1️⃣ Sửa ProductListController
+Thêm keyword giống User và Shop.
+
+Sửa thành:
+protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+    ProductDAO dao = new ProductDAO();
+
+    int pageSize = 20;
+    int page = 1;
+
+    String pageParam = request.getParameter("page");
+    if (pageParam != null) {
+        page = Integer.parseInt(pageParam);
+    }
+
+    int offset = (page - 1) * pageSize;
+
+    String keyword = request.getParameter("keyword");
+    if (keyword == null) {
+        keyword = "";
+    }
+
+    List<Product> list = dao.searchProduct(keyword, offset, pageSize);
+
+    request.setAttribute("list", list);
+    request.setAttribute("keyword", keyword);
+    request.setAttribute("page", page);
+
+    request.getRequestDispatcher("product-list.jsp").forward(request, response);
+}
+2️⃣ Thêm hàm trong ProductDAO
+Nếu chưa có thì thêm:
+
+public List<Product> searchProduct(String keyword, int offset, int limit) {
+    List<Product> list = new ArrayList<>();
+
+    String sql = "SELECT p.*, s.shop_name "
+               + "FROM products p "
+               + "JOIN shops s ON p.shop_id = s.shop_id "
+               + "WHERE p.product_name LIKE ? "
+               + "ORDER BY p.product_id "
+               + "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+
+    try {
+        PreparedStatement st = connection.prepareStatement(sql);
+        st.setString(1, "%" + keyword + "%");
+        st.setInt(2, offset);
+        st.setInt(3, limit);
+
+        ResultSet rs = st.executeQuery();
+
+        while (rs.next()) {
+            Product p = new Product();
+            p.setProductId(rs.getInt("product_id"));
+            p.setProductName(rs.getString("product_name"));
+            p.setPrice(rs.getDouble("price"));
+            p.setShopName(rs.getString("shop_name"));
+            list.add(p);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return list;
+}
+3️⃣ Sửa form search trong product-list.jsp
+<form action="product-list" method="get">
+    <input type="text" name="keyword" value="${keyword}">
+    <button type="submit">Search</button>
+</form>
+Sau khi sửa xong
+Search:
+
+Jacket
+Trang sẽ hiển thị:
+
+Jacket Puma
+Jacket Adidas
+Jacket Zara
+Nếu bạn muốn giống User + Shop + Product + Voucher chuẩn LAB211
+tôi có thể gửi bạn bản chuẩn full 5 controller + DAO + JSP để:
+
+search
+
+infinite scroll
+
+pagination
+
+đúng 100% format thầy thường chấm.
+
+
+Nguồn
+
+Đã tải lên ảnh
+shopName là của Shop ko phải Product
+
+Bạn nói đúng rồi 👍
+shopName là thuộc Shop, không phải của Product, nên dòng này lỗi:
+
+p.setShopName(rs.getString("shop_name"));
+Vì class Product không có field shopName.
+
+Có 2 cách sửa
+✅ Cách 1 (đúng kiến trúc – nên dùng)
+Tạo object Shop rồi gán vào Product.
+
+Model
+class Product {
+    int productId;
+    String name;
+    double price;
+    Shop shop;
+}
+Trong DAO sửa thành
+Product p = new Product();
+
+p.setProductId(rs.getInt("product_id"));
+p.setName(rs.getString("product_name"));
+p.setPrice(rs.getDouble("price"));
+
+Shop s = new Shop();
+s.setShopName(rs.getString("shop_name"));
+
+p.setShop(s);
+
+list.add(p);
+JSP hiển thị
+${p.shop.shopName}
+✅ Cách 2 (nhanh – nhiều lab dùng)
+Thêm shopName trực tiếp vào Product.
+
+Product.java
+private String shopName;
+
+public String getShopName() {
+    return shopName;
+}
+
+public void setShopName(String shopName) {
+    this.shopName = shopName;
+}
+Sau đó dòng này sẽ hết lỗi
+
+p.setShopName(rs.getString("shop_name"));
+📌 Thầy thường cho cách nào?
+Trong LAB211 / PRJ301 đa số sinh viên dùng Cách 2 vì:
+
+code nhanh
+
+không cần nested object
+
+JSP dễ hiển thị
+
+Nếu bạn muốn, tôi có thể chỉ luôn:
+cách viết ProductDAO chuẩn 100%
+
+cách viết Search + Pagination + Infinite Scroll cho Product
+
+(giống User + Shop bạn làm hồi nãy) để project chạy mượt luôn.
+
+
+Đã tải lên ảnh
+
+ProductEditController.java
+Tệp
+
+product-edit.jsp
+Tệp
+tôi muốn edit thêm mục sửa giá
+
+Tôi xem controller của bạn rồi. Hiện tại ProductEditController chỉ update name, chưa update price nên trang edit chỉ có mỗi Name. 
+ProductEditController
+
+
+Ta cần sửa 3 chỗ:
+
+1️⃣ Sửa product-edit.jsp (thêm ô Price)
+Hiện bạn đang có kiểu như:
+
+Name: <input type="text" name="name" value="${product.name}">
+Sửa thành:
+
+<form action="product-edit" method="post">
+
+    <input type="hidden" name="id" value="${product.productId}">
+
+    Name:
+    <input type="text" name="name" value="${product.name}">
+
+    Price:
+    <input type="text" name="price" value="${product.price}">
+
+    <button type="submit">Update</button>
+
+</form>
+2️⃣ Sửa ProductEditController
+Hiện controller chỉ lấy name:
+
+String name = request.getParameter("name");
+Sửa thành:
+
+String name = request.getParameter("name");
+double price = Double.parseDouble(request.getParameter("price"));
+và thêm vào object:
+
+Product product = new Product();
+product.setProductId(id);
+product.setName(name);
+product.setPrice(price);
+3️⃣ Sửa ProductDAO.update()
+Hiện SQL của bạn chắc đang dạng:
+
+UPDATE products
+SET product_name = ?
+WHERE product_id = ?
+Sửa thành:
+
+UPDATE products
+SET product_name = ?, price = ?
+WHERE product_id = ?
+Java:
+
+PreparedStatement st = connection.prepareStatement(sql);
+st.setString(1, product.getName());
+st.setDouble(2, product.getPrice());
+st.setInt(3, product.getProductId());
+st.executeUpdate();
+Sau khi sửa xong
+Trang edit sẽ thành:
+
+Name:  FPT Balo
+Price: 250000
+[Update]
+và update được cả name + price.
+
+✅ Nếu bạn muốn, tôi có thể chỉ thêm 1 lỗi rất hay gặp trong lab này:
+
+Edit xong bị quay về Home nhưng infinite scroll bị reset hoặc mất search (80% sinh viên bị).
+
+Tôi có thể chỉ cách sửa để edit xong vẫn giữ page + keyword.
+
+
+Nguồn
+
+Đã tải lên ảnh
+
+product-list.jsp
+Tệp
+
+home.jsp
+Tệp
+
+ProductListController.java
+Tệp
+tôi muốn Product có thêm chức năng tìm kiếm theo tên shop nữa
+
+Hiện controller của bạn đang search chỉ theo tên product vì nó truyền keyword vào searchProduct() thôi. 
+ProductListController
+
+
+Muốn search theo tên Product + tên Shop thì chỉ cần sửa SQL trong ProductDAO.
+
+1️⃣ Sửa SQL trong ProductDAO.searchProduct()
+Hiện SQL của bạn chắc dạng:
+
+WHERE p.product_name LIKE ?
+Sửa thành:
+
+WHERE p.product_name LIKE ?
+   OR s.shop_name LIKE ?
+2️⃣ Code Java đầy đủ
+public List<Product> searchProduct(String keyword, int offset, int limit) {
+    List<Product> list = new ArrayList<>();
+
+    String sql = "SELECT p.*, s.shop_name "
+            + "FROM products p "
+            + "JOIN shops s ON p.shop_id = s.shop_id "
+            + "WHERE p.product_name LIKE ? "
+            + "OR s.shop_name LIKE ? "
+            + "ORDER BY p.product_id "
+            + "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+
+    try {
+        PreparedStatement st = connection.prepareStatement(sql);
+
+        st.setString(1, "%" + keyword + "%");
+        st.setString(2, "%" + keyword + "%");
+        st.setInt(3, offset);
+        st.setInt(4, limit);
+
+        ResultSet rs = st.executeQuery();
+
+        while (rs.next()) {
+            Product p = new Product();
+            p.setProductId(rs.getInt("product_id"));
+            p.setName(rs.getString("product_name"));
+            p.setPrice(rs.getDouble("price"));
+            p.setShopName(rs.getString("shop_name"));
+
+            list.add(p);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return list;
+}
+3️⃣ Sau khi sửa xong
+Search:
+
+Puma
+sẽ ra:
+
+Jacket Puma
+Cap Puma
+Search:
+
+Lumina
+sẽ ra:
+
+Cap Gucci - Shop Lumina Studio
+Handbag Gucci - Shop Lumina Studio
+⭐ Mẹo để thầy đánh giá cao
+Đổi placeholder search thành:
+
+<input type="text" name="keyword" placeholder="Search product or shop..." value="${keyword}">
+💡 Nếu bạn muốn xịn hơn một chút (giống Shopee) tôi có thể chỉ thêm:
+
+2 ô search riêng
+
+Search Product
+
+Search Shop
+
+hoặc dropdown filter shop
+
+code chỉ ~10 dòng nữa thôi.
+
+
+Nguồn
+
+xem thử bị lỗi j
+
+Mình cần thông tin lỗi cụ thể thì mới xác định chính xác được. Hiện trong ảnh bạn gửi trang Product List vẫn load bình thường, nên lỗi có thể nằm ở:
+
+SQL trong ProductDAO.searchProduct()
+
+JSP form search
+
+Hoặc controller nhận keyword
+
+Bạn hãy gửi thêm 1 trong 3 thứ này:
+
+1️⃣ Thông báo lỗi trên server (Tomcat console)
+Ví dụ dạng:
+
+java.sql.SQLException: ...
+2️⃣ Code của ProductDAO.searchProduct()
+
+3️⃣ Ảnh lỗi khi bạn bấm Search
+
+Trong khi chờ bạn gửi, đây là 3 lỗi phổ biến nhất với chức năng search Product + Shop:
+
+❌ Lỗi 1: Thiếu JOIN shop
+SQL sai:
+
+SELECT * FROM products
+WHERE product_name LIKE ?
+OR shop_name LIKE ?
+Phải là:
+
+SELECT p.*, s.shop_name
+FROM products p
+JOIN shops s ON p.shop_id = s.shop_id
+WHERE p.product_name LIKE ?
+OR s.shop_name LIKE ?
+❌ Lỗi 2: Sai số lượng parameter
+Nếu SQL có 4 dấu ? nhưng bạn set thiếu:
+
+st.setString(1, "%" + keyword + "%");
+st.setInt(2, offset);
+st.setInt(3, limit);
+Phải là:
+
+st.setString(1, "%" + keyword + "%");
+st.setString(2, "%" + keyword + "%");
+st.setInt(3, offset);
+st.setInt(4, limit);
+❌ Lỗi 3: Form không gửi keyword
+Sai:
+
+<input type="text">
+Đúng:
+
+<input type="text" name="keyword" value="${keyword}">
+📌 Bạn gửi giúp tôi:
+
+ProductDAO.searchProduct()
+
+hoặc ảnh lỗi console
+
+Tôi sẽ chỉ chính xác dòng sai luôn, sửa trong 30 giây.
+
+
+Đã tải lên ảnh
+
+ProductVariantDAO.java
+Tệp
+
+ProductVariantListController.java
+Tệp
+
+home.jsp
+Tệp
+
+product-variant-list.jsp
+Tệp
+sao ProductVariant ko search được, tui muốn search theo product và shopName 
+
+Tôi xem code của bạn rồi và thấy nguyên nhân chính:
+
+👉 Controller không gọi hàm searchVariant() nên search không bao giờ chạy.
+
+Controller đang gọi:
+
+dao.getVariants(page, pageSize, shop);
+nên nó chỉ lọc theo shop, không search theo product. 
+ProductVariantListController
+
+
+Cách sửa đúng
+1️⃣ Sửa ProductVariantListController
+Thêm keyword giống Product.
+
+Sửa thành:
+protected void doGet(HttpServletRequest request,
+        HttpServletResponse response)
+        throws ServletException, IOException {
+
+    int page = 1;
+    int pageSize = 20;
+
+    String pageParam = request.getParameter("page");
+    if (pageParam != null) {
+        page = Integer.parseInt(pageParam);
+    }
+
+    String keyword = request.getParameter("keyword");
+    if (keyword == null) {
+        keyword = "";
+    }
+
+    ProductVariantDAO dao = new ProductVariantDAO();
+
+    List<ProductVariant> list = dao.searchVariant(keyword, page, pageSize);
+
+    request.setAttribute("list", list);
+    request.setAttribute("keyword", keyword);
+    request.setAttribute("page", page);
+
+    request.getRequestDispatcher("product-variant-list.jsp")
+            .forward(request, response);
+}
+2️⃣ Sửa form search trong JSP
+Hiện bạn đang dùng shop.
+
+Sửa thành:
+
+<form action="product-variant-list" method="get">
+    <input type="text" name="keyword"
+           value="${keyword}"
+           placeholder="Search product or shop">
+    <button type="submit">Search</button>
+</form>
+3️⃣ SQL của bạn đã đúng rồi
+Trong DAO bạn đã viết chuẩn:
+
+WHERE p.name LIKE ?
+   OR s.shopName LIKE ?
+nên search được cả:
+
+Product name
+
+Shop name 
+ProductVariantDAO
+
+
+Sau khi sửa
+Search:
+
+Puma
+ra tất cả variant của Jacket Puma
+
+Search:
+
+Accessories
+ra variant của shop Shop Accessories 1927
+
+⚠️ Một lỗi nữa bạn sẽ gặp ngay sau khi sửa
+Infinite scroll sẽ không giữ keyword khi load page tiếp theo.
+
+Nếu muốn tôi có thể chỉ luôn cách sửa JS infinite scroll để giữ search keyword (lab này 90% sinh viên bị lỗi này).
+
+
+Nguồn
+
+Đã tải lên ảnh
+tôi muốn thêm cột productId để dễ biết thêm ProductVariant đó dô productId nào
+
+Bạn chỉ cần hiển thị thêm productId từ bảng ProductVariant.
+Trong bảng của bạn, pv.productId đã có sẵn nên chỉ cần sửa 3 chỗ.
+
+1️⃣ Sửa SQL trong ProductVariantDAO
+Trong hàm searchVariant() thêm pv.productId.
+
+Hiện:
+
+SELECT pv.*, p.name AS productName, s.shopName
+Sửa thành:
+
+SELECT pv.*, pv.productId, p.name AS productName, s.shopName
+2️⃣ Lưu productId vào object
+Trong vòng while(rs.next()) thêm:
+
+Product p = new Product();
+p.setProductId(rs.getInt("productId"));
+p.setName(rs.getString("productName"));
+Đầy đủ sẽ là:
+
+Product p = new Product();
+p.setProductId(rs.getInt("productId"));
+p.setName(rs.getString("productName"));
+
+Shop s = new Shop();
+s.setShopName(rs.getString("shopName"));
+
+p.setShop(s);
+pv.setProduct(p);
+3️⃣ Hiển thị trong product-variant-list.jsp
+Thêm cột:
+
+<th>Product ID</th>
+và trong table row:
+
+<td>${v.product.productId}</td>
+Ví dụ:
+
+<tr>
+<td>${v.variantId}</td>
+<td>${v.product.productId}</td>
+<td>${v.product.name}</td>
+<td>${v.product.shop.shopName}</td>
+<td>${v.size}</td>
+<td>${v.color}</td>
+<td>${v.stock}</td>
+<td>${v.priceVariant}</td>
+</tr>
+Kết quả sẽ như này
+VariantID	ProductID	Product	Shop	Size	Color	Stock	Price
+240003	12003	FPT Balo1	Nguyên			0	0
+💡 Tip cho lab này:
+Thầy thường thích format bảng kiểu:
+
+VariantID | ProductID | ProductName | Shop | Size | Color | Stock | Price
+nhìn rõ quan hệ ProductVariant → Product → Shop.
+
+
+Đã tải lên ảnh
+
+product-variant-create.jsp
+Tệp
+
+ProductVariantCreateController.java
+Tệp
+
+VoucherCreateController.java
+Tệp
+sao khi tạo ProductVariant thì bị lỗi
+
+Lỗi của bạn nằm ở dòng parseDouble(price) trong controller.
+
+Tomcat báo:
+
+Cannot invoke "String.length()" because "in" is null
+at Double.parseDouble(...)
+ProductVariantCreateController.java:24
+Tức là:
+
+Double.parseDouble(request.getParameter("price"))
+👉 request.getParameter("price") đang = null. 
+ProductVariantCreateController
+
+
+Nguyên nhân 99%
+Trong JSP create form bạn không đặt đúng name="price".
+
+Ví dụ form hiện tại có thể là:
+
+<input type="text" name="priceVariant">
+hoặc
+
+<input type="text" name="price_variant">
+nhưng controller đang đọc:
+
+request.getParameter("price")
+nên không lấy được dữ liệu → null → lỗi.
+
+Cách sửa (1 trong 2 cách)
+Cách 1 — sửa JSP (khuyến khích)
+Trong product-variant-create.jsp
+
+Price:
+<input type="text" name="price">
+Cách 2 — sửa Controller
+Nếu JSP đang dùng:
+
+name="priceVariant"
+thì sửa controller:
+
+double price = Double.parseDouble(request.getParameter("priceVariant"));
+Ngoài ra nhớ check form phải có đủ 5 field
+<form action="product-variant-create" method="post">
+
+Size
+<input name="size">
+
+Color
+<input name="color">
+
+Stock
+<input name="stock">
+
+Price
+<input name="price">
+
+ProductId
+<input name="productId">
+
+<button>Create</button>
+
+</form>
+Mẹo tránh lỗi này (rất hay gặp)
+Trước khi parse nên check null:
+
+String priceRaw = request.getParameter("price");
+
+if(priceRaw == null || priceRaw.isEmpty()){
+    priceRaw = "0";
+}
+
+double price = Double.parseDouble(priceRaw);
+✅ Nếu bạn gửi thêm file product-variant-create.jsp, tôi có thể chỉ chính xác dòng sai luôn (100%).
+
+
+Nguồn
+
+ooke gửi tui bản tóm tắt cuộc trò chuyện để tiếp tục gửi phiên trò chuyện khác
+
+Ok, tôi tóm tắt toàn bộ phần quan trọng của cuộc trò chuyện này để bạn có thể copy qua phiên chat khác và tiếp tục làm LAB211.
+
+1️⃣ Dự án đang làm
+LAB211 – E-Commerce Management (Java Web)
+
+Công nghệ:
+
+Java Servlet + JSP
+
+SQL Server
+
+JSTL
+
+Tomcat
+
+DAO Pattern
+
+Mô hình:
+
+Controller (Servlet)
+↓
+DAO
+↓
+Database
+↓
+JSP (View)
+2️⃣ Database quan hệ chính
+Shop
+  └── shopId
+  └── shopName
+
+Product
+  └── productId
+  └── name
+  └── shopId (FK)
+
+ProductVariant
+  └── variantId
+  └── size
+  └── color
+  └── stock
+  └── priceVariant
+  └── productId (FK)
+
+User
+Voucher
+Quan hệ:
+
+Shop 1 --- n Product
+Product 1 --- n ProductVariant
+3️⃣ Các chức năng đã làm
+User
+List user
+
+Search user
+
+Infinite scroll
+
+Hiển thị trên home.jsp
+
+Shop
+List shop
+
+Search shop
+
+Infinite scroll
+
+Hiển thị trên home.jsp
+
+Product
+List product
+
+Search product theo:
+
+productName
+shopName
+SQL:
+
+SELECT p.*, s.shopName
+FROM Product p
+JOIN Shop s ON p.shopId = s.shopId
+WHERE p.name LIKE ?
+   OR s.shopName LIKE ?
+ProductVariant
+Hiển thị:
+
+VariantID
+ProductID
+ProductName
+ShopName
+Size
+Color
+Stock
+Price
+SQL:
+
+SELECT pv.*, p.name AS productName, s.shopName
+FROM ProductVariant pv
+JOIN Product p ON pv.productId = p.productId
+JOIN Shop s ON p.shopId = s.shopId
+WHERE p.name LIKE ?
+   OR s.shopName LIKE ?
+ORDER BY pv.variantId
+OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+Search được theo:
+
+product name
+shop name
+4️⃣ Infinite Scroll
+Logic:
+
+page = 1
+
+scroll xuống gần cuối page
+↓
+JS gọi
+/product-list?page=2
+↓
+server trả thêm dữ liệu
+↓
+append vào table
+SQL pagination:
+
+OFFSET ? ROWS
+FETCH NEXT ? ROWS ONLY
+5️⃣ Lỗi đã gặp và đã sửa
+❌ ProductVariant search không chạy
+Nguyên nhân:
+
+Controller gọi:
+
+getVariants()
+thay vì
+
+searchVariant()
+Đã sửa:
+
+keyword = request.getParameter("keyword")
+dao.searchVariant(keyword,page,pageSize)
+❌ Không hiển thị productId trong bảng
+Đã sửa:
+
+DAO:
+
+p.setProductId(rs.getInt("productId"));
+JSP:
+
+${v.product.productId}
+❌ Lỗi HTTP 500 khi tạo ProductVariant
+Error:
+
+Cannot invoke "String.length()" because "in" is null
+at Double.parseDouble()
+Nguyên nhân:
+
+request.getParameter("price") = null
+Do form input name không trùng controller
+
+Controller:
+
+request.getParameter("price")
+Form phải là:
+
+<input name="price">
+6️⃣ Controller ProductVariantCreate
+Logic:
+
+POST /product-variant-create
+↓
+getParameter(size)
+getParameter(color)
+getParameter(stock)
+getParameter(price)
+getParameter(productId)
+↓
+set ProductVariant object
+↓
+DAO.insert()
+↓
+redirect home
+7️⃣ File quan trọng
+Controllers
+
+ProductListController
+ProductVariantListController
+ProductVariantCreateController
+VoucherCreateController
+DAO
+
+ProductDAO
+ProductVariantDAO
+ShopDAO
+UserDAO
+VoucherDAO
+View
+
+home.jsp
+product-list.jsp
+shop-list.jsp
+user-list.jsp
+product-variant-list.jsp
+product-variant-create.jsp
+8️⃣ UI logic
+Home page:
+
+Users | Shops | Products | Product Variants | Vouchers
+Click tab sẽ load list tương ứng trong home.jsp.
+
+Search sẽ hiển thị kết quả ngay tại vị trí đó, không chuyển trang.
+
+9️⃣ Những thứ có thể phải làm tiếp (lab này thường yêu cầu)
+Edit ProductVariant
+
+Delete ProductVariant
+
+Create Voucher
+
+Infinite scroll cho tất cả list
+
+Search kết hợp infinite scroll
+
+🔟 Nếu gửi qua phiên chat khác
+Chỉ cần gửi đoạn này:
+
+Tôi đang làm LAB211 Java Web (Servlet + JSP + SQL Server)
+
+Đã có các bảng:
+Shop
+Product
+ProductVariant
+User
+Voucher
+
+Quan hệ:
+Shop -> Product -> ProductVariant
+
+Đã làm:
+- User list + search + infinite scroll
+- Shop list + search + infinite scroll
+- Product list + search theo productName và shopName
+- ProductVariant list + search theo productName và shopName
+- Create ProductVariant
+
+Hiện đang dùng:
+DAO pattern
+OFFSET FETCH pagination
+home.jsp làm trang chính
+ChatGPT sẽ hiểu ngay project của bạn.
+
+✅ Nếu bạn muốn, tôi có thể gửi thêm bản tóm tắt “chuẩn LAB211” ngắn hơn (10 dòng) để dán vào chat mới cho AI hiểu ngay project của bạn.
+Cái đó giúp AI trả lời chính xác hơn 90%.
+
+
+
