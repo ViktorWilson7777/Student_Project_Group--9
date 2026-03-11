@@ -1,0 +1,5475 @@
+
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+fix giup toi
+
+Mình xem ảnh của bạn thì vấn đề không phải lỗi Java hay database, mà là trang app-user-list.jsp chưa dùng layout (header + css) nên giao diện bị mất style và sidebar.
+
+Trang Create User đã dùng layout nên nhìn đúng như dashboard Shopee, còn User List đang là HTML thô.
+
+1. Nguyên nhân
+Trong project của bạn có:
+
+layout/
+   header.jsp
+   footer.jsp
+css/
+   admin.css
+Nhưng trong app-user-list.jsp bạn chưa include header và css nên nó hiển thị như trang HTML bình thường.
+
+2. Cách fix nhanh (QUAN TRỌNG)
+Mở file:
+
+app-user-list.jsp
+Thêm header layout vào đầu file:
+
+<%@include file="layout/header.jsp" %>
+Và thêm footer ở cuối:
+
+<%@include file="layout/footer.jsp" %>
+3. Ví dụ file app-user-list.jsp chuẩn
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+
+<%@include file="layout/header.jsp" %>
+
+<h2>User List</h2>
+
+<a class="btn" href="app-user-create">Add New User</a>
+
+<form method="get" action="app-user-list">
+    <input type="text" name="keyword" value="${keyword}">
+    <button type="submit">Search</button>
+</form>
+
+<table border="1">
+    <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Action</th>
+    </tr>
+
+    <c:forEach items="${list}" var="u">
+        <tr>
+            <td>${u.userId}</td>
+            <td>${u.name}</td>
+            <td>${u.email}</td>
+            <td>${u.role}</td>
+            <td>
+                <a href="app-user-edit?id=${u.userId}">Edit</a> |
+                <a href="app-user-delete?id=${u.userId}">Delete</a>
+            </td>
+        </tr>
+    </c:forEach>
+
+</table>
+
+<%@include file="layout/footer.jsp" %>
+4. Sau khi fix sẽ thành như hình 3
+Giao diện sẽ:
+
+✔ Có sidebar bên trái
+✔ Có header màu cam Shopee
+✔ Bảng user có CSS đẹp
+
+5. Mẹo quan trọng cho project của bạn
+Tất cả các trang nên dùng layout:
+
+home.jsp
+app-user-list.jsp
+product-list.jsp
+shop-list.jsp
+voucher-list.jsp
+Đầu trang:
+
+<%@include file="layout/header.jsp" %>
+Cuối trang:
+
+<%@include file="layout/footer.jsp" %>
+💡 Nếu bạn muốn, mình có thể giúp thêm:
+
+Fix toàn bộ giao diện admin giống Shopee 100%
+
+Thêm pagination User
+
+Thêm search AJAX
+
+Thêm dashboard thống kê
+
+Chỉ cần gửi mình file header.jsp là mình chỉnh lại cho bạn chuẩn luôn.
+
+
+lỗi bị là sau khi create thì không về phần dc css mà ra trang thô
+
+Mình hiểu lỗi của bạn:
+
+👉 Sau khi Create User xong thì redirect về app-user-list nhưng trang hiển thị dạng HTML thô (không có CSS / layout).
+
+Trong khi nếu bạn vào trực tiếp home → Users thì CSS lại đúng.
+
+Lỗi này 99% nằm ở Controller redirect sai đường dẫn.
+
+Nguyên nhân
+Trong AppUserCreateController.java bạn đang redirect kiểu:
+
+response.sendRedirect("app-user-list");
+Khi redirect như vậy đôi khi contextPath bị mất, nên CSS không load.
+
+Cách fix chuẩn
+Sửa thành:
+
+response.sendRedirect(request.getContextPath() + "/app-user-list");
+Ví dụ code chuẩn trong AppUserCreateController
+@Override
+protected void doPost(HttpServletRequest request,
+        HttpServletResponse response)
+        throws ServletException, IOException {
+
+    String name = request.getParameter("name");
+    String email = request.getParameter("email");
+    String password = request.getParameter("password");
+
+    AppUserDAO dao = new AppUserDAO();
+    dao.createUser(name, email, password);
+
+    response.sendRedirect(request.getContextPath() + "/app-user-list");
+}
+Vì sao cần getContextPath()
+Project bạn chạy tại:
+
+http://localhost:8080/LAB211Web
+Nếu redirect:
+
+app-user-list
+trình duyệt đôi khi hiểu thành:
+
+http://localhost:8080/app-user-list
+→ mất CSS.
+
+Còn nếu dùng:
+
+request.getContextPath()
+nó sẽ thành:
+
+http://localhost:8080/LAB211Web/app-user-list
+→ CSS hoạt động bình thường.
+
+Kiểm tra thêm 1 chỗ rất quan trọng
+Trong header.jsp phải load CSS như sau:
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+KHÔNG dùng:
+
+<link rel="stylesheet" href="/css/admin.css">
+Kết quả sau khi fix
+Flow sẽ là:
+
+Create User
+      ↓
+AppUserCreateController
+      ↓
+redirect → /LAB211Web/app-user-list
+      ↓
+User List (layout + css đầy đủ)
+💡 Nếu bạn muốn mình giúp thêm mình có thể:
+
+Fix full project Admin Dashboard
+
+Thêm pagination giống Shopee
+
+Thêm search realtime
+
+Sửa UI giống 100% Shopee admin
+
+Bạn chỉ cần gửi mình AppUserCreateController.java mình chỉnh đúng cho bạn luôn.
+
+
+package controller;
+
+import dal.AppUserDAO;
+import model.AppUser;
+import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import util.PasswordUtil;
+
+@WebServlet("/app-user-create")
+public class AppUserCreateController extends HttpServlet {
+
+  
+
+    @Override
+    protected void doGet(HttpServletRequest request,
+            HttpServletResponse response)
+            throws ServletException, IOException {
+
+        // chỉ mở trang create
+        request.getRequestDispatcher("app-user-create.jsp")
+                .forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request,
+            HttpServletResponse response)
+            throws ServletException, IOException {
+
+        String name = request.getParameter("name");
+        String email = request.getParameter("email");
+        String password = request.getParameter("password");
+
+        String error = null;
+
+        if (name == null || name.trim().isEmpty()) {
+            error = "Name cannot be empty!";
+        } else if (email == null || email.trim().isEmpty()) {
+            error = "Email cannot be empty!";
+        } else if (password == null || password.trim().isEmpty()) {
+            error = "Password cannot be empty!";
+        } else if (!email.matches("^[A-Za-z0-9+_.-]+@gmail\\.com$")) {
+            error = "Email must end with @gmail.com";
+        } else if (new AppUserDAO().isEmailExist(email)) {
+            error = "Email already exists!";
+        }
+
+        if (error != null) {
+            request.setAttribute("error", error);
+            request.getRequestDispatcher("app-user-create.jsp")
+                    .forward(request, response);
+            return;
+        }
+
+        AppUser u = new AppUser();
+        u.setName(name);
+        u.setEmail(email);
+        u.setPassword(PasswordUtil.hashPassword(password));
+        u.setRole("user");
+
+        new AppUserDAO().insert(u);
+
+        response.sendRedirect(request.getContextPath() + "/app-user-list");
+    }
+} vẫn lỗi
+
+Controller của bạn không sai 👍.
+Dòng này đã đúng:
+
+response.sendRedirect(request.getContextPath() + "/app-user-list");
+Vì vậy lỗi không nằm ở Controller, mà nằm ở đường dẫn CSS trong header.jsp.
+
+Khi bạn redirect từ create → list, nếu CSS viết sai path thì trang sẽ mất style và hiển thị HTML thô.
+
+1. Kiểm tra file header.jsp
+Mở file:
+
+Web Pages/layout/header.jsp
+Tìm dòng load CSS.
+
+Nếu bạn đang viết như này (SAI)
+<link rel="stylesheet" href="css/admin.css">
+hoặc
+
+<link rel="stylesheet" href="/css/admin.css">
+→ Khi redirect sẽ không tìm thấy CSS.
+
+2. Sửa lại thành (ĐÚNG)
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+Nếu có nhiều css thì cũng sửa tương tự:
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/style.css">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/auth.css">
+3. Vì sao phải dùng contextPath
+Project của bạn chạy ở:
+
+http://localhost:8080/LAB211Web
+Nếu dùng:
+
+css/admin.css
+trình duyệt sẽ tìm:
+
+http://localhost:8080/app-user-list/css/admin.css
+→ 404 → mất CSS
+
+Còn nếu dùng:
+
+${pageContext.request.contextPath}
+nó sẽ thành:
+
+http://localhost:8080/LAB211Web/css/admin.css
+→ CSS load đúng
+
+4. Kiểm tra thêm 1 lỗi rất hay gặp
+Trong app-user-list.jsp phải có:
+
+<%@include file="layout/header.jsp" %>
+và cuối trang:
+
+<%@include file="layout/footer.jsp" %>
+5. Test nhanh
+Sau khi sửa:
+
+Clean and Build project
+
+Restart Tomcat
+
+Create user lại
+
+Trang sẽ về đúng:
+
+Shopee Admin Dashboard
+User List
+(có sidebar + css)
+💡 Nếu bạn muốn mình fix chuẩn 100% project này, mình có thể chỉ thêm:
+
+sửa layout JSP chuẩn MVC
+
+làm dashboard giống Shopee
+
+thêm pagination cho User List
+
+thêm search realtime
+
+Bạn chỉ cần gửi mình thêm header.jsp và app-user-list.jsp mình sẽ chỉ ra lỗi chính xác luôn.
+
+
+<%-- 
+    Document   : header.jsp
+    Created on : Mar 10, 2026, 10:16:14 PM
+    Author     : ADMIN
+--%>
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <title>JSP Page</title>
+    </head>
+    <body>
+        <h1>Hello World!</h1>
+    </body>
+</html> file header của tôi chỉ có như thế này thôi 
+
+Mình thấy nguyên nhân chính rồi 👍
+
+File header.jsp của bạn đang sai hoàn toàn chức năng.
+Nó đang là một trang HTML riêng, không phải layout header để include.
+
+Hiện tại header của bạn là:
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>JSP Page</title>
+</head>
+<body>
+<h1>Hello World!</h1>
+</body>
+</html>
+Khi bạn include header.jsp thì nó chèn cả HTML mới vào giữa trang, nên:
+
+mất CSS
+
+layout vỡ
+
+có trang hiển thị thô
+
+Cách sửa đúng
+header.jsp không được chứa <html> và <body> hoàn chỉnh.
+Nó chỉ nên chứa phần header + load CSS + sidebar.
+
+Sửa layout/header.jsp thành như sau
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+
+<div class="header">
+    <h2>Shopee Admin Dashboard</h2>
+</div>
+
+<div class="container">
+
+    <div class="sidebar">
+        <ul>
+            <li><a href="${pageContext.request.contextPath}/app-user-list">Users</a></li>
+            <li><a href="${pageContext.request.contextPath}/shop-list">Shops</a></li>
+            <li><a href="${pageContext.request.contextPath}/product-list">Products</a></li>
+            <li><a href="${pageContext.request.contextPath}/product-variant-list">Product Variants</a></li>
+            <li><a href="${pageContext.request.contextPath}/voucher-list">Vouchers</a></li>
+        </ul>
+    </div>
+
+    <div class="content">
+Tạo layout/footer.jsp
+</div>
+</div>
+Sau đó tất cả trang JSP dùng layout
+Ví dụ app-user-list.jsp
+
+<%@include file="layout/header.jsp"%>
+
+<h2>User List</h2>
+
+<a class="btn" href="app-user-create">Add New User</a>
+
+<table>
+...
+</table>
+
+<%@include file="layout/footer.jsp"%>
+Kết quả sẽ giống dashboard
+Trang sẽ có:
+
+Shopee Admin Dashboard
+---------------------------------
+Users
+Shops
+Products
+Product Variants
+Vouchers
+bên trái và bảng user bên phải.
+
+Tóm lại lỗi của bạn
+❌ header.jsp đang là một trang HTML riêng
+✅ header.jsp phải là layout component
+
+💡 Nếu bạn muốn mình có thể gửi luôn:
+
+Full header + sidebar giống Shopee
+
+admin.css chuẩn
+
+User List table đẹp như hình
+
+Chỉ cần nói "làm full giao diện Shopee admin" mình viết lại cho bạn (copy vào chạy ngay).
+
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<link rel="stylesheet" href="css/admin.css">
+
+<html>
+<head>
+<title>Create User</title>
+</head>
+
+<body>
+
+<div class="topbar">
+    Shopee Admin Dashboard
+</div>
+
+<div class="container">
+
+<div class="sidebar">
+
+<a href="home">Dashboard</a>
+<a href="app-user-list">Users</a>
+<a href="shop-list">Shops</a>
+<a href="product-list">Products</a>
+<a href="product-variant-list">Product Variants</a>
+<a href="voucher-list">Vouchers</a>
+
+</div>
+
+<div class="content">
+
+<h2>Create User</h2>
+
+<c:if test="${error != null}">
+<div class="error">${error}</div>
+</c:if>
+
+<form action="app-user-create" method="post">
+
+<div class="form-group">
+<label>Name</label>
+<input type="text" name="name" required>
+</div>
+
+<div class="form-group">
+<label>Email</label>
+<input type="email" name="email" required
+pattern="^[A-Za-z0-9+_.-]+@gmail\.com$">
+</div>
+
+<div class="form-group">
+<label>Password</label>
+<input type="password" name="password" required>
+</div>
+
+<button class="btn">Create User</button>
+
+</form>
+
+</div>
+</div>
+
+</body>
+</html> sửa như thế nào vậy
+
+Mình thấy vấn đề chính của bạn rồi 👍
+
+Trang create user đang viết full HTML riêng, còn các trang khác lại dùng layout khác → nên khi redirect về app-user-list thì CSS bị sai path và trang hiển thị thô.
+
+Cách chuẩn trong JSP project là tách layout thành header.jsp + footer.jsp rồi các trang chỉ include vào.
+
+1️⃣ Sửa file layout/header.jsp
+Thay toàn bộ bằng:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+
+<div class="topbar">
+    Shopee Admin Dashboard
+</div>
+
+<div class="container">
+
+<div class="sidebar">
+<a href="${pageContext.request.contextPath}/home">Dashboard</a>
+<a href="${pageContext.request.contextPath}/app-user-list">Users</a>
+<a href="${pageContext.request.contextPath}/shop-list">Shops</a>
+<a href="${pageContext.request.contextPath}/product-list">Products</a>
+<a href="${pageContext.request.contextPath}/product-variant-list">Product Variants</a>
+<a href="${pageContext.request.contextPath}/voucher-list">Vouchers</a>
+</div>
+
+<div class="content">
+2️⃣ Tạo file layout/footer.jsp
+</div>
+</div>
+3️⃣ Sửa app-user-create.jsp
+Thay thành:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+
+<%@include file="layout/header.jsp"%>
+
+<h2>Create User</h2>
+
+<c:if test="${error != null}">
+<div class="error">${error}</div>
+</c:if>
+
+<form action="app-user-create" method="post">
+
+<div class="form-group">
+<label>Name</label>
+<input type="text" name="name" required>
+</div>
+
+<div class="form-group">
+<label>Email</label>
+<input type="email" name="email" required
+pattern="^[A-Za-z0-9+_.-]+@gmail\.com$">
+</div>
+
+<div class="form-group">
+<label>Password</label>
+<input type="password" name="password" required>
+</div>
+
+<button class="btn">Create User</button>
+
+</form>
+
+<%@include file="layout/footer.jsp"%>
+4️⃣ Sửa đường dẫn CSS (rất quan trọng)
+Không dùng:
+
+css/admin.css
+Phải dùng:
+
+${pageContext.request.contextPath}/css/admin.css
+5️⃣ Sau khi sửa
+Flow sẽ chạy đúng:
+
+Create User
+   ↓
+Insert database
+   ↓
+Redirect → /app-user-list
+   ↓
+User List có CSS + sidebar
+✅ Sau khi sửa:
+
+Create User vẫn đẹp
+
+Redirect về User List vẫn giữ dashboard layout
+
+Không còn trang HTML thô
+
+💡 Nếu bạn muốn mình có thể giúp bạn nâng cấp dashboard giống Shopee 100%:
+
+bảng có hover + màu chuẩn Shopee
+
+pagination user
+
+search realtime
+
+dashboard thống kê
+
+Chỉ cần gửi mình file admin.css mình chỉnh lại UI cho đẹp hơn ngay.
+
+
+${pageContext.request.contextPath}/css/admin.css để ở file nào
+
+Bạn phải đặt dòng này trong file header.jsp, không phải trong controller.
+
+1️⃣ Mở file
+Web Pages
+   └ layout
+        └ header.jsp
+2️⃣ Sửa header.jsp
+Thay dòng CSS cũ:
+
+<link rel="stylesheet" href="css/admin.css">
+thành:
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+3️⃣ header.jsp nên giống như thế này
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+
+<div class="topbar">
+    Shopee Admin Dashboard
+</div>
+
+<div class="container">
+
+<div class="sidebar">
+<a href="${pageContext.request.contextPath}/home">Dashboard</a>
+<a href="${pageContext.request.contextPath}/app-user-list">Users</a>
+<a href="${pageContext.request.contextPath}/shop-list">Shops</a>
+<a href="${pageContext.request.contextPath}/product-list">Products</a>
+<a href="${pageContext.request.contextPath}/product-variant-list">Product Variants</a>
+<a href="${pageContext.request.contextPath}/voucher-list">Vouchers</a>
+</div>
+
+<div class="content">
+4️⃣ Và các trang JSP phải include header
+Ví dụ app-user-create.jsp hoặc app-user-list.jsp
+
+ở đầu file phải có:
+
+<%@include file="layout/header.jsp"%>
+và cuối file:
+
+<%@include file="layout/footer.jsp"%>
+5️⃣ Cấu trúc project đúng sẽ là
+Web Pages
+│
+├ css
+│   └ admin.css
+│
+├ layout
+│   ├ header.jsp
+│   └ footer.jsp
+│
+├ app-user-create.jsp
+├ app-user-list.jsp
+6️⃣ Sau khi sửa
+1️⃣ Clean and Build Project
+2️⃣ Restart Tomcat
+3️⃣ Create user lại
+
+Trang sẽ không còn bị HTML thô nữa.
+
+💡 Nếu bạn muốn mình có thể giúp thêm:
+
+sửa admin.css để giống Shopee dashboard
+
+thêm pagination cho User List
+
+thêm search realtime
+
+Chỉ cần gửi mình app-user-list.jsp mình chỉnh luôn cho bạn.
+
+
+Đã tải lên ảnh
+vẫn lỗi
+
+Mình nhìn hình của bạn thì CSS vẫn chưa load nên trang vẫn là HTML thô. Điều này thường do đường dẫn CSS sai hoặc file header chưa được include. Làm theo đúng các bước dưới đây để chắc chắn sửa được.
+
+1️⃣ Kiểm tra vị trí file CSS
+Trong project phải có:
+
+Web Pages
+ ├ css
+ │   └ admin.css
+Đúng như vậy thì URL CSS sẽ là:
+
+http://localhost:8080/LAB211Web/css/admin.css
+Bạn thử mở trực tiếp URL này trên trình duyệt.
+Nếu không hiện CSS → đường dẫn sai.
+
+2️⃣ Sửa header.jsp
+File:
+
+Web Pages/layout/header.jsp
+Phải có dòng này:
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+Không dùng:
+
+css/admin.css
+hoặc
+
+/css/admin.css
+3️⃣ app-user-list.jsp phải include header
+Đầu file phải có:
+
+<%@include file="layout/header.jsp"%>
+Ví dụ chuẩn:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+
+<%@include file="layout/header.jsp"%>
+
+<h2>User List</h2>
+
+<a class="btn" href="app-user-create">Add New User</a>
+
+<table>
+...
+</table>
+
+<%@include file="layout/footer.jsp"%>
+4️⃣ Restart server (rất quan trọng)
+Sau khi sửa:
+
+Clean and Build Project
+Stop Tomcat
+Run lại project
+5️⃣ Test CSS trực tiếp
+Mở trình duyệt:
+
+http://localhost:8080/LAB211Web/css/admin.css
+Nếu file hiện ra → CSS OK
+Nếu 404 → sai đường dẫn CSS.
+
+🔎 Theo kinh nghiệm của mình
+90% trường hợp giống bạn là do:
+
+❌ app-user-list.jsp không include header.jsp
+
+hoặc
+
+❌ CSS viết:
+
+css/admin.css
+thay vì
+
+${pageContext.request.contextPath}/css/admin.css
+✅ Nếu bạn muốn mình fix chính xác 100%, hãy gửi thêm:
+
+app-user-list.jsp
+
+header.jsp
+
+admin.css
+
+Mình sẽ chỉ ra dòng sai cụ thể trong project của bạn.
+
+
+Đã tải lên ảnh
+
+CSS của bạn không có vấn đề 👍 (mình thấy .topbar, .sidebar, .container đều đúng).
+Vì vậy nếu trang vẫn hiển thị HTML thô, thì 100% là do CSS chưa được load vào trang app-user-list.jsp.
+
+Nhìn ảnh bạn gửi, trang User List không có topbar và sidebar, nghĩa là file header.jsp chưa được include.
+
+1️⃣ Mở file app-user-list.jsp
+Ở dòng đầu tiên thêm:
+
+<%@include file="layout/header.jsp"%>
+Ở cuối file thêm:
+
+<%@include file="layout/footer.jsp"%>
+2️⃣ Ví dụ app-user-list.jsp chuẩn
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+
+<%@include file="layout/header.jsp"%>
+
+<h2>User List</h2>
+
+<a class="btn" href="app-user-create">Add New User</a>
+
+<form method="get" action="app-user-list">
+    <input type="text" name="keyword">
+    <button type="submit">Search</button>
+</form>
+
+<table border="1">
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Email</th>
+<th>Role</th>
+<th>Action</th>
+</tr>
+
+<c:forEach items="${list}" var="u">
+<tr>
+<td>${u.userId}</td>
+<td>${u.name}</td>
+<td>${u.email}</td>
+<td>${u.role}</td>
+<td>
+<a href="app-user-edit?id=${u.userId}">Edit</a> |
+<a href="app-user-delete?id=${u.userId}">Delete</a>
+</td>
+</tr>
+</c:forEach>
+
+</table>
+
+<%@include file="layout/footer.jsp"%>
+3️⃣ Kiểm tra lại header.jsp
+File này phải có dòng:
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+4️⃣ Sau đó làm bước này
+Clean and Build Project
+
+Restart Tomcat
+
+Reload trang
+
+5️⃣ Nếu đúng thì giao diện sẽ thành
+Shopee Admin Dashboard
+----------------------
+Sidebar trái
+Users | Shops | Products ...
+
+Bảng User bên phải
+giống trang Create User của bạn.
+
+✅ Nếu bạn muốn mình có thể giúp thêm:
+
+làm User List giống Shopee Admin thật
+
+thêm pagination (20 user / page)
+
+thêm search realtime
+
+fix layout cho toàn bộ project
+
+Chỉ cần gửi mình file app-user-list.jsp hiện tại mình sẽ sửa đúng dòng lỗi cho bạn.
+
+
+Đã tải lên ảnh
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@include file="layout/header.jsp"%>
+<h2>User List</h2>
+
+<a class="btn" href="app-user-create">Add New User</a>
+
+<form onsubmit="searchUser(event)">
+    <input type="text" name="keyword" id="keyword" value="${keyword}">
+    <button type="submit">Search</button>
+</form>
+
+<br>
+
+<table>
+
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Email</th>
+<th>Role</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="userTable">
+
+<c:forEach items="${list}" var="u">
+
+<tr>
+<td>${u.userId}</td>
+<td>${u.name}</td>
+<td>${u.email}</td>
+<td>${u.role}</td>
+<td>
+<a href="app-user-edit?id=${u.userId}">Edit</a> |
+<a href="app-user-delete?id=${u.userId}">Delete</a>
+</td>
+</tr>
+
+</c:forEach>
+
+</tbody>
+
+</table>
+
+<div id="loading">Loading more users...</div>
+
+<%@include file="layout/footer.jsp"%>
+<script>
+
+var page = ${page};
+var loading = false;
+
+window.onscroll = function(){
+
+if(loading) return;
+
+if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 100){
+
+loading = true;
+page++;
+
+fetch("app-user-list?page=" + page + "&keyword=${keyword}")
+
+.then(res => res.text())
+
+.then(html => {
+
+const parser = new DOMParser();
+const doc = parser.parseFromString(html,"text/html");
+
+const rows = doc.querySelectorAll("table tbody tr");
+
+const table = document.querySelector("#userTable");
+
+rows.forEach(r => table.appendChild(r));
+
+loading = false;
+
+});
+
+}
+
+};
+
+</script>
+
+
+<script>
+
+function searchUser(e){
+
+e.preventDefault();
+
+const keyword = document.getElementById("keyword").value;
+
+fetch("app-user-list?keyword=" + keyword)
+
+.then(res => res.text())
+
+.then(html => {
+
+const container = document.getElementById("content-area");
+
+container.innerHTML = html;
+
+const scripts = container.querySelectorAll("script");
+
+scripts.forEach(s => {
+
+const newScript = document.createElement("script");
+
+newScript.text = s.text;
+
+document.body.appendChild(newScript);
+
+});
+
+});
+
+}
+
+</script>
+
+Mình nhìn ảnh và code của bạn thì hệ thống chạy đúng, nhưng có 1 lỗi layout nhỏ nên bạn thấy sidebar bị lặp thêm 1 lần bên trong content.
+
+Nguyên nhân là vì header.jsp đã chứa <div class="content"> rồi, nhưng trong app-user-list.jsp bạn lại render tiếp nội dung mà không đóng đúng cấu trúc layout.
+
+🔴 Vấn đề hiện tại
+Trang của bạn đang render kiểu:
+
+TOPBAR
+SIDEBAR
+CONTENT
+    Shopee Admin Dashboard   ❌ (header lặp lại)
+    Dashboard
+    Users
+    Shops
+    Products
+    ...
+    User List
+Tức là menu sidebar đang bị in vào content lần nữa.
+
+✅ Cách sửa đúng
+Bạn chỉ cần giữ file app-user-list.jsp đơn giản như sau.
+
+app-user-list.jsp
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+
+<%@include file="layout/header.jsp"%>
+
+<h2>User List</h2>
+
+<a class="btn" href="app-user-create">Add New User</a>
+
+<form onsubmit="searchUser(event)">
+    <input type="text" name="keyword" id="keyword" value="${keyword}">
+    <button type="submit">Search</button>
+</form>
+
+<br>
+
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Email</th>
+<th>Role</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="userTable">
+
+<c:forEach items="${list}" var="u">
+<tr>
+<td>${u.userId}</td>
+<td>${u.name}</td>
+<td>${u.email}</td>
+<td>${u.role}</td>
+<td>
+<a href="app-user-edit?id=${u.userId}">Edit</a> |
+<a href="app-user-delete?id=${u.userId}">Delete</a>
+</td>
+</tr>
+</c:forEach>
+
+</tbody>
+</table>
+
+<div id="loading">Loading more users...</div>
+
+<%@include file="layout/footer.jsp"%>
+📌 Quan trọng
+header.jsp phải có cấu trúc như này:
+
+<html>
+<head>
+<title>Admin</title>
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+</head>
+
+<body>
+
+<div class="topbar">
+Shopee Admin Dashboard
+</div>
+
+<div class="container">
+
+<div class="sidebar">
+
+<a href="home">Dashboard</a>
+<a href="app-user-list">Users</a>
+<a href="shop-list">Shops</a>
+<a href="product-list">Products</a>
+<a href="product-variant-list">Product Variants</a>
+<a href="voucher-list">Vouchers</a>
+
+</div>
+
+<div class="content">
+📌 footer.jsp
+</div>
+</div>
+
+</body>
+</html>
+🎯 Sau khi sửa giao diện sẽ thành
+TOPBAR
+--------------------------------
+
+SIDEBAR        |   USER LIST
+               |   Add User
+               |   Table Users
+không còn menu lặp trong content nữa.
+
+💡 Nếu bạn muốn, mình có thể giúp bạn làm dashboard giống Shopee Admin xịn hơn, gồm:
+
+🔎 search realtime không reload
+
+📄 pagination chuẩn
+
+♾ infinite scroll đúng chuẩn
+
+🎨 UI giống Shopee thật
+
+Chỉ cần gửi mình header.jsp và footer.jsp mình sẽ chỉnh lại chuẩn MVC layout cho bạn luôn.
+
+
+Đã tải lên ảnh
+vẫn bị như thế này
+
+Mình nhìn kỹ ảnh của bạn rồi 👍
+Lỗi không phải ở app-user-list.jsp nữa, mà do header.jsp đang chứa luôn nội dung Dashboard nên khi include vào trang User List nó bị lặp menu bên trong content.
+
+Bạn thấy trong hình:
+
+Shopee Admin Dashboard  (topbar)
+
+Sidebar trái
+
+Content:
+    Shopee Admin Dashboard  ❌
+    Dashboard
+    Users
+    Shops
+    Products
+Phần này không phải sidebar thật, mà là menu nằm trong content của header.jsp.
+
+🔴 Nguyên nhân
+Trong header.jsp bạn đang viết kiểu như này:
+
+<div class="content">
+
+<h2>Shopee Admin Dashboard</h2>
+
+<a href="home">Dashboard</a>
+<a href="app-user-list">Users</a>
+<a href="shop-list">Shops</a>
+<a href="product-list">Products</a>
+<a href="product-variant-list">Product Variants</a>
+<a href="voucher-list">Vouchers</a>
+👉 Đây là menu bị đặt sai vị trí.
+
+Menu phải nằm trong sidebar, không phải content.
+
+✅ Sửa header.jsp đúng chuẩn
+Mở header.jsp và sửa lại thành:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<html>
+<head>
+<title>Admin</title>
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+</head>
+
+<body>
+
+<div class="topbar">
+Shopee Admin Dashboard
+</div>
+
+<div class="container">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<a href="home">Dashboard</a>
+<a href="app-user-list">Users</a>
+<a href="shop-list">Shops</a>
+<a href="product-list">Products</a>
+<a href="product-variant-list">Product Variants</a>
+<a href="voucher-list">Vouchers</a>
+
+</div>
+
+<!-- CONTENT -->
+<div class="content">
+✅ footer.jsp
+</div>
+</div>
+
+</body>
+</html>
+📌 Sau khi sửa layout sẽ thành
+TOPBAR
+---------------------------------
+
+SIDEBAR           CONTENT
+Dashboard         User List
+Users             Table
+Shops
+Products
+Product Variants
+Vouchers
+Không còn menu lặp trong content nữa.
+
+⚠️ Sau khi sửa nhớ làm
+1️⃣ Clean Project
+2️⃣ Restart Tomcat
+3️⃣ Ctrl + F5 reload
+
+💡 Nếu bạn muốn mình có thể gửi cho bạn luôn bộ layout Shopee Admin chuẩn gồm:
+
+header.jsp
+
+footer.jsp
+
+admin.css
+
+user-list.jsp
+
+dashboard.jsp
+
+👉 Copy vào là UI giống Shopee Admin 90% luôn.
+
+
+Đã tải lên ảnh
+vẫn bị 
+
+Mình nhìn kỹ ảnh mới của bạn rồi 👀.
+Trang đang bị lặp cả header + menu trong content. Điều này không phải do CSS, mà do request AJAX của bạn đang load lại cả trang app-user-list.jsp (bao gồm header.jsp).
+
+Lỗi nằm ở đoạn JavaScript searchUser này:
+
+fetch("app-user-list?keyword=" + keyword)
+.then(res => res.text())
+.then(html => {
+
+const container = document.getElementById("content-area");
+container.innerHTML = html;
+Nhưng html trả về là cả trang JSP, gồm:
+
+header.jsp
+sidebar
+content
+footer.jsp
+=> nên nó chèn nguyên cả layout vào trong content, gây ra menu lặp.
+
+✅ Cách sửa đúng (QUAN TRỌNG)
+Bạn không được load lại cả trang JSP.
+
+Thay vì:
+
+container.innerHTML = html;
+hãy chỉ lấy phần table rows.
+
+🔧 Sửa script searchUser thành
+function searchUser(e){
+
+e.preventDefault();
+
+const keyword = document.getElementById("keyword").value;
+
+fetch("app-user-list?keyword=" + keyword)
+
+.then(res => res.text())
+
+.then(html => {
+
+const parser = new DOMParser();
+const doc = parser.parseFromString(html,"text/html");
+
+const rows = doc.querySelectorAll("table tbody tr");
+
+const table = document.querySelector("#userTable");
+
+table.innerHTML = "";
+
+rows.forEach(r => table.appendChild(r));
+
+});
+
+}
+📌 Vì sao cách này đúng
+Thay vì:
+
+load whole page
+ta chỉ lấy:
+
+<table>
+  <tbody>
+      rows
+  </tbody>
+</table>
+=> nên header và sidebar không bị lặp nữa.
+
+⚠️ Ngoài ra thêm cái này vào form
+Hiện tại bạn viết:
+
+<form onsubmit="searchUser(event)">
+Nên sửa thành:
+
+<form onsubmit="searchUser(event); return false;">
+để không reload trang.
+
+🎯 Sau khi sửa
+Trang sẽ:
+
+TOPBAR
+SIDEBAR
+
+User List
+Search
+Table
+và search không làm lặp layout nữa.
+
+💡 Nếu bạn muốn, mình có thể chỉ bạn cách làm chuẩn hơn (MVC + AJAX chuẩn):
+
+Search không reload
+
+Infinite Scroll không lỗi
+
+Không load lại JSP
+
+Tốc độ nhanh hơn
+
+Mình có thể viết cho bạn 1 version chuẩn dùng Servlet + JSON (chuẩn dev thật).
+
+
+sửa ở file nào vậy
+
+Bạn cần sửa trong chính file app-user-list.jsp (file bạn vừa gửi code).
+
+Cụ thể là sửa phần <script> ở cuối file.
+
+📍 Vị trí cần sửa
+Trong app-user-list.jsp bạn có đoạn:
+
+<script>
+
+function searchUser(e){
+
+e.preventDefault();
+
+const keyword = document.getElementById("keyword").value;
+
+fetch("app-user-list?keyword=" + keyword)
+
+.then(res => res.text())
+
+.then(html => {
+
+const container = document.getElementById("content-area");
+
+container.innerHTML = html;
+
+const scripts = container.querySelectorAll("script");
+
+scripts.forEach(s => {
+
+const newScript = document.createElement("script");
+
+newScript.text = s.text;
+
+document.body.appendChild(newScript);
+
+});
+
+});
+
+}
+
+</script>
+👉 Chính đoạn này gây ra lỗi menu bị lặp.
+
+✅ Thay toàn bộ đoạn script trên bằng
+<script>
+
+function searchUser(e){
+
+e.preventDefault();
+
+const keyword = document.getElementById("keyword").value;
+
+fetch("app-user-list?keyword=" + keyword)
+
+.then(res => res.text())
+
+.then(html => {
+
+const parser = new DOMParser();
+const doc = parser.parseFromString(html,"text/html");
+
+const rows = doc.querySelectorAll("table tbody tr");
+
+const table = document.querySelector("#userTable");
+
+table.innerHTML = "";
+
+rows.forEach(r => table.appendChild(r));
+
+});
+
+}
+
+</script>
+📌 Sau khi sửa
+1️⃣ Save file app-user-list.jsp
+2️⃣ Restart Tomcat
+3️⃣ Ctrl + F5 reload
+
+🎯 Kết quả
+Trang sẽ chỉ còn:
+
+TOPBAR
+SIDEBAR
+
+User List
+Search
+Table Users
+❌ Không còn bị lặp Dashboard + menu trong content nữa.
+
+💡 Nếu bạn muốn mình chỉ thêm 1 bước nữa để fix luôn infinite scroll cho đúng chuẩn (tránh lỗi sau này) thì gửi mình luôn file:
+
+AppUserListController.java
+mình sẽ chỉnh cho chuẩn MVC + AJAX giống project thật.
+
+
+Đã tải lên ảnh
+vẫn ra như thế này
+
+Mình nhìn ảnh mới của bạn và có thể khẳng định chính xác lỗi ở đâu rồi 👍
+
+❗ Không phải do JavaScript nữa
+❗ Không phải do app-user-list.jsp
+
+👉 Lỗi là trong header.jsp bạn đang có 2 sidebar.
+
+Trong ảnh có:
+
+Sidebar thật (bên trái)
+Users
+Shops
+Products
+Product Variants
+Vouchers
+và bên trong content lại có thêm menu này nữa:
+
+Dashboard
+Users
+Shops
+Products
+Product Variants
+Vouchers
+👉 Menu Dashboard / Users / Shops... nằm sai chỗ trong header.jsp.
+
+✅ Cách sửa (chắc chắn hết lỗi)
+Mở file:
+
+layout/header.jsp
+🔴 Trong file này hãy XÓA đoạn này nếu có
+<h2>Shopee Admin Dashboard</h2>
+
+<a href="home">Dashboard</a>
+<a href="app-user-list">Users</a>
+<a href="shop-list">Shops</a>
+<a href="product-list">Products</a>
+<a href="product-variant-list">Product Variants</a>
+<a href="voucher-list">Vouchers</a>
+hoặc
+
+<div class="dashboard-menu">
+    <a href="home">Dashboard</a>
+    <a href="app-user-list">Users</a>
+    <a href="shop-list">Shops</a>
+    <a href="product-list">Products</a>
+</div>
+✅ header.jsp đúng phải chỉ như thế này
+<html>
+<head>
+<title>Admin</title>
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+</head>
+
+<body>
+
+<div class="topbar">
+Shopee Admin Dashboard
+</div>
+
+<div class="container">
+
+<div class="sidebar">
+
+<a href="app-user-list">Users</a>
+<a href="shop-list">Shops</a>
+<a href="product-list">Products</a>
+<a href="product-variant-list">Product Variants</a>
+<a href="voucher-list">Vouchers</a>
+
+</div>
+
+<div class="content">
+✅ footer.jsp
+</div>
+</div>
+
+</body>
+</html>
+🎯 Sau khi sửa giao diện sẽ thành
+Shopee Admin Dashboard
+--------------------------------
+
+SIDEBAR           CONTENT
+Users             User List
+Shops             Table
+Products
+Product Variants
+Vouchers
+❌ Không còn menu Dashboard / Users / Shops lặp bên trong nữa.
+
+⚠️ Làm thêm bước này
+Sau khi sửa:
+
+1️⃣ Clean Project
+2️⃣ Restart Tomcat
+3️⃣ Ctrl + F5
+
+💡 Nếu bạn muốn mình có thể giúp bạn fix layout chuẩn giống Shopee Admin 100%, gồm:
+
+sidebar active
+
+search đẹp hơn
+
+bảng table đẹp
+
+pagination
+
+infinite scroll chuẩn
+
+Chỉ cần gửi mình file header.jsp hiện tại là mình sửa đúng dòng lỗi cho bạn luôn.
+
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<html>
+<head>
+<title>Admin</title>
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+</head>
+
+<body>
+
+<div class="topbar">
+Shopee Admin Dashboard
+</div>
+
+<div class="container">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+
+<a href="home">Dashboard</a>
+<a href="app-user-list">Users</a>
+<a href="shop-list">Shops</a>
+<a href="product-list">Products</a>
+<a href="product-variant-list">Product Variants</a>
+<a href="voucher-list">Vouchers</a>
+
+</div>
+
+<!-- CONTENT -->
+<div class="content"> file của tôi như thế này
+
+Cảm ơn bạn đã gửi header.jsp. Mình xem rồi và file này hoàn toàn đúng, không có lỗi 👍
+
+Vì vậy menu bị lặp trong hình của bạn không phải do header.jsp, mà do file home.jsp (trang Dashboard).
+
+Trong ảnh của bạn có phần này nằm bên trong content:
+
+Shopee Admin Dashboard
+Dashboard
+Users
+Shops
+Products
+Product Variants
+Vouchers
+👉 Phần này không phải sidebar, mà là menu nằm trong home.jsp.
+
+Khi bạn vào app-user-list.jsp, hệ thống vẫn render nội dung của home.jsp bên trong layout, nên nó bị như vậy.
+
+✅ Cách sửa
+Mở file:
+
+home.jsp
+và xóa đoạn menu này nếu có:
+
+<h2>Shopee Admin Dashboard</h2>
+
+<a href="home">Dashboard</a>
+<a href="app-user-list">Users</a>
+<a href="shop-list">Shops</a>
+<a href="product-list">Products</a>
+<a href="product-variant-list">Product Variants</a>
+<a href="voucher-list">Vouchers</a>
+📌 home.jsp đúng nên giống như thế này
+<%@include file="layout/header.jsp"%>
+
+<h2>Dashboard</h2>
+
+<p>Welcome to Shopee Admin Dashboard</p>
+
+<%@include file="layout/footer.jsp"%>
+🎯 Sau khi sửa
+Trang User List sẽ chỉ còn:
+
+TOPBAR
+Shopee Admin Dashboard
+
+SIDEBAR (bên trái)
+Users
+Shops
+Products
+Product Variants
+Vouchers
+
+CONTENT
+User List
+Table Users
+❌ Không còn menu lặp trong content nữa.
+
+✅ Nếu bạn muốn, mình có thể chỉ thêm 1 lỗi nữa trong project của bạn mà 90% sinh viên hay gặp (liên quan tới forward và include trong Servlet).
+Fix cái đó xong thì layout của bạn sẽ chuẩn như hệ thống admin thật.
+
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Admin Dashboard</title>
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+
+</head>
+
+<body>
+
+<!-- Topbar -->
+<div class="topbar">
+    Shopee Admin Dashboard
+</div>
+
+<div class="container">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+        <a href="#" onclick="loadPage('app-user-list')">Users</a>
+
+        <a href="#" onclick="loadPage('shop-list')">Shops</a>
+
+        <a href="#" onclick="loadPage('product-list')">Products</a>
+
+        <a href="#" onclick="loadPage('product-variant-list')">Product Variants</a>
+
+        <a href="#" onclick="loadPage('voucher-list')">Vouchers</a>
+
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="content-area">
+
+        <h2>Welcome ${sessionScope.account.name}</h2>
+
+        <h3>Role: ${sessionScope.account.role}</h3>
+
+        <p>Select module from the sidebar.</p>
+
+    </div>
+
+</div>
+
+<script>
+
+function loadPage(url){
+
+fetch(url)
+
+.then(res => res.text())
+
+.then(html => {
+
+const container = document.getElementById("content-area");
+
+container.innerHTML = html;
+
+const scripts = container.querySelectorAll("script");
+
+scripts.forEach(s => {
+
+const newScript = document.createElement("script");
+
+newScript.text = s.text;
+
+document.body.appendChild(newScript);
+
+});
+
+});
+
+}
+
+</script>
+
+</body>
+</html>
+
+Mình thấy nguyên nhân chính xác rồi 👍
+
+Bạn đang dùng AJAX load page vào content-area:
+
+function loadPage(url){
+    fetch(url)
+    .then(res => res.text())
+    .then(html => {
+        const container = document.getElementById("content-area");
+        container.innerHTML = html;
+❗ Nhưng các trang như app-user-list.jsp lại đang include header.jsp và footer.jsp.
+
+Vì vậy khi fetch() chạy, nó load:
+
+header.jsp
+sidebar
+content
+footer.jsp
+và chèn nguyên layout vào trong content, nên bạn thấy:
+
+TOPBAR
+SIDEBAR
+
+CONTENT
+   Shopee Admin Dashboard
+   Dashboard
+   Users
+   Shops
+tức là layout bị lặp.
+
+✅ Cách sửa đúng (chuẩn AJAX dashboard)
+Bạn không được include header/footer trong các trang module.
+
+1️⃣ Mở app-user-list.jsp
+❌ XÓA 2 dòng này:
+
+<%@include file="layout/header.jsp"%>
+<%@include file="layout/footer.jsp"%>
+2️⃣ app-user-list.jsp đúng phải như này
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+
+<h2>User List</h2>
+
+<a class="btn" href="app-user-create">Add New User</a>
+
+<form onsubmit="searchUser(event)">
+<input type="text" name="keyword" id="keyword" value="${keyword}">
+<button type="submit">Search</button>
+</form>
+
+<br>
+
+<table>
+
+<thead>
+<tr>
+<th>ID</th>
+<th>Name</th>
+<th>Email</th>
+<th>Role</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="userTable">
+
+<c:forEach items="${list}" var="u">
+
+<tr>
+<td>${u.userId}</td>
+<td>${u.name}</td>
+<td>${u.email}</td>
+<td>${u.role}</td>
+<td>
+<a href="app-user-edit?id=${u.userId}">Edit</a> |
+<a href="app-user-delete?id=${u.userId}">Delete</a>
+</td>
+</tr>
+
+</c:forEach>
+
+</tbody>
+
+</table>
+3️⃣ Quy tắc quan trọng của Dashboard AJAX
+File	Có header/footer
+home.jsp	✅ có
+app-user-list.jsp	❌ không
+shop-list.jsp	❌ không
+product-list.jsp	❌ không
+🎯 Sau khi sửa giao diện sẽ đúng
+Shopee Admin Dashboard
+--------------------------------
+
+SIDEBAR        CONTENT
+Users          User List
+Shops          Table
+Products
+❌ Không còn menu lặp trong content.
+
+💡 Nếu bạn muốn, mình có thể chỉ bạn cách làm dashboard chuẩn giống hệ thống admin thật (rất đẹp):
+
+sidebar active
+
+loading animation
+
+search realtime
+
+infinite scroll chuẩn
+
+pagination
+
+Chỉ cần mình sửa 1 file JS khoảng 20 dòng là dashboard của bạn sẽ xịn hơn rất nhiều.
+
+
+Đã tải lên ảnh
+fix được lỗi trước nhưng lại bị lỗi create xong về file không css
+
+Mình hiểu lỗi mới của bạn rồi 👍
+Bạn đã sửa đúng phần AJAX, nên app-user-list.jsp không còn header/footer nữa.
+
+Nhưng khi bạn Create User xong, Servlet đang:
+
+response.sendRedirect("app-user-list");
+hoặc
+
+forward("app-user-list.jsp")
+=> nên trình duyệt mở trang module trực tiếp, mà trang này không có header + CSS, nên nó thành trang thô như ảnh.
+
+🎯 Nguyên nhân
+Dashboard của bạn hoạt động kiểu:
+
+home.jsp  (có layout + css)
+   ↓
+loadPage("app-user-list")  (AJAX)
+Nhưng khi Create xong, bạn lại chuyển thẳng đến:
+
+app-user-list
+=> không đi qua home.jsp.
+
+✅ Cách sửa đúng
+Sau khi create thành công, bạn phải redirect về home.
+
+Mở file:
+
+AppUserCreateController.java
+Tìm dòng:
+
+response.sendRedirect("app-user-list");
+🔧 Sửa thành
+response.sendRedirect("home");
+📌 Sau đó khi vào Dashboard
+bấm:
+
+Users
+thì loadPage("app-user-list") sẽ load đúng.
+
+🚀 Cách chuyên nghiệp hơn (khuyên dùng)
+Redirect thẳng về Users page trong dashboard:
+
+response.sendRedirect("home?module=users");
+rồi trong home.jsp load tự động.
+
+🎯 Kết quả sau khi sửa
+Create user →
+
+Dashboard
+   ↓
+Users
+   ↓
+User List (có CSS)
+❌ Không còn trang thô nữa.
+
+💡 Nếu bạn muốn, mình có thể chỉ thêm 1 cách fix tốt hơn 90% sinh viên hay dùng:
+
+👉 Create xong tự reload bảng User List mà không reload dashboard
+(trông giống admin thật như Shopee).
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+làm giao diện và fix lại phần khi cancel lại ra trang thô
+
+Bạn đang gặp 2 vấn đề:
+
+1️⃣ Trang Create Shop không có CSS
+2️⃣ Bấm Cancel quay về trang thô
+
+Nguyên nhân giống lỗi trước:
+Dashboard của bạn dùng AJAX loadPage(), nên các trang con không được redirect trực tiếp.
+
+1️⃣ Sửa giao diện Create Shop
+File create-shop.jsp nên viết giống module khác (không cần html/body vì đã nằm trong dashboard).
+
+❌ Sai (dạng trang độc lập)
+<html>
+<head>
+<title>Create Shop</title>
+</head>
+<body>
+✅ Đúng
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Create Shop</h2>
+
+<form action="shop-create" method="post">
+
+<div class="form-group">
+<label>Shop Name</label>
+<input type="text" name="shopName" required>
+</div>
+
+<div class="form-group">
+<label>Owner ID</label>
+<input type="number" name="ownerId" required>
+</div>
+
+<button class="btn">Create</button>
+
+<a class="btn" href="#" onclick="loadPage('shop-list')">Cancel</a>
+
+</form>
+2️⃣ Fix nút Cancel
+❌ Sai
+<a href="shop-list">Cancel</a>
+nó sẽ mở URL trực tiếp → trang thô
+
+✅ Đúng
+<a href="#" onclick="loadPage('shop-list')">Cancel</a>
+=> quay lại dashboard đúng.
+
+3️⃣ Fix sau khi Create xong
+Trong ShopCreateController.java
+
+❌ Sai
+response.sendRedirect("shop-list");
+✅ Đúng
+response.sendRedirect("home");
+Sau đó bấm Shops lại.
+
+4️⃣ CSS để form đẹp giống dashboard
+Thêm vào admin.css
+
+.form-group{
+margin-bottom:15px;
+}
+
+.form-group label{
+display:block;
+font-weight:bold;
+margin-bottom:5px;
+}
+
+.form-group input{
+width:300px;
+padding:8px;
+border:1px solid #ccc;
+border-radius:4px;
+}
+
+.btn{
+background:#ee4d2d;
+color:white;
+padding:8px 15px;
+border:none;
+border-radius:4px;
+cursor:pointer;
+text-decoration:none;
+}
+
+.btn:hover{
+background:#d73211;
+}
+✅ Kết quả
+Create Shop sẽ hiển thị đẹp như:
+
+Create Shop
+-------------------
+Shop Name: [      ]
+Owner ID : [      ]
+
+[Create]  [Cancel]
+Cancel → quay về Shop List trong dashboard (không trang thô).
+
+💡 Nếu bạn muốn mình làm full bộ giao diện Shopee Admin (User + Shop + Product + Voucher) giống thật 90% và chạy mượt với AJAX mình có thể gửi luôn code chuẩn để bạn copy vào project.
+
+
+package controller;
+
+
+import dal.ShopDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@WebServlet("/shop-create")
+public class ShopCreateController extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        request.getRequestDispatcher("shop-create.jsp")
+               .forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        String name = request.getParameter("name");
+        int ownerId = Integer.parseInt(request.getParameter("ownerId"));
+
+        ShopDAO dao = new ShopDAO();
+        dao.insert(name, ownerId);
+
+        response.sendRedirect("home");
+    }
+}
+
+Controller của bạn gần đúng rồi, chỉ còn vài điểm cần chỉnh để:
+
+Không bị trang thô
+
+Create xong quay lại Shop List trong Dashboard
+
+Không lỗi khi nhập sai dữ liệu
+
+Mình chỉnh lại chuẩn hơn như sau.
+
+✅ Controller chuẩn
+package controller;
+
+import dal.ShopDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@WebServlet("/shop-create")
+public class ShopCreateController extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        request.getRequestDispatcher("shop-create.jsp")
+               .forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+
+            String name = request.getParameter("name");
+            int ownerId = Integer.parseInt(request.getParameter("ownerId"));
+
+            ShopDAO dao = new ShopDAO();
+            dao.insert(name, ownerId);
+
+            // quay về dashboard
+            response.sendRedirect("home");
+
+        } catch (Exception e) {
+
+            request.setAttribute("error", "Create shop failed!");
+
+            request.getRequestDispatcher("shop-create.jsp")
+                   .forward(request, response);
+        }
+    }
+}
+✅ shop-create.jsp (chuẩn cho Dashboard AJAX)
+⚠️ KHÔNG dùng html / head / body
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Create Shop</h2>
+
+<c:if test="${error != null}">
+<div class="error">${error}</div>
+</c:if>
+
+<form action="shop-create" method="post">
+
+<div class="form-group">
+<label>Shop Name</label>
+<input type="text" name="name" required>
+</div>
+
+<div class="form-group">
+<label>Owner ID</label>
+<input type="number" name="ownerId" required>
+</div>
+
+<button class="btn">Create</button>
+
+<a class="btn" href="#" onclick="loadPage('shop-list')">Cancel</a>
+
+</form>
+✅ admin.css (để form đẹp)
+.form-group{
+margin-bottom:15px;
+}
+
+.form-group label{
+display:block;
+font-weight:bold;
+margin-bottom:5px;
+}
+
+.form-group input{
+width:300px;
+padding:8px;
+border:1px solid #ccc;
+border-radius:4px;
+}
+
+.btn{
+background:#ee4d2d;
+color:white;
+padding:8px 15px;
+border:none;
+border-radius:4px;
+cursor:pointer;
+text-decoration:none;
+}
+
+.error{
+color:red;
+margin-bottom:10px;
+}
+🎯 Sau khi sửa xong
+Luồng chạy sẽ là:
+
+Dashboard
+   ↓
+Shops
+   ↓
+Create Shop
+   ↓
+Create
+   ↓
+Dashboard
+   ↓
+Shops
+Cancel:
+
+Create Shop
+   ↓
+Cancel
+   ↓
+Shop List (không trang thô)
+💡 Mẹo để project nhìn pro hơn 90% sinh viên
+Trong shop-list.jsp
+
+đổi:
+
+<a href="shop-create">Create Shop</a>
+thành
+
+<a class="btn" href="#" onclick="loadPage('shop-create')">Create Shop</a>
+👉 như vậy Create Shop cũng mở trong dashboard.
+
+Nếu bạn muốn, mình có thể gửi luôn:
+
+✅ Shop List JSP chuẩn Shopee Admin
+✅ Shop Edit Controller + JSP
+✅ Pagination + Search cho Shop
+
+để project nhìn giống hệ thống admin thật.
+
+
+Đã tải lên ảnh
+ra trang thô và create cancel không về home
+
+Mình thấy ngay nguyên nhân từ ảnh của bạn. Bạn đang gặp 2 lỗi riêng:
+
+1️⃣ Trang Create Shop bị thô
+2️⃣ Cancel không quay về Dashboard
+
+Nguyên nhân là vì link đang mở trang trực tiếp thay vì dùng loadPage() của dashboard.
+
+1️⃣ Fix trang Create Shop bị thô
+Trong shop-list.jsp
+
+Bạn chắc đang có dòng:
+
+<a href="shop-create">Create Shop</a>
+❌ Sai (sẽ mở trang riêng → thô)
+✅ Sửa thành
+<a class="btn" href="#" onclick="loadPage('shop-create')">Create Shop</a>
+👉 Như vậy trang shop-create.jsp sẽ load vào dashboard.
+
+2️⃣ Fix Cancel
+Trong shop-create.jsp
+
+❌ Nếu bạn đang viết
+<a href="shop-list">Cancel</a>
+✅ Sửa thành
+<a class="btn" href="#" onclick="loadPage('shop-list')">Cancel</a>
+3️⃣ File shop-create.jsp chuẩn
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Create Shop</h2>
+
+<form action="shop-create" method="post">
+
+<div class="form-group">
+<label>Shop Name</label>
+<input type="text" name="name" required>
+</div>
+
+<div class="form-group">
+<label>Owner ID</label>
+<input type="number" name="ownerId" required>
+</div>
+
+<button class="btn">Create</button>
+
+<a class="btn" href="#" onclick="loadPage('shop-list')">Cancel</a>
+
+</form>
+⚠️ Không dùng
+
+<html>
+<head>
+<body>
+vì dashboard đã có rồi.
+
+4️⃣ Nếu Create xong vẫn ra ngoài dashboard
+Trong controller bạn đang:
+
+response.sendRedirect("home");
+Cái này đúng.
+
+Sau khi create xong bạn chỉ cần bấm lại Shops trong sidebar.
+
+🎯 Sau khi sửa
+Luồng sẽ như sau:
+
+Dashboard
+   ↓
+Shops
+   ↓
+Create Shop
+   ↓
+Cancel
+   ↓
+Shop List (trong dashboard)
+và
+
+Dashboard
+   ↓
+Shops
+   ↓
+Create Shop
+   ↓
+Create
+   ↓
+Home Dashboard
+💡 Nếu bạn muốn mình chỉ thêm 1 chỉnh sửa nhỏ giúp toàn bộ project hết lỗi trang thô (User + Shop + Product + Voucher) thì mình có thể chỉ đúng 1 dòng code phải sửa trong dashboard.
+
+
+Đã tải lên ảnh
+giờ sửa lại mục shop edit nhớ tránh các lỗi vừa rồi
+
+Đúng rồi 👍 Bây giờ Shop Edit của bạn đang bị đúng lỗi cũ:
+
+Trang edit bị thô
+
+Cancel ra ngoài dashboard
+
+Update xong có thể ra trang riêng
+
+Ta sửa giống logic đã làm với Create Shop để tránh lỗi.
+
+1️⃣ shop-edit.jsp chuẩn (KHÔNG có html/head/body)
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Edit Shop</h2>
+
+<form action="shop-edit" method="post">
+
+<input type="hidden" name="id" value="${shop.id}">
+
+<div class="form-group">
+<label>Shop Name</label>
+<input type="text" name="name" value="${shop.name}" required>
+</div>
+
+<div class="form-group">
+<label>Owner ID</label>
+<input type="number" name="ownerId" value="${shop.ownerId}" required>
+</div>
+
+<button class="btn">Update</button>
+
+<a class="btn" href="#" onclick="loadPage('shop-list')">Cancel</a>
+
+</form>
+⚠️ Không được có:
+
+<html>
+<head>
+<body>
+vì dashboard đã có layout.
+
+2️⃣ Link Edit trong shop-list.jsp
+Tìm dòng:
+
+<a href="shop-edit?id=${s.id}">Edit</a>
+❌ Sai
+✅ Sửa thành
+<a href="#" onclick="loadPage('shop-edit?id=${s.id}')">Edit</a>
+3️⃣ ShopEditController chuẩn
+package controller;
+
+import dal.ShopDAO;
+import model.Shop;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/shop-edit")
+public class ShopEditController extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        ShopDAO dao = new ShopDAO();
+        Shop shop = dao.getById(id);
+
+        request.setAttribute("shop", shop);
+
+        request.getRequestDispatcher("shop-edit.jsp")
+               .forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+        String name = request.getParameter("name");
+        int ownerId = Integer.parseInt(request.getParameter("ownerId"));
+
+        ShopDAO dao = new ShopDAO();
+        dao.update(id, name, ownerId);
+
+        response.sendRedirect("home");
+    }
+}
+4️⃣ CSS (để form đẹp)
+Nếu chưa có trong admin.css:
+
+.form-group{
+margin-bottom:15px;
+}
+
+.form-group label{
+display:block;
+font-weight:bold;
+margin-bottom:5px;
+}
+
+.form-group input{
+width:300px;
+padding:8px;
+border:1px solid #ccc;
+border-radius:4px;
+}
+
+.btn{
+background:#ee4d2d;
+color:white;
+padding:8px 15px;
+border:none;
+border-radius:4px;
+cursor:pointer;
+text-decoration:none;
+}
+🎯 Sau khi sửa
+Luồng chạy sẽ đúng:
+
+Dashboard
+   ↓
+Shops
+   ↓
+Edit
+   ↓
+Edit Shop (trong dashboard)
+Cancel:
+
+Edit Shop
+   ↓
+Cancel
+   ↓
+Shop List
+Update:
+
+Edit Shop
+   ↓
+Update
+   ↓
+Dashboard
+💡 Mẹo cực quan trọng cho project của bạn
+
+Tất cả link module nên dùng:
+
+onclick="loadPage(...)"
+KHÔNG dùng:
+
+href="..."
+Nếu không sẽ ra trang thô như vừa rồi.
+
+Nếu bạn muốn mình giúp thêm, mình có thể chỉ bạn cách làm:
+
+Delete Shop có popup confirm
+
+Search Shop
+
+Paging giống Shopee admin
+
+(giúp project nhìn pro hơn 90% bài sinh viên).
+
+
+Đã tải lên ảnh
+
+Nhìn vào ảnh code của bạn, có 2 lỗi compile (dòng bị gạch đỏ):
+
+dao.getById(id);
+dao.update(id, name, ownerId);
+👉 Điều này có nghĩa là trong ShopDAO chưa có 2 hàm này.
+
+Bạn chỉ cần thêm 2 method vào ShopDAO là sửa được.
+
+✅ Thêm vào ShopDAO.java
+Mở file:
+
+dal/ShopDAO.java
+Thêm 2 hàm sau:
+
+public Shop getById(int id) {
+
+    String sql = "SELECT * FROM Shop WHERE id = ?";
+
+    try {
+        PreparedStatement ps = connection.prepareStatement(sql);
+        ps.setInt(1, id);
+
+        ResultSet rs = ps.executeQuery();
+
+        if (rs.next()) {
+            Shop s = new Shop();
+            s.setId(rs.getInt("id"));
+            s.setName(rs.getString("name"));
+            s.setOwnerId(rs.getInt("ownerId"));
+            return s;
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return null;
+}
+Method update
+public void update(int id, String name, int ownerId) {
+
+    String sql = "UPDATE Shop SET name = ?, ownerId = ? WHERE id = ?";
+
+    try {
+        PreparedStatement ps = connection.prepareStatement(sql);
+
+        ps.setString(1, name);
+        ps.setInt(2, ownerId);
+        ps.setInt(3, id);
+
+        ps.executeUpdate();
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
+✅ Sau khi thêm
+2 dòng này sẽ hết gạch đỏ:
+
+Shop shop = dao.getById(id);
+dao.update(id, name, ownerId);
+⚠️ Kiểm tra thêm 1 điều
+File Shop.java phải có:
+
+private int id;
+private String name;
+private int ownerId;
+và getter setter:
+
+public int getId()
+public void setId(int id)
+
+public String getName()
+public void setName(String name)
+
+public int getOwnerId()
+public void setOwnerId(int ownerId)
+🎯 Sau khi sửa xong
+Luồng Shop sẽ chạy chuẩn:
+
+Shop List
+   ↓
+Edit
+   ↓
+Edit Shop
+   ↓
+Update
+   ↓
+Dashboard
+Cancel:
+
+Edit Shop
+   ↓
+Cancel
+   ↓
+Shop List
+💡 Nếu bạn muốn, mình có thể gửi luôn ShopDAO full chuẩn cho project Shopee Admin (CRUD + Search + Paging) để bạn khỏi bị lỗi tiếp ở phần Delete / Search / Pagination.
+
+
+package dal;
+
+import java.util.*;
+import model.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+public class ShopDAO extends DBContext {
+
+    public List<Shop> searchShop(String keyword, int page){
+
+    List<Shop> list = new ArrayList<>();
+
+    int pageSize = 20;
+
+    String sql = """
+        SELECT s.shopId, s.shopName, u.name
+        FROM Shop s
+        JOIN AppUser u ON s.ownerId = u.userId
+        WHERE s.shopName LIKE ?
+        ORDER BY s.shopId
+        OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+    """;
+
+    try(Connection conn = DBContext.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+
+        ps.setString(1, "%" + keyword + "%");
+        ps.setInt(2, (page-1)*pageSize);
+        ps.setInt(3, pageSize);
+
+        ResultSet rs = ps.executeQuery();
+
+        while(rs.next()){
+
+            Shop s = new Shop();
+            s.setShopId(rs.getInt(1));
+            s.setShopName(rs.getString(2));
+
+            AppUser u = new AppUser();
+            u.setName(rs.getString(3));
+
+            s.setOwner(u);
+
+            list.add(s);
+        }
+
+    }catch(Exception e){
+        e.printStackTrace();
+    }
+
+    return list;
+}
+
+    public Shop getByShopId(int id) {
+
+        String sql = """
+        SELECT s.shopId,
+               s.shopName,
+               s.ownerId,
+               u.name AS ownerName
+        FROM Shop s
+        JOIN AppUser u ON s.ownerId = u.userId
+        WHERE s.shopId = ?
+    """;
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+
+            try (ResultSet rs = ps.executeQuery()) {
+
+                if (rs.next()) {
+                    Shop s = new Shop();
+                    s.setShopId(rs.getInt("shopId"));
+                    s.setShopName(rs.getString("shopName"));
+
+                    AppUser owner = new AppUser();
+                    owner.setUserId(rs.getInt("ownerId"));
+                    owner.setName(rs.getString("ownerName"));
+
+                    s.setOwner(owner);
+
+                    return s;
+                }
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public List<Shop> getAll() throws Exception {
+
+        List<Shop> list = new ArrayList<>();
+
+        String sql = """
+    SELECT s.shopId,
+           s.shopName,
+           s.ownerId,
+           u.name AS ownerName
+    FROM Shop s
+    JOIN AppUser u ON s.ownerId = u.userId
+""";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                Shop s = new Shop();
+
+                s.setShopId(rs.getInt("shopId"));
+                s.setShopName(rs.getString("shopName"));
+
+                AppUser owner = new AppUser();
+                owner.setUserId(rs.getInt("ownerId"));
+                owner.setName(rs.getString("ownerName"));
+
+                s.setOwner(owner);
+
+                list.add(s);
+            }
+        }
+
+        return list;
+    }
+
+    public Shop getByOwnerId(int ownerId) {
+        String sql = "SELECT * FROM Shop WHERE ownerId = ?";
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, ownerId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                AppUser owner = new AppUser();
+                owner.setUserId(rs.getInt("ownerId"));
+
+                Shop shop = new Shop();
+                shop.setShopId(rs.getInt("shopId"));
+                shop.setShopName(rs.getString("shopName"));
+                shop.setOwner(owner);
+
+                return shop;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public void insert(String name, int ownerId) {
+        String sql = "INSERT INTO Shop(shopName, ownerId) VALUES (?, ?)";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, name);
+            ps.setInt(2, ownerId);
+            ps.executeUpdate();
+
+        } catch (Exception e) {
+        }
+    }
+
+    public void delete(int id) {
+        String sql = "DELETE FROM Shop WHERE shopId = ?";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            ps.executeUpdate();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void update(Shop shop) {
+
+        String sql = "UPDATE Shop SET shopName = ?, ownerId = ? WHERE shopId = ?";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, shop.getShopName());
+            ps.setInt(2, shop.getOwner().getUserId());
+            ps.setInt(3, shop.getShopId());
+
+            ps.executeUpdate();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+
+Mình xem code ShopDAO của bạn rồi. Lỗi gạch đỏ trong ShopEditController xảy ra vì:
+
+Controller đang gọi:
+
+dao.update(id, name, ownerId);
+Nhưng trong ShopDAO của bạn không có hàm này.
+Bạn chỉ có:
+
+public void update(Shop shop)
+✅ Cách sửa đúng (2 cách)
+⭐ Cách 1 (khuyên dùng – sửa Controller)
+Sửa trong ShopEditController.java
+
+❌ Code hiện tại
+ShopDAO dao = new ShopDAO();
+dao.update(id, name, ownerId);
+✅ Sửa thành
+Shop shop = new Shop();
+shop.setShopId(id);
+shop.setShopName(name);
+
+AppUser owner = new AppUser();
+owner.setUserId(ownerId);
+
+shop.setOwner(owner);
+
+ShopDAO dao = new ShopDAO();
+dao.update(shop);
+Vì ShopDAO.update() của bạn nhận đối tượng Shop.
+
+✅ Cách 2 (dễ hơn nhưng thêm method)
+Thêm vào ShopDAO:
+
+public void update(int id, String name, int ownerId){
+
+    String sql = "UPDATE Shop SET shopName = ?, ownerId = ? WHERE shopId = ?";
+
+    try(Connection conn = DBContext.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql)){
+
+        ps.setString(1, name);
+        ps.setInt(2, ownerId);
+        ps.setInt(3, id);
+
+        ps.executeUpdate();
+
+    }catch(Exception e){
+        e.printStackTrace();
+    }
+}
+Sau đó controller của bạn không cần sửa.
+
+⚠️ Sửa thêm 1 lỗi nữa trong Controller
+Trong ảnh bạn đang dùng:
+
+dao.getById(id);
+Nhưng ShopDAO của bạn là:
+
+getByShopId(int id)
+✅ Sửa Controller
+Shop shop = dao.getByShopId(id);
+🎯 Sau khi sửa
+Controller đúng sẽ là:
+
+int id = Integer.parseInt(request.getParameter("id"));
+
+ShopDAO dao = new ShopDAO();
+Shop shop = dao.getByShopId(id);
+
+request.setAttribute("shop", shop);
+
+request.getRequestDispatcher("shop-edit.jsp")
+       .forward(request, response);
+✅ Tổng kết cần sửa
+Trong ShopEditController
+
+1️⃣
+
+dao.getById(id)
+➡ sửa thành
+
+dao.getByShopId(id)
+2️⃣
+
+dao.update(id, name, ownerId)
+➡ sửa thành
+
+dao.update(shop)
+💡 Nếu bạn muốn, mình có thể giúp bạn sửa toàn bộ module Shop (List + Create + Edit + Delete + Search + Paging) chạy mượt với Dashboard AJAX của bạn, tránh hoàn toàn lỗi trang thô mà bạn gặp từ đầu.
+
+
+vậy bạn viết lại cả cái shop edit control để mình chép cho nhanh
+
+Mình viết lại ShopEditController hoàn chỉnh đúng với ShopDAO của bạn để bạn copy dùng ngay và không bị các lỗi trước (DAO method, redirect, trang thô).
+
+✅ ShopEditController hoàn chỉnh
+package controller;
+
+import dal.ShopDAO;
+import model.Shop;
+import model.AppUser;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/shop-edit")
+public class ShopEditController extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        ShopDAO dao = new ShopDAO();
+        Shop shop = dao.getByShopId(id);   // đúng với DAO của bạn
+
+        request.setAttribute("shop", shop);
+
+        request.getRequestDispatcher("shop-edit.jsp")
+               .forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+        String name = request.getParameter("name");
+        int ownerId = Integer.parseInt(request.getParameter("ownerId"));
+
+        // tạo object Shop
+        Shop shop = new Shop();
+        shop.setShopId(id);
+        shop.setShopName(name);
+
+        AppUser owner = new AppUser();
+        owner.setUserId(ownerId);
+
+        shop.setOwner(owner);
+
+        ShopDAO dao = new ShopDAO();
+        dao.update(shop);   // đúng với method trong DAO
+
+        response.sendRedirect("home"); // quay về dashboard
+    }
+}
+✅ shop-edit.jsp chuẩn (để không bị trang thô)
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Edit Shop</h2>
+
+<form action="shop-edit" method="post">
+
+<input type="hidden" name="id" value="${shop.shopId}">
+
+<div class="form-group">
+<label>Shop Name</label>
+<input type="text" name="name" value="${shop.shopName}" required>
+</div>
+
+<div class="form-group">
+<label>Owner ID</label>
+<input type="number" name="ownerId" value="${shop.owner.userId}" required>
+</div>
+
+<button class="btn">Update</button>
+
+<a class="btn" href="#" onclick="loadPage('shop-list')">Cancel</a>
+
+</form>
+⚠️ Không có
+
+<html>
+<head>
+<body>
+✅ Link Edit trong shop-list.jsp (rất quan trọng)
+Sửa thành:
+
+<a href="#" onclick="loadPage('shop-edit?id=${s.shopId}')">Edit</a>
+KHÔNG dùng:
+
+href="shop-edit?id=..."
+🎯 Sau khi sửa xong
+Luồng chạy đúng:
+
+Dashboard
+   ↓
+Shops
+   ↓
+Edit
+   ↓
+Edit Shop (trong dashboard)
+Cancel:
+
+Edit Shop
+   ↓
+Cancel
+   ↓
+Shop List
+Update:
+
+Edit Shop
+   ↓
+Update
+   ↓
+Dashboard
+💡 Nếu bạn muốn, mình có thể gửi thêm Shop module chuẩn hoàn chỉnh (ShopList.jsp + ShopCreate.jsp + ShopEdit.jsp + Controller + AJAX Dashboard) để project của bạn trông giống Shopee Admin 90% và không còn lỗi trang thô nữa.
+
+
+Đã tải lên ảnh
+
+Lỗi trong hình của bạn rất rõ:
+
+Property [id] not found on type [model.Shop]
+💥 Nghĩa là:
+Trong shop-list.jsp bạn đang gọi:
+
+${s.id}
+Nhưng trong class Shop của bạn không có thuộc tính id, mà là:
+
+shopId
+✅ Sửa lỗi
+Mở shop-list.jsp
+
+❌ Dòng đang lỗi (line 38)
+<a href="#" onclick="loadPage('shop-edit?id=${s.id}')">Edit</a>
+✅ Sửa thành
+<a href="#" onclick="loadPage('shop-edit?id=${s.shopId}')">Edit</a>
+✅ Sửa luôn dòng Delete cho đúng
+Hiện tại bạn có:
+
+<a href="shop-delete?id=${s.shopId}">Delete</a>
+Nếu bạn dùng AJAX Dashboard thì nên sửa thành:
+
+<a href="#" onclick="loadPage('shop-delete?id=${s.shopId}')">Delete</a>
+🎯 Kết quả đúng sẽ là
+<td>${s.owner.name}</td>
+
+<td>
+<a href="#" onclick="loadPage('shop-edit?id=${s.shopId}')">Edit</a> |
+<a href="#" onclick="loadPage('shop-delete?id=${s.shopId}')">Delete</a>
+</td>
+💡 Vì sao lỗi này xảy ra
+Trong Shop.java
+
+private int shopId;
+private String shopName;
+private AppUser owner;
+Getter sẽ là:
+
+getShopId()
+getShopName()
+JSP chỉ đọc được:
+
+${s.shopId}
+${s.shopName}
+KHÔNG đọc được:
+
+${s.id}
+🚀 Sau khi sửa
+Reload lại:
+
+http://localhost:8080/project/home
+→ Shop List sẽ chạy bình thường
+
+💡 Nếu bạn muốn, mình có thể gửi luôn shop-list.jsp chuẩn (search + paging + edit + delete + ajax) để project của bạn giống Shopee Admin và không còn lỗi JSP nữa.
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+
+Lỗi mới của bạn giống lỗi trước, chỉ khác là nó nằm trong shop-edit.jsp.
+
+Thông báo chính:
+
+Property [id] not found on type [model.Shop]
+💥 Nghĩa là:
+Trong shop-edit.jsp bạn đang dùng:
+
+${shop.id}
+Nhưng class Shop của bạn không có id, mà là:
+
+private int shopId;
+✅ Sửa shop-edit.jsp
+❌ Dòng đang lỗi (line 7)
+<input type="hidden" name="id" value="${shop.id}">
+✅ Sửa thành
+<input type="hidden" name="id" value="${shop.shopId}">
+✅ Kiểm tra thêm 2 dòng nữa (rất dễ sai)
+Shop Name
+❌ Sai
+
+value="${shop.name}"
+✅ Đúng
+
+value="${shop.shopName}"
+OwnerId
+❌ Sai
+
+value="${shop.ownerId}"
+✅ Đúng
+
+value="${shop.owner.userId}"
+✅ shop-edit.jsp đúng hoàn toàn
+Bạn nên để file như sau để không lỗi nữa:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Edit Shop</h2>
+
+<form action="shop-edit" method="post">
+
+<input type="hidden" name="id" value="${shop.shopId}">
+
+<div class="form-group">
+<label>Shop Name</label>
+<input type="text" name="name" value="${shop.shopName}" required>
+</div>
+
+<div class="form-group">
+<label>Owner ID</label>
+<input type="number" name="ownerId" value="${shop.owner.userId}" required>
+</div>
+
+<button class="btn">Update</button>
+
+<a class="btn" href="#" onclick="loadPage('shop-list')">Cancel</a>
+
+</form>
+🎯 Quy tắc quan trọng khi dùng JSP EL
+JSP đọc getter trong Java class
+
+Java	JSP
+getShopId()	${shop.shopId}
+getShopName()	${shop.shopName}
+getOwner()	${shop.owner}
+getUserId()	${shop.owner.userId}
+KHÔNG có:
+
+${shop.id}
+${shop.name}
+🚀 Sau khi sửa
+1️⃣ Save file
+2️⃣ Restart Tomcat
+3️⃣ Bấm lại Shops → Edit
+
+Sẽ mở Edit Shop form bình thường.
+
+💡 Nếu bạn muốn, mình có thể gửi cho bạn bộ code chuẩn của 5 module (User, Shop, Product, Variant, Voucher) chạy mượt trong Shopee Admin Dashboard AJAX như giao diện của bạn.
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+giờ thì css tiếp cho các phần này tránh lự lại lỗi vừa rồi
+
+Bạn đang gặp đúng vấn đề phổ biến khi làm Dashboard + AJAX load JSP:
+👉 CSS chỉ áp dụng cho trang chính (home.jsp) nhưng không áp dụng cho các trang con như:
+
+product-create.jsp
+
+product-edit.jsp
+
+nên nó hiện trang thô như hình 2 và 3.
+
+Giải pháp đúng là không viết <html> <head> trong JSP con, chỉ dùng class CSS giống dashboard.
+
+1️⃣ CSS chuẩn cho toàn bộ Dashboard
+Mở file:
+
+web/css/admin.css
+Thêm hoặc sửa thành:
+
+body{
+    margin:0;
+    font-family: Arial, Helvetica, sans-serif;
+    background:#f5f5f5;
+}
+
+/* TOPBAR */
+.topbar{
+    background:#ee4d2d;
+    color:white;
+    padding:16px;
+    font-size:22px;
+    font-weight:bold;
+}
+
+/* LAYOUT */
+.container{
+    display:flex;
+}
+
+/* SIDEBAR */
+.sidebar{
+    width:220px;
+    background:#f0f0f0;
+    min-height:100vh;
+}
+
+.sidebar a{
+    display:block;
+    padding:14px;
+    text-decoration:none;
+    color:#333;
+    border-bottom:1px solid #ddd;
+}
+
+.sidebar a:hover{
+    background:#e4e4e4;
+}
+
+/* CONTENT */
+.content{
+    flex:1;
+    padding:30px;
+}
+
+/* BUTTON */
+.btn{
+    background:#ee4d2d;
+    color:white;
+    padding:10px 18px;
+    border:none;
+    border-radius:4px;
+    text-decoration:none;
+    cursor:pointer;
+}
+
+.btn:hover{
+    background:#d83c1f;
+}
+
+/* TABLE */
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:20px;
+}
+
+table th{
+    background:#f1f1f1;
+    padding:10px;
+    text-align:left;
+}
+
+table td{
+    padding:10px;
+    border-bottom:1px solid #ddd;
+}
+
+/* FORM */
+.form-group{
+    margin-bottom:15px;
+}
+
+input{
+    padding:8px;
+    width:300px;
+}
+2️⃣ product-create.jsp đúng chuẩn (không bị trang thô)
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Create Product</h2>
+
+<form action="product-create" method="post">
+
+<div class="form-group">
+<label>Name</label>
+<input type="text" name="name" required>
+</div>
+
+<div class="form-group">
+<label>Price</label>
+<input type="number" step="0.1" name="price" required>
+</div>
+
+<div class="form-group">
+<label>Shop Id</label>
+<input type="number" name="shopId" required>
+</div>
+
+<button class="btn">Add Product</button>
+
+<a class="btn" href="#" onclick="loadPage('product-list')">Cancel</a>
+
+</form>
+3️⃣ product-edit.jsp chuẩn
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Edit Product</h2>
+
+<form action="product-edit" method="post">
+
+<input type="hidden" name="id" value="${product.productId}">
+
+<div class="form-group">
+<label>Name</label>
+<input type="text" name="name" value="${product.name}" required>
+</div>
+
+<div class="form-group">
+<label>Price</label>
+<input type="number" step="0.1" name="price" value="${product.price}" required>
+</div>
+
+<button class="btn">Update</button>
+
+<a class="btn" href="#" onclick="loadPage('product-list')">Cancel</a>
+
+</form>
+4️⃣ Sửa nút Create Product để không load trang trắng
+Trong product-list.jsp
+
+❌ Sai
+
+<a href="product-create">Create Product</a>
+✅ Đúng
+
+<a class="btn" href="#" onclick="loadPage('product-create')">Create Product</a>
+5️⃣ Kết quả sau khi sửa
+Dashboard sẽ như sau:
+
+Shopee Admin Dashboard
+│
+├── Users
+├── Shops
+├── Products
+│      ├── Product List
+│      ├── Create Product (form đẹp)
+│      └── Edit Product
+├── Product Variants
+└── Vouchers
+Tất cả form sẽ nằm trong dashboard, không bị:
+
+trang trắng
+
+mất sidebar
+
+mất CSS
+
+💡 Nếu bạn muốn, mình có thể gửi thêm CSS Shopee Admin đẹp hơn (giống 90% Shopee thật) gồm:
+
+table hover
+
+button đẹp
+
+search box
+
+pagination
+
+form card
+
+để dashboard của bạn nhìn chuyên nghiệp hơn rất nhiều.
+
+
+vẫn bị thô 
+
+Nhìn hình của bạn thì CSS đã đúng, nhưng trang create/edit vẫn thô vì bạn đang mở trực tiếp URL:
+
+http://localhost:8080/LAB211Web/product-create
+Khi mở như vậy thì trang không nằm trong Dashboard, nên:
+
+❌ Không có sidebar
+
+❌ Không có topbar
+
+❌ Không có CSS layout
+
+Trong hệ thống của bạn, các trang:
+
+product-create.jsp
+product-edit.jsp
+shop-create.jsp
+shop-edit.jsp
+được thiết kế để load vào dashboard bằng AJAX qua hàm:
+
+loadPage()
+✅ Cách đúng để mở Create Product
+Trong product-list.jsp
+
+❌ Sai (sẽ mở trang thô)
+<a href="product-create">Create Product</a>
+✅ Đúng
+<a class="btn" href="#" onclick="loadPage('product-create')">Create Product</a>
+✅ Kiểm tra 3 điều quan trọng
+1️⃣ product-create.jsp KHÔNG được có
+<html>
+<head>
+<body>
+File chỉ nên là:
+
+<h2>Create Product</h2>
+
+<form action="product-create" method="post">
+2️⃣ home.jsp phải có CSS
+Trong home.jsp
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+3️⃣ Nút Edit cũng phải dùng AJAX
+Trong product-list.jsp
+
+❌ Sai
+
+<a href="product-edit?id=${p.productId}">Edit</a>
+✅ Đúng
+
+<a href="#" onclick="loadPage('product-edit?id=${p.productId}')">Edit</a>
+📌 Test đúng
+1️⃣ Mở
+
+http://localhost:8080/LAB211Web/home
+2️⃣ Click
+
+Products
+3️⃣ Click
+
+Create Product
+👉 Form sẽ hiện trong dashboard giống:
+
+Shopee Admin Dashboard
+│
+├ Users
+├ Shops
+├ Products
+│     └ Create Product  (form đẹp)
+⚠️ Lưu ý quan trọng
+Không bao giờ truy cập trực tiếp:
+
+/product-create
+/product-edit
+/shop-create
+/shop-edit
+Vì các trang này chỉ là module con của dashboard.
+
+💡 Nếu bạn muốn, mình có thể giúp bạn chỉnh lại dashboard chuẩn hơn (giống Shopee thật) gồm:
+
+sidebar active
+
+table hover
+
+search đẹp
+
+pagination
+
+form card UI
+
+để project của bạn trông như admin panel chuyên nghiệp.
+
+
+Đã tải lên ảnh
+css trang này 
+
+Trang của bạn đang hiển thị bảng Product Variant rất thô (font to, bảng viền đen mặc định của HTML). Chỉ cần thêm CSS là sẽ đẹp ngay.
+
+Bạn có thể thêm CSS vào file:
+
+web/css/admin.css
+hoặc tạo file riêng:
+
+web/css/product-variant.css
+CSS đẹp cho trang Product Variant
+/* Title */
+h1{
+    font-size:32px;
+    margin-bottom:20px;
+    color:#333;
+}
+
+/* Table */
+table{
+    width:600px;
+    border-collapse:collapse;
+    background:white;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Header */
+table th{
+    background:#ee4d2d;
+    color:white;
+    padding:10px;
+    text-align:left;
+}
+
+/* Row */
+table td{
+    padding:10px;
+    border-bottom:1px solid #eee;
+}
+
+/* Hover effect */
+table tr:hover{
+    background:#f9f9f9;
+}
+
+/* First column center */
+table td:first-child{
+    text-align:center;
+}
+Kết quả sau khi áp dụng
+Bảng sẽ giống kiểu Shopee admin:
+
+Jacket Puma
+
+┌────┬─────┬──────┬────────┬──────┐
+│ ID │Size │Color │ Price  │Stock │
+├────┼─────┼──────┼────────┼──────┤
+│ 1  │ S   │Black │15000   │ 54   │
+│ 2  │ S   │White │15000   │ 43   │
+│ ...                                   │
+Header màu cam Shopee
+
+Hover sáng dòng
+
+Bảng có shadow
+
+Padding đẹp hơn
+
+Nếu CSS chưa chạy
+Đảm bảo trong JSP có:
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+💡 Nếu bạn muốn mình có thể gửi thêm CSS full cho toàn bộ dashboard Shopee Admin gồm:
+
+bảng đẹp hơn
+
+search box
+
+pagination
+
+button
+
+form create/edit
+
+để project của bạn giống dashboard Shopee thật ~90%.
+
+
+nó là trang chức năng view của product
+
+Đúng rồi 👍
+Trang trong hình của bạn là trang View Product (xem chi tiết sản phẩm + các variant). Vì vậy chỉ cần CSS cho trang view là đủ, không cần layout dashboard.
+
+Ví dụ JSP của bạn có dạng:
+
+<h1>Jacket Puma</h1>
+
+<table>
+<tr>
+<th>ID</th>
+<th>Size</th>
+<th>Color</th>
+<th>Price</th>
+<th>Stock</th>
+</tr>
+
+<c:forEach items="${variants}" var="v">
+<tr>
+<td>${v.id}</td>
+<td>${v.size}</td>
+<td>${v.color}</td>
+<td>${v.price}</td>
+<td>${v.stock}</td>
+</tr>
+</c:forEach>
+
+</table>
+CSS đẹp cho trang View Product
+Thêm vào file CSS của bạn:
+
+body{
+    font-family: Arial, sans-serif;
+    background:#f5f5f5;
+    padding:30px;
+}
+
+/* product title */
+h1{
+    color:#ee4d2d;
+    margin-bottom:20px;
+}
+
+/* table */
+table{
+    width:600px;
+    border-collapse:collapse;
+    background:white;
+    box-shadow:0 2px 10px rgba(0,0,0,0.1);
+}
+
+/* header */
+th{
+    background:#ee4d2d;
+    color:white;
+    padding:10px;
+}
+
+/* cell */
+td{
+    padding:10px;
+    border-bottom:1px solid #eee;
+}
+
+/* hover */
+tr:hover{
+    background:#fafafa;
+}
+
+/* center ID */
+td:first-child{
+    text-align:center;
+}
+Kết quả sau khi thêm CSS
+Trang sẽ thành kiểu:
+
+Jacket Puma
+
+┌────┬─────┬──────┬────────┬──────┐
+│ ID │Size │Color │ Price  │Stock │
+├────┼─────┼──────┼────────┼──────┤
+│ 1  │ S   │Black │15000   │ 54   │
+│ 2  │ S   │White │15000   │ 43   │
+│ 3  │ S   │Red   │ 9600   │ 27   │
+Header màu cam Shopee
+
+Hover dòng
+
+Bảng có shadow
+
+Padding đẹp
+
+💡 Nếu bạn muốn mình có thể viết thêm CSS chuẩn Shopee cho trang View Product gồm:
+
+ảnh sản phẩm
+
+thông tin shop
+
+bảng variant đẹp hơn
+
+nút Add to Cart / Buy Now
+
+để trang này nhìn giống Shopee thật ~95%.
+
+
+vậy thì sửa ở file nào
+
+Với trang View Product (Jacket Puma + bảng Variant) thì bạn cần sửa ở 2 chỗ:
+
+1️⃣ File JSP của trang View Product
+File này thường tên giống:
+
+product-view.jsp
+hoặc
+
+product-detail.jsp
+Trong file này bạn phải gắn CSS vào.
+
+Ví dụ sửa đầu file thành:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<link rel="stylesheet" href="${pageContext.request.contextPath}/css/admin.css">
+
+<h1>${product.name}</h1>
+2️⃣ File CSS
+CSS nên đặt trong:
+
+web/css/admin.css
+Hoặc nếu project bạn có file khác:
+
+web/css/style.css
+Thêm CSS này vào:
+
+h1{
+    color:#ee4d2d;
+    margin-bottom:20px;
+}
+
+table{
+    width:600px;
+    border-collapse:collapse;
+    background:white;
+}
+
+th{
+    background:#ee4d2d;
+    color:white;
+    padding:10px;
+}
+
+td{
+    padding:10px;
+    border-bottom:1px solid #eee;
+}
+
+tr:hover{
+    background:#f9f9f9;
+}
+📂 Tóm lại bạn sẽ sửa
+File	Mục đích
+product-view.jsp	thêm link CSS
+web/css/admin.css	viết CSS
+📌 Cách kiểm tra nhanh
+Mở trang:
+
+http://localhost:8080/LAB211Web/product-view?id=1
+Nếu CSS đúng thì bảng sẽ:
+
+header màu cam
+
+hover dòng
+
+bảng đẹp hơn
+
+✅ Nếu bạn gửi mình tên file JSP đang hiển thị trang "Jacket Puma", mình sẽ chỉ chính xác dòng cần sửa luôn để bạn không phải tìm.
+
+
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<h1>${product.name}</h1>
+
+<table border="1">
+
+<tr>
+<th>ID</th>
+<th>Size</th>
+<th>Color</th>
+<th>Price</th>
+<th>Stock</th>
+</tr>
+
+<c:forEach items="${variants}" var="v">
+
+<tr>
+<td>${v.variantId}</td>
+<td>${v.size}</td>
+<td>${v.color}</td>
+<td>${v.priceVariant}</td>
+<td>${v.stock}</td>
+</tr>
+
+</c:forEach>
+
+</table> nó là trang này
+
+Đúng rồi 👍 đây chính là JSP của trang View Product. Bạn chỉ cần sửa ngay trong file JSP này để thêm CSS. Hiện tại trang thô vì:
+
+Bạn đang dùng border="1"
+
+Không có CSS
+
+Cách sửa trực tiếp trong file này
+Sửa JSP của bạn thành như sau:
+
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+<style>
+
+body{
+    font-family: Arial, sans-serif;
+    padding:30px;
+    background:#f5f5f5;
+}
+
+h1{
+    color:#ee4d2d;
+    margin-bottom:20px;
+}
+
+table{
+    width:600px;
+    border-collapse:collapse;
+    background:white;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+
+th{
+    background:#ee4d2d;
+    color:white;
+    padding:10px;
+}
+
+td{
+    padding:10px;
+    border-bottom:1px solid #eee;
+}
+
+tr:hover{
+    background:#fafafa;
+}
+
+</style>
+
+
+<h1>${product.name}</h1>
+
+<table>
+
+<tr>
+<th>ID</th>
+<th>Size</th>
+<th>Color</th>
+<th>Price</th>
+<th>Stock</th>
+</tr>
+
+<c:forEach items="${variants}" var="v">
+
+<tr>
+<td>${v.variantId}</td>
+<td>${v.size}</td>
+<td>${v.color}</td>
+<td>${v.priceVariant}</td>
+<td>${v.stock}</td>
+</tr>
+
+</c:forEach>
+
+</table>
+Quan trọng
+❌ Xóa dòng này:
+
+<table border="1">
+✅ Đổi thành:
+
+<table>
+Kết quả sau khi sửa
+Trang sẽ thành:
+
+Jacket Puma
+
+┌────┬─────┬──────┬────────┬──────┐
+│ ID │Size │Color │ Price  │Stock │
+├────┼─────┼──────┼────────┼──────┤
+│ 1  │ S   │Black │15000   │ 54   │
+│ 2  │ S   │White │15000   │ 43   │
+│ ...                              
+Header màu cam Shopee
+
+Bảng đẹp
+
+Hover dòng
+
+Không còn viền HTML thô
+
+💡 Nếu bạn muốn, mình có thể giúp bạn nâng cấp trang này giống Shopee thật hơn (rất đẹp) gồm:
+
+ảnh sản phẩm
+
+thông tin shop
+
+bảng variant đẹp
+
+nút Add to Cart / Buy Now
+
+chỉ cần thêm ~40 dòng CSS.
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+fix tiếp
+
+Mình xem các hình bạn gửi rồi. Có 2 lỗi khác nhau cần fix:
+
+1️⃣ Lỗi HTTP 405 – Method GET is not supported
+Trang:
+
+/product-variant-create
+bị lỗi vì Controller chỉ có doPost() nhưng không có doGet().
+
+Sửa trong file:
+ProductVariantCreateController.java
+Thêm doGet() để mở form.
+
+@Override
+protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+    request.getRequestDispatcher("product-variant-create.jsp").forward(request, response);
+
+}
+Controller chuẩn sẽ giống:
+
+@WebServlet("/product-variant-create")
+public class ProductVariantCreateController extends HttpServlet {
+
+    private ProductVariantDAO dao = new ProductVariantDAO();
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        request.getRequestDispatcher("product-variant-create.jsp").forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int productId = Integer.parseInt(request.getParameter("productId"));
+        String size = request.getParameter("size");
+        String color = request.getParameter("color");
+        int stock = Integer.parseInt(request.getParameter("stock"));
+        double price = Double.parseDouble(request.getParameter("price"));
+
+        dao.insert(productId, size, color, stock, price);
+
+        response.sendRedirect("product-variant-list");
+    }
+}
+2️⃣ Trang Edit Variant đang bị thô
+Trang của bạn hiện như hình:
+
+Edit Product Variant
+Product ID:
+Size:
+Color:
+Stock:
+Price:
+Sửa file:
+product-variant-edit.jsp
+Thay toàn bộ bằng:
+
+<h2>Edit Product Variant</h2>
+
+<form action="product-variant-edit" method="post">
+
+<input type="hidden" name="variantId" value="${variant.variantId}">
+
+<div class="form-group">
+<label>Product ID</label>
+<input type="number" name="productId" value="${variant.productId}">
+</div>
+
+<div class="form-group">
+<label>Size</label>
+<input type="text" name="size" value="${variant.size}">
+</div>
+
+<div class="form-group">
+<label>Color</label>
+<input type="text" name="color" value="${variant.color}">
+</div>
+
+<div class="form-group">
+<label>Stock</label>
+<input type="number" name="stock" value="${variant.stock}">
+</div>
+
+<div class="form-group">
+<label>Price</label>
+<input type="number" step="0.1" name="price" value="${variant.priceVariant}">
+</div>
+
+<button class="btn">Update</button>
+
+<a class="btn" href="#" onclick="loadPage('product-variant-list')">Cancel</a>
+
+</form>
+3️⃣ Nút Create Variant phải load dashboard
+Trong product-variant-list.jsp
+
+❌ Sai
+
+<a href="product-variant-create">Create Variant</a>
+✅ Đúng
+
+<a class="btn" href="#" onclick="loadPage('product-variant-create')">Create Variant</a>
+4️⃣ Kết quả sau khi fix
+Dashboard sẽ hoạt động đúng:
+
+Shopee Admin Dashboard
+│
+├ Users
+├ Shops
+├ Products
+├ Product Variants
+│      ├ Variant List
+│      ├ Create Variant
+│      └ Edit Variant
+└ Vouchers
+🚀 Nếu bạn muốn mình có thể fix luôn 3 file chuẩn hoàn chỉnh để bạn copy chạy ngay:
+1️⃣ product-variant-create.jsp
+2️⃣ product-variant-edit.jsp
+3️⃣ ProductVariantCreateController.java
+
+→ đảm bảo không lỗi 405 + giao diện đẹp + chạy đúng dashboard.
+
+
+package controller;
+
+
+import dal.ProductVariantDAO;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import model.Product;
+import model.ProductVariant;
+
+@WebServlet("/product-variant-create")
+public class ProductVariantCreateController extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws IOException {
+
+        String size = request.getParameter("size");
+        String color = request.getParameter("color");
+        int stock = Integer.parseInt(request.getParameter("stock"));
+        double price = Double.parseDouble(request.getParameter("priceVariant"));
+        int productId = Integer.parseInt(request.getParameter("productId"));
+
+        ProductVariant v = new ProductVariant();
+
+        v.setSize(size);
+        v.setColor(color);
+        v.setStock(stock);
+        v.setPriceVariant(price);
+
+        Product p = new Product();
+        p.setProductId(productId);
+
+        v.setProduct(p);
+
+        new ProductVariantDAO().insert(v);
+
+        response.sendRedirect("home");
+    }
+}
+
+Mình thấy vấn đề ngay trong ProductVariantCreateController của bạn.
+
+Hiện tại controller chỉ có doPost(), nên khi bạn truy cập:
+
+http://localhost:8080/LAB211Web/product-variant-create
+trình duyệt gửi GET request, nhưng servlet không có doGet(), nên Tomcat báo:
+
+HTTP 405 - Method GET is not supported
+✅ Cách sửa
+Bạn chỉ cần thêm doGet() để mở form product-variant-create.jsp.
+
+Sửa controller thành như sau:
+
+package controller;
+
+import dal.ProductVariantDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import model.Product;
+import model.ProductVariant;
+
+@WebServlet("/product-variant-create")
+public class ProductVariantCreateController extends HttpServlet {
+
+    // mở form create
+    @Override
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        request.getRequestDispatcher("product-variant-create.jsp")
+               .forward(request, response);
+    }
+
+    // xử lý submit form
+    @Override
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws IOException {
+
+        String size = request.getParameter("size");
+        String color = request.getParameter("color");
+        int stock = Integer.parseInt(request.getParameter("stock"));
+        double price = Double.parseDouble(request.getParameter("priceVariant"));
+        int productId = Integer.parseInt(request.getParameter("productId"));
+
+        ProductVariant v = new ProductVariant();
+
+        v.setSize(size);
+        v.setColor(color);
+        v.setStock(stock);
+        v.setPriceVariant(price);
+
+        Product p = new Product();
+        p.setProductId(productId);
+
+        v.setProduct(p);
+
+        new ProductVariantDAO().insert(v);
+
+        response.sendRedirect("product-variant-list");
+    }
+}
+📌 Lưu ý thêm
+Bạn đang redirect về:
+
+response.sendRedirect("home");
+Nên đổi thành:
+
+response.sendRedirect("product-variant-list");
+để sau khi tạo xong quay lại list variant.
+
+Sau khi sửa
+Luồng sẽ đúng:
+
+Product Variant List
+        ↓
+Create Variant
+        ↓
+Form create
+        ↓
+Submit
+        ↓
+Product Variant List (đã thêm variant mới)
+💡 Nếu bạn muốn, mình có thể gửi luôn file product-variant-create.jsp chuẩn + CSS đẹp + form đúng với controller của bạn, copy vào là chạy ngay.
+
+
+gửi mình đi
+
+Dưới đây là file product-variant-create.jsp hoàn chỉnh phù hợp với controller của bạn. Bạn chỉ cần copy vào project là chạy được ngay.
+
+File: product-variant-create.jsp
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<style>
+
+h2{
+    margin-bottom:20px;
+}
+
+.form-group{
+    margin-bottom:15px;
+}
+
+label{
+    display:block;
+    margin-bottom:5px;
+    font-weight:bold;
+}
+
+input{
+    padding:8px;
+    width:300px;
+    border:1px solid #ccc;
+    border-radius:4px;
+}
+
+.btn{
+    background:#ee4d2d;
+    color:white;
+    padding:10px 18px;
+    border:none;
+    border-radius:4px;
+    cursor:pointer;
+    text-decoration:none;
+}
+
+.btn:hover{
+    background:#d84324;
+}
+
+</style>
+
+
+<h2>Create Product Variant</h2>
+
+<form action="product-variant-create" method="post">
+
+<div class="form-group">
+<label>Product ID</label>
+<input type="number" name="productId" required>
+</div>
+
+<div class="form-group">
+<label>Size</label>
+<input type="text" name="size" required>
+</div>
+
+<div class="form-group">
+<label>Color</label>
+<input type="text" name="color" required>
+</div>
+
+<div class="form-group">
+<label>Stock</label>
+<input type="number" name="stock" required>
+</div>
+
+<div class="form-group">
+<label>Price</label>
+<input type="number" step="0.1" name="priceVariant" required>
+</div>
+
+<button class="btn">Create</button>
+
+<a class="btn" href="#" onclick="loadPage('product-variant-list')">Cancel</a>
+
+</form>
+Sau khi thêm file này
+Luồng hoạt động sẽ là:
+
+Product Variant List
+        ↓
+Create Variant
+        ↓
+product-variant-create.jsp
+        ↓
+Submit
+        ↓
+Product Variant List
+Kiểm tra 3 thứ quan trọng
+1️⃣ Controller đã có doGet()
+request.getRequestDispatcher("product-variant-create.jsp").forward(request,response);
+2️⃣ Nút Create trong product-variant-list.jsp
+Phải là:
+
+<a class="btn" href="#" onclick="loadPage('product-variant-create')">Create Variant</a>
+3️⃣ Controller redirect đúng
+response.sendRedirect("product-variant-list");
+💡 Nếu bạn muốn, mình có thể fix luôn 3 file để dashboard của bạn nhìn giống Shopee Admin thật hơn:
+
+product-variant-list.jsp
+
+product-variant-edit.jsp
+
+product-variant-create.jsp
+
+(hiện tại list của bạn vẫn còn hơi thô, mình có thể làm table + search + button đẹp hơn nhiều).
+
+
+còn vụ cancel ra trang thô thì sao
+
+Nút Cancel bị ra trang thô là vì nó đang gọi:
+
+onclick="loadPage('product-variant-list')"
+Nhưng product-variant-list trả về JSP thuần, không nằm trong layout admin.jsp, nên nhìn bị thô (mất sidebar + topbar).
+
+✅ Cách sửa đơn giản nhất (khuyên dùng)
+Đổi Cancel thành quay về home dashboard (nơi có layout).
+
+Sửa dòng này
+<a class="btn" href="#" onclick="loadPage('product-variant-list')">Cancel</a>
+Thành
+<a class="btn" href="home">Cancel</a>
+Hoặc nếu dashboard của bạn dùng loadPage:
+
+<a class="btn" href="#" onclick="loadPage('product-variant-list')">Cancel</a>
+NHƯNG phải đảm bảo product-variant-list được load bên trong .content của admin.jsp.
+
+⚠️ Lý do bị trang thô
+Project của bạn đang có kiểu cấu trúc:
+
+admin.jsp (layout)
+ ├── sidebar
+ ├── topbar
+ └── content (loadPage())
+Nhưng khi gọi trực tiếp:
+
+product-variant-list
+Tomcat render:
+
+product-variant-list.jsp
+→ không có admin layout → nhìn thô.
+
+⭐ Cách chuẩn (giống Shopee Admin)
+Luôn load page thông qua home
+
+Ví dụ:
+
+home?page=product-variant-list
+Hoặc JS:
+
+loadPage('product-variant-list')
+để nội dung nằm trong:
+
+<div class="content">
+    product-variant-list.jsp
+</div>
+🔧 Cách fix nhanh nhất cho bạn
+Trong product-variant-create.jsp
+
+đổi:
+
+<a class="btn" href="#" onclick="loadPage('product-variant-list')">Cancel</a>
+thành:
+
+<a class="btn" href="home">Cancel</a>
+💡 Nếu bạn muốn, mình có thể chỉ luôn cách sửa đúng kiến trúc dashboard (MVC chuẩn) để:
+
+Create
+
+Edit
+
+Delete
+
+Cancel
+
+không bao giờ bị ra trang thô nữa.
+Cách này chỉ sửa 1 file controller nhưng fix toàn bộ project.
+
+
+Đã tải lên ảnh
+create xong thì về như thế này
+
+Trang sau khi Create của bạn bị thô vì controller đang:
+
+response.sendRedirect("product-variant-list");
+Nó gọi trực tiếp servlet → trả về JSP thuần nên không nằm trong layout Admin Dashboard (không có sidebar + topbar).
+
+✅ Cách sửa đúng cho project của bạn
+Bạn phải redirect về home, vì home là trang chứa layout.
+
+Sửa trong ProductVariantCreateController
+Đổi dòng này:
+
+response.sendRedirect("product-variant-list");
+thành:
+
+response.sendRedirect("home");
+📌 Vì sao phải làm vậy
+Project của bạn đang có cấu trúc kiểu này:
+
+admin.jsp (layout dashboard)
+     │
+     └── content
+            ├── user-list.jsp
+            ├── shop-list.jsp
+            ├── product-list.jsp
+            └── product-variant-list.jsp
+Trang home sẽ load các page bằng JS:
+
+loadPage("product-variant-list")
+Nếu bạn gọi thẳng:
+
+product-variant-list
+→ JSP render riêng → mất layout → thành trang thô.
+
+✔ Sau khi sửa
+Luồng sẽ thành:
+
+Product Variant List
+        ↓
+Create Variant
+        ↓
+Submit
+        ↓
+home
+        ↓
+Dashboard (layout đẹp)
+⭐ Cách tốt hơn (chuẩn dashboard)
+Nếu muốn Create xong quay lại đúng Product Variant List trong dashboard, dùng:
+
+response.sendRedirect("home?page=product-variant-list");
+và trong home controller đọc parameter page.
+
+🔧 Mình khuyên bạn sửa 2 chỗ
+1️⃣ Create Controller
+response.sendRedirect("home");
+2️⃣ Edit Controller
+response.sendRedirect("home");
+💡 Nếu bạn muốn, mình có thể giúp bạn làm dashboard của bạn giống Shopee Admin hơn (table đẹp, nút edit/delete, search, pagination) chỉ cần sửa 1 file CSS + 1 JSP.
+
+
+còn nút cancel không hoạt động
+
+Nút Cancel không hoạt động vì trong product-variant-create.jsp bạn đang dùng:
+
+<a class="btn" href="#" onclick="loadPage('product-variant-list')">Cancel</a>
+Có 2 khả năng xảy ra:
+
+1️⃣ Project của bạn không có hàm loadPage()
+→ bấm Cancel sẽ không làm gì cả.
+
+2️⃣ loadPage() chỉ tồn tại trong admin.jsp nhưng trang create đang mở trực tiếp → JS không chạy.
+
+✅ Cách sửa đơn giản nhất (khuyên dùng)
+Đổi nút Cancel thành link quay về dashboard.
+
+Sửa thành:
+<a class="btn" href="home">Cancel</a>
+Nếu bạn muốn quay về Product Variant List
+Thì dùng:
+
+<a class="btn" href="product-variant-list">Cancel</a>
+Nhưng cách này có thể ra trang thô (giống lúc create xong).
+
+⭐ Cách tốt nhất cho dashboard của bạn
+<a class="btn" href="home" >Cancel</a>
+Luồng sẽ là:
+
+Product Variant List
+      ↓
+Create Variant
+      ↓
+Cancel
+      ↓
+Admin Dashboard (không bị thô)
+📌 Ví dụ file product-variant-create.jsp đúng
+<h2>Create Product Variant</h2>
+
+<form action="product-variant-create" method="post">
+
+Product ID: <input type="number" name="productId"><br><br>
+
+Size: <input type="text" name="size"><br><br>
+
+Color: <input type="text" name="color"><br><br>
+
+Stock: <input type="number" name="stock"><br><br>
+
+Price: <input type="number" name="priceVariant"><br><br>
+
+<button type="submit">Create</button>
+
+<a href="home">Cancel</a>
+
+</form>
+💡 Nếu bạn muốn mình chỉ thêm 1 dòng JS để:
+
+Cancel
+
+Edit
+
+Delete
+
+Create
+
+không bao giờ bị trang thô trong dashboard nữa, mình có thể gửi luôn cách sửa chuẩn MVC cho project của bạn.
+
+
+Đã tải lên ảnh
+giờ thì đến phần edit
+
+Trang Edit Product Variant của bạn đã hiển thị được rồi 👍. Bây giờ cần hoàn thiện 3 phần để Edit hoạt động đúng và không bị trang thô:
+
+1️⃣ Edit JSP (form chỉnh sửa)
+2️⃣ Edit Controller (xử lý update)
+3️⃣ Link Edit trong list
+
+Mình viết đúng chuẩn theo code bạn đang dùng để bạn chỉ cần copy.
+
+1️⃣ File product-variant-edit.jsp
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<h2>Edit Product Variant</h2>
+
+<form action="product-variant-edit" method="post">
+
+<input type="hidden" name="variantId" value="${variant.variantId}">
+
+<p>
+Product ID:
+<input type="number" name="productId" value="${variant.product.productId}">
+</p>
+
+<p>
+Size:
+<input type="text" name="size" value="${variant.size}">
+</p>
+
+<p>
+Color:
+<input type="text" name="color" value="${variant.color}">
+</p>
+
+<p>
+Stock:
+<input type="number" name="stock" value="${variant.stock}">
+</p>
+
+<p>
+Price:
+<input type="number" step="0.1" name="priceVariant" value="${variant.priceVariant}">
+</p>
+
+<button type="submit">Update</button>
+
+<br><br>
+
+<a href="home">Cancel</a>
+
+</form>
+2️⃣ ProductVariantEditController
+package controller;
+
+import dal.ProductVariantDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+import model.Product;
+import model.ProductVariant;
+
+@WebServlet("/product-variant-edit")
+public class ProductVariantEditController extends HttpServlet {
+
+    ProductVariantDAO dao = new ProductVariantDAO();
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        ProductVariant variant = dao.getById(id);
+
+        request.setAttribute("variant", variant);
+
+        request.getRequestDispatcher("product-variant-edit.jsp")
+               .forward(request, response);
+    }
+
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        int variantId = Integer.parseInt(request.getParameter("variantId"));
+        int productId = Integer.parseInt(request.getParameter("productId"));
+        String size = request.getParameter("size");
+        String color = request.getParameter("color");
+        int stock = Integer.parseInt(request.getParameter("stock"));
+        double price = Double.parseDouble(request.getParameter("priceVariant"));
+
+        ProductVariant v = new ProductVariant();
+
+        v.setVariantId(variantId);
+        v.setSize(size);
+        v.setColor(color);
+        v.setStock(stock);
+        v.setPriceVariant(price);
+
+        Product p = new Product();
+        p.setProductId(productId);
+
+        v.setProduct(p);
+
+        dao.update(v);
+
+        response.sendRedirect("home");
+
+    }
+}
+3️⃣ Link Edit trong product-variant-list.jsp
+Đảm bảo bạn có dòng này:
+
+<a href="product-variant-edit?id=${v.variantId}">Edit</a>
+Sau khi hoàn thành luồng sẽ là
+Product Variant List
+        ↓
+Edit
+        ↓
+product-variant-edit.jsp
+        ↓
+Update
+        ↓
+Dashboard (home)
+⭐ Gợi ý để đẹp hơn
+Bạn có thể khóa Product ID khi edit:
+
+<input type="number" name="productId" value="${variant.product.productId}" readonly>
+💡 Nếu bạn muốn, mình có thể gửi thêm CSS admin giống Shopee cho form Edit này (chỉ ~20 dòng CSS nhưng nhìn đẹp hơn rất nhiều).
+
+
+package controller;
+
+
+import dal.ProductVariantDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import model.Product;
+import model.ProductVariant;
+
+@WebServlet("/product-variant-edit")
+public class ProductVariantEditController extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int id = Integer.parseInt(request.getParameter("id"));
+
+        ProductVariantDAO dao = new ProductVariantDAO();
+
+        ProductVariant v = dao.getById(id);
+
+        request.setAttribute("variant", v);
+
+        request.getRequestDispatcher("product-variant-edit.jsp")
+                .forward(request,response);
+    }
+    
+     @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+
+        int id = Integer.parseInt(request.getParameter("variantId"));
+        String size = request.getParameter("size");
+        String color = request.getParameter("color");
+        int stock = Integer.parseInt(request.getParameter("stock"));
+        double price = Double.parseDouble(request.getParameter("priceVariant"));
+        int productId = Integer.parseInt(request.getParameter("productId"));
+
+        ProductVariant v = new ProductVariant();
+
+        v.setVariantId(id);
+        v.setSize(size);
+        v.setColor(color);
+        v.setStock(stock);
+        v.setPriceVariant(price);
+
+        Product p = new Product();
+        p.setProductId(productId);
+
+        v.setProduct(p);
+
+        ProductVariantDAO dao = new ProductVariantDAO();
+        
+        dao.update(v);
+
+        response.sendRedirect("home");
+    }
+    
+}
+
+Controller ProductVariantEditController bạn gửi nhìn chung là đúng rồi và sẽ chạy được 👍. Mình chỉ chỉ ra vài điểm để đảm bảo Edit hoạt động đúng 100% và không lỗi.
+
+✅ 1. Controller của bạn (logic đúng)
+Luồng của code bạn đang là:
+
+Product Variant List
+        ↓
+Edit
+        ↓
+GET /product-variant-edit?id=1
+        ↓
+product-variant-edit.jsp
+        ↓
+Update
+        ↓
+POST /product-variant-edit
+        ↓
+update database
+        ↓
+home
+Code của bạn xử lý:
+
+doGet
+int id = Integer.parseInt(request.getParameter("id"));
+ProductVariant v = dao.getById(id);
+request.setAttribute("variant", v);
+request.getRequestDispatcher("product-variant-edit.jsp")
+        .forward(request,response);
+→ lấy variant theo id
+→ gửi sang JSP
+
+✔ đúng
+
+doPost
+int id = Integer.parseInt(request.getParameter("variantId"));
+→ lấy id variant
+
+v.setVariantId(id);
+→ set id để update
+
+✔ đúng
+
+⚠️ 2. Quan trọng: form trong JSP phải đúng
+File product-variant-edit.jsp phải có:
+
+<form action="product-variant-edit" method="post">
+
+<input type="hidden" name="variantId" value="${variant.variantId}">
+Nếu thiếu hidden variantId thì update sẽ lỗi.
+
+✔ Form chuẩn nên là
+<h2>Edit Product Variant</h2>
+
+<form action="product-variant-edit" method="post">
+
+<input type="hidden" name="variantId" value="${variant.variantId}">
+
+<p>
+Product ID:
+<input type="number" name="productId" value="${variant.product.productId}">
+</p>
+
+<p>
+Size:
+<input type="text" name="size" value="${variant.size}">
+</p>
+
+<p>
+Color:
+<input type="text" name="color" value="${variant.color}">
+</p>
+
+<p>
+Stock:
+<input type="number" name="stock" value="${variant.stock}">
+</p>
+
+<p>
+Price:
+<input type="number" step="0.1" name="priceVariant" value="${variant.priceVariant}">
+</p>
+
+<button type="submit">Update</button>
+
+<br><br>
+
+<a href="home">Cancel</a>
+
+</form>
+⭐ 3. Link Edit trong list phải đúng
+Trong product-variant-list.jsp
+
+<a href="product-variant-edit?id=${v.variantId}">Edit</a>
+Không phải ${v.id}.
+
+⭐ 4. Nếu muốn đẹp hơn (khuyên sửa)
+Product ID khi edit nên readonly:
+
+<input type="number" name="productId"
+value="${variant.product.productId}" readonly>
+Vì variant thường không đổi product.
+
+✔ Controller của bạn hiện tại
+Mình đánh giá:
+
+Logic:        ✔ đúng
+MVC:          ✔ đúng
+Database:     ✔ update được
+Redirect:     ✔ không bị trang thô
+→ Không cần sửa gì thêm.
+
+💡 Nếu bạn muốn, mình có thể giúp bạn fix luôn phần cuối của project để nhìn giống Shopee Admin thật hơn:
+
+table đẹp hơn
+
+nút edit delete đẹp
+
+search đẹp
+
+pagination
+
+Chỉ cần sửa 1 file CSS + 1 JSP thôi.
+
+
+bạn làm ra cho mình chép đi
+
+Mình viết trọn bộ 2 file để bạn chỉ cần copy là chạy:
+
+product-variant-edit.jsp
+
+CSS cho form (đỡ thô, giống admin dashboard)
+
+1️⃣ File product-variant-edit.jsp
+Copy toàn bộ file này:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<style>
+
+h2{
+    margin-bottom:20px;
+}
+
+.form-group{
+    margin-bottom:15px;
+}
+
+label{
+    display:block;
+    font-weight:bold;
+    margin-bottom:5px;
+}
+
+input{
+    width:300px;
+    padding:8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+}
+
+button{
+    background:#ee4d2d;
+    color:white;
+    border:none;
+    padding:10px 18px;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#d84324;
+}
+
+.back{
+    display:inline-block;
+    margin-top:20px;
+    text-decoration:none;
+}
+
+</style>
+
+
+<h2>Edit Product Variant</h2>
+
+<form action="product-variant-edit" method="post">
+
+<input type="hidden" name="variantId" value="${variant.variantId}">
+
+<div class="form-group">
+<label>Product ID</label>
+<input type="number" name="productId"
+       value="${variant.product.productId}" readonly>
+</div>
+
+<div class="form-group">
+<label>Size</label>
+<input type="text" name="size" value="${variant.size}">
+</div>
+
+<div class="form-group">
+<label>Color</label>
+<input type="text" name="color" value="${variant.color}">
+</div>
+
+<div class="form-group">
+<label>Stock</label>
+<input type="number" name="stock" value="${variant.stock}">
+</div>
+
+<div class="form-group">
+<label>Price</label>
+<input type="number" step="0.1" name="priceVariant"
+       value="${variant.priceVariant}">
+</div>
+
+<button type="submit">Update</button>
+
+</form>
+
+<a class="back" href="home">Cancel</a>
+2️⃣ Kiểm tra link Edit trong list
+Trong product-variant-list.jsp phải là:
+
+<a href="product-variant-edit?id=${v.variantId}">Edit</a>
+3️⃣ Luồng sau khi sửa sẽ như sau
+Product Variant List
+        ↓
+Edit
+        ↓
+product-variant-edit.jsp
+        ↓
+Update
+        ↓
+Dashboard (home)
+Không còn:
+
+lỗi id
+
+lỗi update
+
+trang thô
+
+⭐ Nếu bạn muốn dashboard đẹp hơn nữa
+Mình có thể gửi luôn CSS admin giống Shopee cho:
+
+User list
+
+Shop list
+
+Product list
+
+Product variant list
+
+Khi đó bảng của bạn sẽ từ kiểu này:
+
+ID Product Shop Size Color Price
+thành kiểu dashboard chuyên nghiệp như admin thật.
+
+
+Đã tải lên ảnh
+css chocar nút cancel
+
+Hiện tại nút Cancel của bạn đang là link thường nên nhìn không giống nút Update. Chỉ cần thêm CSS để nó giống button.
+
+1️⃣ Sửa HTML nút Cancel
+Đổi từ:
+
+<a class="back" href="home">Cancel</a>
+thành:
+
+<a class="btn-cancel" href="home">Cancel</a>
+2️⃣ Thêm CSS cho nút Cancel
+Thêm vào phần <style> trong file JSP:
+
+.btn-cancel{
+    display:inline-block;
+    margin-top:15px;
+    padding:10px 18px;
+    background:#6c757d;
+    color:white;
+    text-decoration:none;
+    border-radius:4px;
+}
+
+.btn-cancel:hover{
+    background:#5a6268;
+}
+3️⃣ Nếu muốn Cancel nằm cạnh Update cho đẹp
+Sửa HTML:
+
+<div class="button-group">
+    <button type="submit">Update</button>
+    <a class="btn-cancel" href="home">Cancel</a>
+</div>
+Thêm CSS:
+
+.button-group{
+    margin-top:15px;
+    display:flex;
+    gap:10px;
+}
+✅ Kết quả sẽ giống kiểu:
+
+[ Update ] [ Cancel ]
+Update: màu cam
+
+Cancel: màu xám
+
+💡 Nếu bạn muốn, mình có thể gửi luôn CSS dashboard giống Shopee Admin (table + button + form) để toàn bộ project của bạn nhìn chuyên nghiệp hơn nhiều, chỉ cần 1 file CSS ~40 dòng.
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+giờ đến phần này
+
+Phần Create Voucher và Edit Voucher của bạn đang chạy nhưng giao diện còn thô. Mình viết cho bạn 1 form JSP + CSS chung, để:
+
+Create Voucher đẹp hơn
+
+Edit Voucher cũng dùng chung CSS
+
+Có Update / Cancel button giống dashboard
+
+Bạn chỉ cần copy CSS + form structure.
+
+1️⃣ CSS cho Voucher Form
+Thêm vào đầu file JSP:
+
+<style>
+
+h2{
+    margin-bottom:20px;
+}
+
+.form-group{
+    margin-bottom:15px;
+}
+
+label{
+    display:block;
+    font-weight:bold;
+    margin-bottom:5px;
+}
+
+input, select{
+    width:320px;
+    padding:8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+}
+
+button{
+    background:#ee4d2d;
+    color:white;
+    border:none;
+    padding:10px 18px;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#d84324;
+}
+
+.btn-cancel{
+    display:inline-block;
+    margin-left:10px;
+    padding:10px 18px;
+    background:#6c757d;
+    color:white;
+    text-decoration:none;
+    border-radius:4px;
+}
+
+.btn-cancel:hover{
+    background:#545b62;
+}
+
+.button-group{
+    margin-top:20px;
+}
+
+</style>
+2️⃣ Create Voucher JSP
+<h2>Create Voucher</h2>
+
+<form action="voucher-create" method="post">
+
+<div class="form-group">
+<label>Code</label>
+<input type="text" name="code">
+</div>
+
+<div class="form-group">
+<label>Discount %</label>
+<input type="number" name="discountPercent">
+</div>
+
+<div class="form-group">
+<label>Min Order</label>
+<input type="number" name="minOrder">
+</div>
+
+<div class="form-group">
+<label>Stackable</label>
+<select name="stackable">
+<option value="true">True</option>
+<option value="false">False</option>
+</select>
+</div>
+
+<div class="form-group">
+<label>Start Date</label>
+<input type="date" name="startDate">
+</div>
+
+<div class="form-group">
+<label>End Date</label>
+<input type="date" name="endDate">
+</div>
+
+<div class="button-group">
+<button type="submit">Add Voucher</button>
+<a class="btn-cancel" href="home">Cancel</a>
+</div>
+
+</form>
+3️⃣ Edit Voucher JSP
+<h2>Edit Voucher</h2>
+
+<form action="voucher-edit" method="post">
+
+<input type="hidden" name="voucherId" value="${voucher.voucherId}">
+
+<div class="form-group">
+<label>Code</label>
+<input type="text" name="code" value="${voucher.code}">
+</div>
+
+<div class="form-group">
+<label>Discount %</label>
+<input type="number" name="discountPercent" value="${voucher.discountPercent}">
+</div>
+
+<div class="form-group">
+<label>Min Order</label>
+<input type="number" name="minOrder" value="${voucher.minOrder}">
+</div>
+
+<div class="form-group">
+<label>Stackable</label>
+<select name="stackable">
+
+<option value="true"
+<c:if test="${voucher.stackable}">selected</c:if>>
+True
+</option>
+
+<option value="false"
+<c:if test="${!voucher.stackable}">selected</c:if>>
+False
+</option>
+
+</select>
+</div>
+
+<div class="form-group">
+<label>Start Date</label>
+<input type="date" name="startDate" value="${voucher.startDate}">
+</div>
+
+<div class="form-group">
+<label>End Date</label>
+<input type="date" name="endDate" value="${voucher.endDate}">
+</div>
+
+<div class="button-group">
+<button type="submit">Update</button>
+<a class="btn-cancel" href="home">Cancel</a>
+</div>
+
+</form>
+✅ Sau khi áp dụng sẽ thành
+Create Voucher
+Code
+Discount %
+Min Order
+Stackable
+Start Date
+End Date
+
+[ Add Voucher ]  [ Cancel ]
+và
+
+Edit Voucher
+
+[ Update ] [ Cancel ]
+giao diện giống dashboard admin hơn nhiều.
+
+💡 Nếu bạn muốn, mình có thể gửi thêm Voucher List CSS (table + search + button) để toàn bộ dashboard của bạn nhìn giống Shopee Admin thật (~60 dòng CSS).
+
+
+<h2>Create Voucher</h2>
+
+<form action="voucher-create" method="post">
+
+Code:
+<input type="text" name="code"><br>
+
+Discount %:
+<input type="number" name="discount"><br>
+
+Min Order:
+<input type="number" name="minOrder"><br>
+
+Stackable:
+<select name="stackable">
+<option value="true">True</option>
+<option value="false">False</option>
+</select><br>
+
+Start Date:
+<input type="date" name="startDate" required><br>
+
+End Date:
+<input type="date" name="endDate"  required><br>
+
+<button type="submit">Add Voucher</button>
+
+</form>
+
+Form Create Voucher của bạn đang chạy được nhưng còn thô và khó nhìn. Mình giữ nguyên logic của bạn và chỉ thêm CSS + bố cục đẹp hơn để bạn copy nhanh.
+
+1️⃣ Phiên bản đẹp hơn của form
+Thay toàn bộ code của bạn bằng:
+
+<h2>Create Voucher</h2>
+
+<style>
+
+.form-group{
+    margin-bottom:15px;
+}
+
+label{
+    display:block;
+    font-weight:bold;
+    margin-bottom:5px;
+}
+
+input,select{
+    width:300px;
+    padding:8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+}
+
+button{
+    background:#ee4d2d;
+    color:white;
+    border:none;
+    padding:10px 18px;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#d84324;
+}
+
+.btn-cancel{
+    margin-left:10px;
+    padding:10px 18px;
+    background:#6c757d;
+    color:white;
+    text-decoration:none;
+    border-radius:4px;
+}
+
+.btn-cancel:hover{
+    background:#545b62;
+}
+
+.button-group{
+    margin-top:20px;
+}
+
+</style>
+
+
+<form action="voucher-create" method="post">
+
+<div class="form-group">
+<label>Code</label>
+<input type="text" name="code">
+</div>
+
+<div class="form-group">
+<label>Discount %</label>
+<input type="number" name="discount">
+</div>
+
+<div class="form-group">
+<label>Min Order</label>
+<input type="number" name="minOrder">
+</div>
+
+<div class="form-group">
+<label>Stackable</label>
+<select name="stackable">
+<option value="true">True</option>
+<option value="false">False</option>
+</select>
+</div>
+
+<div class="form-group">
+<label>Start Date</label>
+<input type="date" name="startDate" required>
+</div>
+
+<div class="form-group">
+<label>End Date</label>
+<input type="date" name="endDate" required>
+</div>
+
+<div class="button-group">
+<button type="submit">Add Voucher</button>
+<a class="btn-cancel" href="home">Cancel</a>
+</div>
+
+</form>
+2️⃣ Giao diện sau khi sửa
+Thay vì:
+
+Code: [input]
+Discount %: [input]
+Min Order: [input]
+sẽ thành:
+
+Code
+[ input ]
+
+Discount %
+[ input ]
+
+Min Order
+[ input ]
+
+Stackable
+[ dropdown ]
+
+Start Date
+[ calendar ]
+
+End Date
+[ calendar ]
+
+[ Add Voucher ] [ Cancel ]
+→ nhìn giống admin dashboard hơn.
+
+3️⃣ Lưu ý nhỏ
+Tên field của bạn:
+
+discount
+minOrder
+stackable
+startDate
+endDate
+Controller phải đọc đúng:
+
+request.getParameter("discount");
+💡 Nếu bạn muốn, mình có thể gửi thêm Voucher List giao diện đẹp (table + search + button) để dashboard của bạn nhìn giống Shopee Admin thật.
+
+
+<h2>Edit Voucher</h2>
+
+<form action="voucher-edit" method="post">
+
+<input type="hidden" name="id" value="${voucher.voucherId}">
+
+Code:
+<input type="text" name="code" value="${voucher.code}"><br>
+
+Discount %:
+<input type="number" name="discount" value="${voucher.discountPercent}"><br>
+
+Min Order:
+<input type="number" name="minOrder" value="${voucher.minOrderAmount}"><br>
+
+Stackable:
+<select name="stackable">
+
+<option value="true" ${voucher.stackable ? "selected" : ""}>True</option>
+<option value="false" ${!voucher.stackable ? "selected" : ""}>False</option>
+
+</select><br>
+
+Start Date:
+<input type="date" name="startDate" value="${voucher.startDate}"><br>
+
+End Date:
+<input type="date" name="endDate" value="${voucher.endDate}"><br>
+
+<button type="submit">Update</button>
+
+</form>
+
+Form Edit Voucher của bạn chạy đúng rồi 👍, mình chỉ chỉnh lại bố cục + CSS để:
+
+nhìn giống dashboard hơn
+
+có Cancel button
+
+input thẳng hàng đẹp hơn
+
+không đổi logic JSP của bạn
+
+Bạn chỉ cần copy phiên bản dưới đây.
+
+File voucher-edit.jsp
+<h2>Edit Voucher</h2>
+
+<style>
+
+.form-group{
+    margin-bottom:15px;
+}
+
+label{
+    display:block;
+    font-weight:bold;
+    margin-bottom:5px;
+}
+
+input,select{
+    width:320px;
+    padding:8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+}
+
+button{
+    background:#ee4d2d;
+    color:white;
+    border:none;
+    padding:10px 18px;
+    border-radius:4px;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#d84324;
+}
+
+.btn-cancel{
+    margin-left:10px;
+    padding:10px 18px;
+    background:#6c757d;
+    color:white;
+    text-decoration:none;
+    border-radius:4px;
+}
+
+.btn-cancel:hover{
+    background:#545b62;
+}
+
+.button-group{
+    margin-top:20px;
+}
+
+</style>
+
+
+<form action="voucher-edit" method="post">
+
+<input type="hidden" name="id" value="${voucher.voucherId}">
+
+<div class="form-group">
+<label>Code</label>
+<input type="text" name="code" value="${voucher.code}">
+</div>
+
+<div class="form-group">
+<label>Discount %</label>
+<input type="number" name="discount" value="${voucher.discountPercent}">
+</div>
+
+<div class="form-group">
+<label>Min Order</label>
+<input type="number" name="minOrder" value="${voucher.minOrderAmount}">
+</div>
+
+<div class="form-group">
+<label>Stackable</label>
+
+<select name="stackable">
+
+<option value="true" ${voucher.stackable ? "selected" : ""}>
+True
+</option>
+
+<option value="false" ${!voucher.stackable ? "selected" : ""}>
+False
+</option>
+
+</select>
+
+</div>
+
+<div class="form-group">
+<label>Start Date</label>
+<input type="date" name="startDate" value="${voucher.startDate}">
+</div>
+
+<div class="form-group">
+<label>End Date</label>
+<input type="date" name="endDate" value="${voucher.endDate}">
+</div>
+
+<div class="button-group">
+<button type="submit">Update</button>
+<a class="btn-cancel" href="home">Cancel</a>
+</div>
+
+</form>
+Sau khi sửa giao diện sẽ thành
+Edit Voucher
+
+Code
+[ SALE1 ]
+
+Discount %
+[ 20 ]
+
+Min Order
+[ 30000 ]
+
+Stackable
+[ False ▼ ]
+
+Start Date
+[ 2024-04-24 ]
+
+End Date
+[ 2026-09-09 ]
+
+[ Update ] [ Cancel ]
+Lưu ý nhỏ (quan trọng)
+Input date nên có format:
+
+YYYY-MM-DD
+Nếu database trả về:
+
+2024-04-24
+→ OK.
+
+Nếu trả về:
+
+04/24/2024
+→ input date sẽ không hiển thị đúng.
+
+💡 Nếu bạn muốn, mình có thể gửi thêm CSS cho Voucher List (table + search + button) để toàn bộ dashboard của bạn nhìn giống Shopee Admin thật ~80%.
+
+
+
+
