@@ -1,0 +1,821 @@
+
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+Đã tải lên ảnh
+
+cart.jsp
+Tệp
+
+checkout.jsp
+Tệp
+làm giao dien giiongs như shoppe
+
+
+Đã suy nghĩ trong 12s
+Được. Nhìn ảnh thì cái bạn cần giống trang chi tiết sản phẩm kiểu Shopee, không phải chỉ đổi màu mà phải đổi luôn bố cục:
+
+header cam
+
+ảnh lớn bên trái, thumbnail bên dưới
+
+thông tin sản phẩm bên phải
+
+giá nổi bật
+
+khối chọn màu / size dạng nút
+
+số lượng có nút - +
+
+nút Thêm vào giỏ hàng và Mua ngay
+
+Tôi gửi bạn luôn một bản product-detail.jsp theo kiểu Shopee để bạn copy đè rồi chỉnh lại tên biến cho khớp project.
+
+1) product-detail.jsp
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${product.productName}</title>
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body{
+            background:#f5f5f5;
+            color:#222;
+        }
+
+        /* HEADER */
+        .topbar{
+            background:linear-gradient(180deg,#f53d2d,#ff6633);
+            color:#fff;
+        }
+
+        .topbar-inner{
+            max-width:1200px;
+            margin:0 auto;
+            padding:14px 20px 10px;
+        }
+
+        .topbar-row1{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            font-size:13px;
+            margin-bottom:12px;
+        }
+
+        .topbar-row1 a{
+            color:#fff;
+            text-decoration:none;
+            margin-right:14px;
+        }
+
+        .topbar-row2{
+            display:flex;
+            align-items:center;
+            gap:24px;
+        }
+
+        .logo{
+            font-size:34px;
+            font-weight:700;
+            white-space:nowrap;
+        }
+
+        .search-box{
+            flex:1;
+            display:flex;
+            background:#fff;
+            border-radius:3px;
+            overflow:hidden;
+            height:40px;
+        }
+
+        .search-box input{
+            flex:1;
+            border:none;
+            outline:none;
+            padding:0 14px;
+            font-size:14px;
+        }
+
+        .search-box button{
+            width:60px;
+            border:none;
+            background:#fb5533;
+            color:#fff;
+            font-size:18px;
+            cursor:pointer;
+        }
+
+        .cart-link{
+            color:#fff;
+            text-decoration:none;
+            font-size:26px;
+            white-space:nowrap;
+        }
+
+        /* BREADCRUMB */
+        .breadcrumb{
+            max-width:1200px;
+            margin:20px auto 15px;
+            font-size:13px;
+            color:#666;
+        }
+
+        .breadcrumb a{
+            color:#0055aa;
+            text-decoration:none;
+        }
+
+        /* MAIN DETAIL */
+        .detail-wrapper{
+            max-width:1200px;
+            margin:0 auto 30px;
+            background:#fff;
+            display:grid;
+            grid-template-columns: 440px 1fr;
+            gap:32px;
+            padding:25px;
+        }
+
+        /* LEFT */
+        .left-panel{
+            width:100%;
+        }
+
+        .main-image-box{
+            width:100%;
+            aspect-ratio:1/1;
+            border:1px solid #eee;
+            background:#fafafa;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            overflow:hidden;
+        }
+
+        .main-image-box img{
+            width:100%;
+            height:100%;
+            object-fit:contain;
+        }
+
+        .thumb-list{
+            margin-top:15px;
+            display:flex;
+            gap:10px;
+            overflow-x:auto;
+        }
+
+        .thumb-item{
+            width:78px;
+            height:78px;
+            border:2px solid transparent;
+            cursor:pointer;
+            background:#fff;
+            flex:0 0 auto;
+        }
+
+        .thumb-item.active{
+            border-color:#ee4d2d;
+        }
+
+        .thumb-item img{
+            width:100%;
+            height:100%;
+            object-fit:cover;
+        }
+
+        /* RIGHT */
+        .product-title{
+            font-size:28px;
+            font-weight:500;
+            line-height:1.35;
+            margin-bottom:12px;
+        }
+
+        .meta-row{
+            display:flex;
+            align-items:center;
+            gap:18px;
+            color:#666;
+            font-size:14px;
+            margin-bottom:18px;
+        }
+
+        .meta-row .rating{
+            color:#ee4d2d;
+            font-weight:600;
+        }
+
+        .price-box{
+            background:#fafafa;
+            padding:18px 20px;
+            margin-bottom:22px;
+            display:flex;
+            align-items:end;
+            gap:12px;
+            flex-wrap:wrap;
+        }
+
+        .old-price{
+            color:#929292;
+            text-decoration:line-through;
+            font-size:20px;
+        }
+
+        .new-price{
+            color:#ee4d2d;
+            font-size:34px;
+            font-weight:500;
+        }
+
+        .discount-tag{
+            background:#ee4d2d;
+            color:#fff;
+            padding:3px 8px;
+            font-size:13px;
+            border-radius:2px;
+        }
+
+        .section{
+            margin-bottom:22px;
+        }
+
+        .section-title{
+            width:110px;
+            color:#757575;
+            font-size:15px;
+            padding-top:10px;
+            flex-shrink:0;
+        }
+
+        .section-row{
+            display:flex;
+            align-items:flex-start;
+            margin-bottom:18px;
+        }
+
+        .option-list{
+            display:flex;
+            flex-wrap:wrap;
+            gap:10px;
+            max-height:180px;
+            overflow-y:auto;
+        }
+
+        .option-btn{
+            min-width:90px;
+            padding:10px 14px;
+            border:1px solid #d5d5d5;
+            background:#fff;
+            cursor:pointer;
+            font-size:14px;
+            transition:all .2s ease;
+        }
+
+        .option-btn:hover{
+            border-color:#ee4d2d;
+            color:#ee4d2d;
+        }
+
+        .option-btn.active{
+            border:1px solid #ee4d2d;
+            color:#ee4d2d;
+            position:relative;
+        }
+
+        .option-btn.disabled{
+            color:#bbb;
+            border-color:#e8e8e8;
+            background:#fafafa;
+            cursor:not-allowed;
+        }
+
+        .stock-text{
+            font-size:15px;
+            color:#555;
+            padding-top:10px;
+        }
+
+        .qty-box{
+            display:flex;
+            align-items:center;
+            gap:15px;
+        }
+
+        .qty-control{
+            display:flex;
+            align-items:center;
+            border:1px solid #ccc;
+            width:max-content;
+        }
+
+        .qty-control button{
+            width:32px;
+            height:32px;
+            border:none;
+            background:#fff;
+            cursor:pointer;
+            font-size:18px;
+        }
+
+        .qty-control input{
+            width:52px;
+            height:32px;
+            border:none;
+            border-left:1px solid #ccc;
+            border-right:1px solid #ccc;
+            text-align:center;
+            outline:none;
+        }
+
+        .action-row{
+            display:flex;
+            gap:15px;
+            margin-top:28px;
+        }
+
+        .btn-cart{
+            min-width:180px;
+            height:48px;
+            border:1px solid #ee4d2d;
+            background:#fff1ee;
+            color:#ee4d2d;
+            font-size:16px;
+            cursor:pointer;
+        }
+
+        .btn-buy{
+            min-width:180px;
+            height:48px;
+            border:none;
+            background:#ee4d2d;
+            color:#fff;
+            font-size:16px;
+            cursor:pointer;
+        }
+
+        .btn-cart:hover,
+        .btn-buy:hover{
+            opacity:.92;
+        }
+
+        @media(max-width: 992px){
+            .detail-wrapper{
+                grid-template-columns:1fr;
+            }
+
+            .section-row{
+                flex-direction:column;
+                gap:8px;
+            }
+
+            .section-title{
+                width:auto;
+                padding-top:0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="topbar">
+    <div class="topbar-inner">
+        <div class="topbar-row1">
+            <div>
+                <a href="home">Kênh Người Bán</a>
+                <a href="shop-list">Trở thành Người bán</a>
+                <a href="#">Tải ứng dụng</a>
+            </div>
+            <div>
+                <a href="register.jsp">Đăng Ký</a>
+                <a href="login.jsp">Đăng Nhập</a>
+            </div>
+        </div>
+
+        <div class="topbar-row2">
+            <div class="logo">Shopee</div>
+
+            <form class="search-box" action="search" method="get">
+                <input type="text" name="keyword" placeholder="Tìm sản phẩm, shop..." />
+                <button type="submit">🔍</button>
+            </form>
+
+            <a class="cart-link" href="cart.jsp">🛒</a>
+        </div>
+    </div>
+</div>
+
+<!-- BREADCRUMB -->
+<div class="breadcrumb">
+    <a href="home">Shopee</a> &gt;
+    <a href="product-list">Sản phẩm</a> &gt;
+    <span>${product.productName}</span>
+</div>
+
+<!-- DETAIL -->
+<div class="detail-wrapper">
+    <!-- LEFT -->
+    <div class="left-panel">
+        <div class="main-image-box">
+            <img id="mainImage"
+                 src="${not empty product.imageUrl ? product.imageUrl : 'https://via.placeholder.com/500x500?text=No+Image'}"
+                 alt="${product.productName}">
+        </div>
+
+        <div class="thumb-list">
+            <div class="thumb-item active"
+                 onclick="changeMainImage(this, '${not empty product.imageUrl ? product.imageUrl : 'https://via.placeholder.com/500x500?text=No+Image'}')">
+                <img src="${not empty product.imageUrl ? product.imageUrl : 'https://via.placeholder.com/100x100?text=No+Image'}" alt="">
+            </div>
+
+            <c:forEach var="img" items="${productImages}">
+                <div class="thumb-item" onclick="changeMainImage(this, '${img.imageUrl}')">
+                    <img src="${img.imageUrl}" alt="">
+                </div>
+            </c:forEach>
+        </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right-panel">
+        <div class="product-title">${product.productName}</div>
+
+        <div class="meta-row">
+            <span class="rating">4.8 ★★★★★</span>
+            <span>1,7k Đánh Giá</span>
+            <span>3,5k Đã Bán</span>
+        </div>
+
+        <div class="price-box">
+            <div class="old-price">
+                <fmt:formatNumber value="${product.price * 1.5}" type="number" maxFractionDigits="0"/>đ
+            </div>
+            <div class="new-price">
+                <fmt:formatNumber value="${product.price}" type="number" maxFractionDigits="0"/>đ
+            </div>
+            <div class="discount-tag">-33%</div>
+        </div>
+
+        <!-- COLOR -->
+        <div class="section">
+            <div class="section-row">
+                <div class="section-title">Màu sắc</div>
+                <div class="option-list" id="colorList">
+                    <c:forEach var="color" items="${colors}">
+                        <button type="button" class="option-btn" onclick="selectColor(this, '${color}')">
+                            ${color}
+                        </button>
+                    </c:forEach>
+                </div>
+            </div>
+
+            <!-- SIZE -->
+            <div class="section-row">
+                <div class="section-title">Kích thước</div>
+                <div class="option-list" id="sizeList">
+                    <c:forEach var="size" items="${sizes}">
+                        <button type="button" class="option-btn" onclick="selectSize(this, '${size}')">
+                            ${size}
+                        </button>
+                    </c:forEach>
+                </div>
+            </div>
+
+            <!-- STOCK -->
+            <div class="section-row">
+                <div class="section-title">Kho</div>
+                <div class="stock-text">
+                    <span id="stockText">
+                        <c:choose>
+                            <c:when test="${not empty selectedVariant}">
+                                ${selectedVariant.stockQuantity} sản phẩm có sẵn
+                            </c:when>
+                            <c:otherwise>
+                                Vui lòng chọn phân loại hàng
+                            </c:otherwise>
+                        </c:choose>
+                    </span>
+                </div>
+            </div>
+
+            <!-- QUANTITY -->
+            <div class="section-row">
+                <div class="section-title">Số lượng</div>
+                <div class="qty-box">
+                    <div class="qty-control">
+                        <button type="button" onclick="changeQty(-1)">-</button>
+                        <input type="text" id="quantity" value="1" readonly>
+                        <button type="button" onclick="changeQty(1)">+</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION -->
+        <form action="cart" method="post" id="cartForm">
+            <input type="hidden" name="action" value="add">
+            <input type
+
+
+product-detail.jsp
+Tệp
+file product detail đây, chỉ chỉnh style còn lại không chỉnh bất cứ thứ gì
+
+
+Đã suy nghĩ trong 1m 21s
+Tôi đã chỉ chỉnh phần style và giữ nguyên logic/file gốc.
+
+Tải file ở đây: product-detail-styled.jsp
+
+Nếu bạn muốn, tôi có thể tiếp tục chỉnh cho nó giống Shopee hơn nữa ở mức 100% phần nhìn như:
+
+khối ảnh lớn + thumbnail bên dưới
+
+giá có nền xám nhạt
+
+nút chọn color/size giống Shopee hơn
+
+nút Add To Cart và Buy đúng tone Shopee hơn
+
+mà vẫn không đụng logic.
+
+
+chỉnh tiếp phần style đi đi 
+
+
+Đã suy nghĩ trong 1m 33s
+Đã chỉnh tiếp phần style, vẫn giữ nguyên logic và JS.
+
+File đây: product-detail-styled-2.jsp
+
+Tôi đã làm cho nó giống Shopee hơn ở phần nhìn:
+
+khung trắng giữa trang
+
+ảnh sản phẩm có nền và viền
+
+tên sản phẩm, giá nổi bật hơn
+
+nút chọn color/size giống dạng variant
+
+ô số lượng đẹp hơn
+
+2 nút Add To Cart và Buy theo tone Shopee
+
+Muốn tôi chỉnh tiếp cho giống hơn nữa kiểu ảnh trái to, bên phải spacing chuẩn Shopee hơn thì gửi tiếp tôi làm thêm đúng trên file này.
+
+
+
+user-header.jsp
+Tệp
+
+user-home.jsp
+Tệp
+
+search-result.jsp
+Tệp
+chỉnh style cho mấy trang này đẹp hơn
+
+
+Đã suy nghĩ trong 3m 4s
+Đã chỉnh style đẹp hơn cho 3 trang này, giữ nguyên logic:
+
+user-header-styled.jsp
+
+user-home-styled.jsp
+
+search-result-styled.jsp
+
+Tôi làm theo hướng gần kiểu Shopee hơn:
+
+header cam đậm, search bar gọn hơn
+
+card sản phẩm có hover, bóng đổ, spacing đẹp hơn
+
+chữ giá nổi bật hơn
+
+dropdown user nhìn sạch hơn
+
+phần search result và shop info cũng gọn hơn
+
+Bạn chỉ cần copy nội dung các file này đè vào file cũ tương ứng. Nếu muốn, tôi có thể chỉnh tiếp đồng bộ luôn cart.jsp và checkout.jsp cùng một style.
+
+
+
+search-result.jsp
+Tệp
+
+user-header.jsp
+Tệp
+
+user-home.jsp
+Tệp
+chỉ sửa phần style, ngoài ra không đung đến bất cứ thứ gì khác
+
+OK, mình sẽ chỉ sửa CSS (style), không đụng bất kỳ logic / JSTL / EL / form / servlet / biến nào.
+Bạn chỉ cần thêm đoạn CSS này vào trong <style> của mỗi file hoặc file css chung.
+
+Dưới đây là style làm giao diện sạch + giống Shopee hơn cho 3 trang:
+
+1. CSS cho user-header.jsp
+Header cam + search đẹp hơn.
+
+/* HEADER */
+.header{
+    background:#ee4d2d;
+    color:white;
+    padding:15px 0;
+}
+
+.header-container{
+    width:1200px;
+    margin:auto;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.logo{
+    font-size:26px;
+    font-weight:bold;
+}
+
+.search-bar{
+    width:500px;
+    display:flex;
+}
+
+.search-bar input{
+    flex:1;
+    padding:10px;
+    border:none;
+    outline:none;
+    border-radius:3px 0 0 3px;
+}
+
+.search-bar button{
+    background:#ff7337;
+    border:none;
+    padding:10px 20px;
+    color:white;
+    cursor:pointer;
+    border-radius:0 3px 3px 0;
+}
+
+.search-bar button:hover{
+    background:#ff5a1f;
+}
+
+.nav-links a{
+    color:white;
+    margin-left:20px;
+    text-decoration:none;
+}
+
+.nav-links a:hover{
+    text-decoration:underline;
+}
+2. CSS cho user-home.jsp
+Product card giống Shopee.
+
+body{
+    background:#f5f5f5;
+    font-family:Arial;
+}
+
+/* PRODUCT GRID */
+
+.product-container{
+    width:1200px;
+    margin:auto;
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:20px;
+}
+
+.product-card{
+    background:white;
+    border-radius:5px;
+    overflow:hidden;
+    transition:0.2s;
+    cursor:pointer;
+    border:1px solid #eee;
+}
+
+.product-card:hover{
+    transform:translateY(-5px);
+    box-shadow:0 3px 10px rgba(0,0,0,0.15);
+}
+
+.product-img{
+    width:100%;
+    height:200px;
+    object-fit:cover;
+}
+
+.product-info{
+    padding:10px;
+}
+
+.product-name{
+    font-size:14px;
+    height:40px;
+    overflow:hidden;
+}
+
+.product-price{
+    color:#ee4d2d;
+    font-size:18px;
+    font-weight:bold;
+    margin-top:5px;
+}
+
+.shop-name{
+    font-size:12px;
+    color:gray;
+}
+3. CSS cho search-result.jsp
+Kết quả tìm kiếm nhìn gọn hơn.
+
+.search-result-container{
+    width:1200px;
+    margin:auto;
+}
+
+.search-title{
+    font-size:20px;
+    margin:20px 0;
+}
+
+.result-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:20px;
+}
+
+.result-card{
+    background:white;
+    border:1px solid #eee;
+    border-radius:5px;
+    overflow:hidden;
+    transition:0.2s;
+}
+
+.result-card:hover{
+    box-shadow:0 3px 10px rgba(0,0,0,0.15);
+    transform:translateY(-3px);
+}
+
+.result-img{
+    width:100%;
+    height:180px;
+    object-fit:cover;
+}
+
+.result-info{
+    padding:10px;
+}
+
+.result-name{
+    font-size:14px;
+    height:38px;
+    overflow:hidden;
+}
+
+.result-price{
+    color:#ee4d2d;
+    font-weight:bold;
+    margin-top:5px;
+}
+Sau khi thêm CSS giao diện sẽ:
+✔ header giống Shopee hơn
+✔ sản phẩm dạng grid card đẹp
+✔ hover nổi lên
+✔ giá màu cam Shopee
+✔ spacing đều
+
+Nếu bạn muốn tôi làm thêm 3 thứ này (nhìn giống Shopee 90%)
+1️⃣ product list hover có animation mượt hơn
+2️⃣ header sticky khi scroll
+3️⃣ product detail layout chuẩn Shopee
+
+Tôi có thể gửi 1 file CSS duy nhất ~300 dòng áp vào toàn bộ project luôn.
+
+
+
+
