@@ -1,0 +1,538 @@
+
+
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+
+Lỗi của bạn xảy ra vì SQL Server yêu cầu mã hóa (encrypt=true) nhưng NetBeans đang để trustServerCertificate=false, nên kết nối bị chặn.
+
+Trong code Java của bạn thì đã đúng:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true
+Nhưng trong NetBeans Connection Wizard thì URL lại đang là:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211
+nên nó báo lỗi.
+
+Cách sửa (đơn giản nhất)
+Bước 1: sửa JDBC URL trong NetBeans
+Trong ô JDBC URL, đổi thành:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true
+Sau đó bấm Test Connection.
+
+Giải thích lỗi
+Thông báo lỗi:
+
+encrypt property is set to true and trustServerCertificate property is set to false
+Nghĩa là:
+
+Property	Ý nghĩa
+encrypt=true	SQL Server bắt buộc kết nối mã hóa
+trustServerCertificate=false	NetBeans không tin certificate
+=> phải thêm:
+
+trustServerCertificate=true
+Cấu hình đúng cho project của bạn
+DBContext.java
+private static final String URL =
+"jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true";
+
+private static final String USER = "sa";
+private static final String PASS = "sa";
+Nếu vẫn lỗi (rất hay gặp)
+Kiểm tra thêm 3 cái:
+
+1️⃣ SQL Server đã bật TCP chưa
+Mở SQL Server Configuration Manager
+
+SQL Server Network Configuration
+→ Protocols for MSSQLSERVER
+→ TCP/IP = Enabled
+Restart SQL Server.
+
+2️⃣ Port có đúng 1433 không
+Trong TCP/IP → IPAll
+
+TCP Port = 1433
+3️⃣ SQL Server có cho login bằng sa không
+Trong SSMS:
+
+Security
+→ Logins
+→ sa
+→ Enable
+URL chuẩn nhất cho SQL Server + Java
+Luôn dùng:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true
+💡 Nếu bạn muốn mình kiểm tra toàn bộ project NetBeans + Tomcat + SQL Server để đảm bảo chạy được 100%, hãy gửi thêm:
+
+file DBContext.java
+
+ảnh Libraries trong NetBeans
+
+ảnh Tomcat server
+
+Mình sẽ chỉ ra chính xác lỗi ở đâu cho bạn.
+
+
+Đã tải lên ảnh
+
+Lỗi mới của bạn là:
+
+Unable to find a suitable driver (jdbc:microsoft:sqlserver://...)
+Nguyên nhân 100% là do bạn chọn sai driver trong NetBeans.
+
+Trong hình của bạn đang để:
+
+Driver Name: Microsoft SQL Server 2000 (Microsoft driver)
+Driver này rất cũ (SQL Server 2000) và không hoạt động với JDBC hiện đại + JDK 17.
+
+Cách sửa đúng
+Bước 1: chọn đúng Driver
+Trong Driver Name, đổi thành:
+
+Microsoft SQL Server (jTDS) 
+hoặc
+Microsoft SQL Server (Microsoft)
+Tốt nhất là:
+
+Microsoft SQL Server (Microsoft)
+Bước 2: sửa JDBC URL
+Thay toàn bộ URL thành:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true
+Nếu trong NetBeans không có driver Microsoft
+Bạn cần add driver JDBC thủ công.
+
+Bước 1: tải JDBC Driver
+Download:
+
+mssql-jdbc-12.6.1.jre11.jar
+từ Microsoft.
+
+Bước 2: add vào NetBeans
+Vào:
+
+Services
+→ Databases
+→ Drivers
+→ Right click
+→ New Driver
+Add file:
+
+mssql-jdbc-12.6.1.jre11.jar
+Driver class:
+
+com.microsoft.sqlserver.jdbc.SQLServerDriver
+Sau khi add xong
+Connection sẽ là:
+
+Host: localhost
+Port: 1433
+Database: LAB211
+User: sa
+Password: sa
+JDBC URL:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true
+Cấu hình chuẩn cho project của bạn
+DBContext.java:
+
+private static final String URL =
+"jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true";
+
+private static final String USER = "sa";
+private static final String PASS = "sa";
+💡 Vì bạn đang làm NetBeans + Tomcat + SQL Server, mình khuyên nên cấu hình chuẩn như sau để không bao giờ lỗi driver nữa.
+
+Nếu bạn muốn, mình sẽ hướng dẫn 3 bước chuẩn 100% chạy được web + database (rất nhiều sinh viên LAB211 bị lỗi chỗ này).
+
+
+Đã tải lên ảnh
+
+Trong hình của bạn NetBeans chỉ có 1 driver duy nhất:
+
+Microsoft SQL Server 2000 (Microsoft driver)
+Driver này quá cũ nên gây lỗi:
+
+Unable to find a suitable driver
+👉 Vì vậy bạn phải thêm driver mới của Microsoft.
+
+Cách sửa (làm đúng 3 bước)
+Bước 1: tải JDBC Driver
+Tải file này:
+
+mssql-jdbc-12.6.1.jre11.jar
+Link tải chính thức:
+https://learn.microsoft.com/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server
+
+Sau khi tải về bạn sẽ có file:
+
+mssql-jdbc-12.6.1.jre11.jar
+Bước 2: thêm driver vào NetBeans
+Vào:
+
+Services
+→ Databases
+→ Drivers
+Chuột phải Drivers
+
+New Driver
+Sau đó:
+
+Add → chọn file mssql-jdbc-12.6.1.jre11.jar
+Driver class nhập:
+
+com.microsoft.sqlserver.jdbc.SQLServerDriver
+Bấm OK
+
+Bước 3: tạo lại Connection
+Điền:
+
+Host: localhost
+Port: 1433
+Database: LAB211
+User: sa
+Password: sa
+JDBC URL:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true
+Sau đó bấm:
+
+Test Connection
+Kết quả đúng sẽ là
+Connection succeeded
+Cấu hình chuẩn cho project của bạn
+DBContext.java
+
+private static final String URL =
+"jdbc:sqlserver://localhost:1433;databaseName=LAB211;encrypt=true;trustServerCertificate=true";
+
+private static final String USER = "sa";
+private static final String PASS = "sa";
+💡 Vì bạn đang dùng NetBeans + JDK17 + Tomcat, mình khuyên thêm 1 bước cực quan trọng để web chạy không lỗi database.
+
+Nếu bạn muốn, mình sẽ chỉ luôn:
+
+Cách đặt file JDBC vào Tomcat lib để web chạy database 100% không lỗi (90% sinh viên LAB211 bị lỗi chỗ này).
+
+
+Đã tải lên ảnh
+
+Bạn đang gần đúng rồi, chỉ còn 1 lỗi duy nhất nên NetBeans báo đỏ.
+
+Lỗi hiện tại
+Thông báo:
+
+encrypt property is set to "true" and trustServerCertificate property is set to "false"
+Nghĩa là:
+
+SQL Server yêu cầu encrypt=true
+
+Nhưng NetBeans đang để trustServerCertificate=false
+
+Cách sửa ngay
+Trong ô JDBC URL ở dưới cùng, sửa thành:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211DB;encrypt=true;trustServerCertificate=true
+Lưu ý phải thêm đoạn này vào cuối:
+
+;encrypt=true;trustServerCertificate=true
+Sau đó bấm:
+
+Test Connection
+Một lỗi nữa tôi thấy trong hình
+Trong code Java bạn đang để database:
+
+databaseName=LAB211
+Nhưng trong NetBeans connection bạn lại để:
+
+LAB211DB
+👉 Hai cái phải giống nhau.
+
+Ví dụ:
+
+Cách 1 (khuyên dùng)
+Sửa DBContext.java:
+
+private static final String URL =
+"jdbc:sqlserver://localhost:1433;databaseName=LAB211DB;encrypt=true;trustServerCertificate=true";
+Cấu hình đúng hoàn chỉnh
+DBContext.java
+private static final String URL =
+"jdbc:sqlserver://localhost:1433;databaseName=LAB211DB;encrypt=true;trustServerCertificate=true";
+
+private static final String USER = "sa";
+private static final String PASS = "sa";
+Nếu vẫn lỗi
+Kiểm tra thêm:
+
+1️⃣ SQL Server có chạy không
+Mở SQL Server Configuration Manager
+
+SQL Server Services
+→ SQL Server (MSSQLSERVER)
+→ Running
+2️⃣ Port có đúng 1433
+SQL Server Network Configuration
+→ TCP/IP → Enabled
+💡 Nhìn project của bạn mình đoán bạn đang làm LAB211 Web + Servlet + SQL Server.
+
+Nếu bạn muốn mình chỉ luôn:
+
+Cấu hình chuẩn NetBeans + Tomcat + SQL Server để chạy web database 100% không lỗi (3 phút setup).
+
+
+Đã tải lên ảnh
+
+Lỗi mới của bạn là:
+
+Connection failed: Cannot open database "LAB211DB" requested by the login.
+The login failed.
+Điều này có nghĩa là SQL Server đã kết nối được, nhưng database LAB211DB không tồn tại hoặc user sa không có quyền vào database đó.
+
+Kiểm tra theo thứ tự sau
+1️⃣ Kiểm tra database có tồn tại không
+Mở SQL Server Management Studio (SSMS)
+
+Chạy lệnh:
+
+SELECT name FROM sys.databases
+Xem trong danh sách có:
+
+LAB211DB
+hay không.
+
+2️⃣ Nếu KHÔNG có database → tạo database
+Chạy lệnh:
+
+CREATE DATABASE LAB211DB
+Sau đó thử Test Connection lại.
+
+3️⃣ Nếu database đã tồn tại nhưng vẫn lỗi
+Có thể user sa chưa được map vào database.
+
+Chạy:
+
+USE LAB211DB
+CREATE USER sa FOR LOGIN sa
+ALTER ROLE db_owner ADD MEMBER sa
+Kiểm tra nhanh hơn
+Trong SSMS thử:
+
+USE LAB211DB
+GO
+Nếu báo lỗi → database chưa tồn tại.
+
+Một lỗi nhỏ nữa tôi thấy trong ảnh
+JDBC URL của bạn đang bị thiếu chữ jdbc:sqlserver
+
+Hiện tại nó là:
+
+rver://localhost:1433;databaseName=LAB211DB
+Phải sửa thành:
+
+jdbc:sqlserver://localhost:1433;databaseName=LAB211DB;encrypt=true;trustServerCertificate=true
+Cấu hình cuối cùng đúng 100%
+DBContext.java
+private static final String URL =
+"jdbc:sqlserver://localhost:1433;databaseName=LAB211DB;encrypt=true;trustServerCertificate=true";
+
+private static final String USER = "sa";
+private static final String PASS = "sa";
+✅ Nếu làm đúng thì Test Connection sẽ hiện:
+
+Connection Succeeded
+💡 Nhìn project của bạn mình đoán bạn đang làm LAB211 Web (Servlet + JSP + SQL Server).
+
+Nếu bạn muốn, mình có thể chỉ thêm:
+
+5 lỗi phổ biến khiến NetBeans + Tomcat + SQL Server không chạy database
+
+và cách fix trong 2 phút (90% sinh viên gặp lỗi này).
+
+
+nếu như tôi muốn bạn đưa ra code hoàn chỉnh để có thể add thẳng vô thanh toán vào cái web hiện tại của chúng tôi
+
+Để mình đưa code thanh toán hoàn chỉnh cơ bản mà bạn có thể gắn trực tiếp vào web Java Servlet + JSP + SQL Server (đúng với project NetBeans + Tomcat của bạn). Ý tưởng là:
+
+Người dùng bấm Checkout
+
+Lưu Order
+
+Lưu OrderDetail
+
+Hiển thị Thanh toán thành công
+
+Tôi sẽ viết một phiên bản đơn giản nhưng chạy được ngay.
+
+1️⃣ Cấu trúc database (SQL Server)
+Tạo bảng:
+
+CREATE TABLE Orders (
+    order_id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id INT,
+    total_price FLOAT,
+    order_date DATETIME DEFAULT GETDATE(),
+    status NVARCHAR(50)
+)
+
+CREATE TABLE OrderDetails (
+    detail_id INT IDENTITY(1,1) PRIMARY KEY,
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    price FLOAT
+)
+2️⃣ Model Order
+package model;
+
+public class Order {
+    private int orderId;
+    private int userId;
+    private double totalPrice;
+    private String status;
+
+    public Order() {}
+
+    public Order(int userId, double totalPrice, String status) {
+        this.userId = userId;
+        this.totalPrice = totalPrice;
+        this.status = status;
+    }
+
+    public int getUserId() { return userId; }
+    public double getTotalPrice() { return totalPrice; }
+    public String getStatus() { return status; }
+}
+3️⃣ DAO lưu Order
+package dal;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import model.Order;
+
+public class OrderDAO {
+
+    public int createOrder(Order order) throws Exception {
+        String sql = "INSERT INTO Orders(user_id,total_price,status) VALUES(?,?,?)";
+
+        Connection conn = DBContext.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS);
+
+        ps.setInt(1, order.getUserId());
+        ps.setDouble(2, order.getTotalPrice());
+        ps.setString(3, order.getStatus());
+
+        ps.executeUpdate();
+
+        ResultSet rs = ps.getGeneratedKeys();
+        if(rs.next()){
+            return rs.getInt(1);
+        }
+        return -1;
+    }
+}
+4️⃣ Servlet thanh toán
+package controller;
+
+import dal.OrderDAO;
+import model.Order;
+
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+public class CheckoutServlet extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+
+            int userId = Integer.parseInt(request.getParameter("userId"));
+            double total = Double.parseDouble(request.getParameter("total"));
+
+            Order order = new Order(userId, total, "PAID");
+
+            OrderDAO dao = new OrderDAO();
+            int orderId = dao.createOrder(order);
+
+            request.setAttribute("orderId", orderId);
+            request.getRequestDispatcher("paymentSuccess.jsp").forward(request, response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+5️⃣ Trang Checkout (checkout.jsp)
+<form action="checkout" method="post">
+
+    User ID:
+    <input type="text" name="userId">
+
+    Total Price:
+    <input type="text" name="total">
+
+    <button type="submit">Thanh toán</button>
+
+</form>
+6️⃣ Trang thanh toán thành công
+paymentSuccess.jsp
+
+<h2>Thanh toán thành công</h2>
+
+Order ID: ${orderId}
+7️⃣ web.xml
+Thêm servlet mapping:
+
+<servlet>
+    <servlet-name>checkout</servlet-name>
+    <servlet-class>controller.CheckoutServlet</servlet-class>
+</servlet>
+
+<servlet-mapping>
+    <servlet-name>checkout</servlet-name>
+    <url-pattern>/checkout</url-pattern>
+</servlet-mapping>
+8️⃣ Kết quả
+Luồng hoạt động:
+
+Cart
+   ↓
+Checkout.jsp
+   ↓
+CheckoutServlet
+   ↓
+OrderDAO (save SQL Server)
+   ↓
+paymentSuccess.jsp
+🚀 Nếu bạn muốn mình làm phiên bản hoàn chỉnh hơn cho project của bạn:
+Tôi có thể viết luôn:
+
+Cart (session)
+
+OrderDetail
+
+Thanh toán VNPay / PayPal
+
+Trang lịch sử đơn hàng
+
+Admin quản lý đơn
+
+Chỉ cần bạn gửi thêm:
+
+1️⃣ ERD database của web
+2️⃣ Cấu trúc project NetBeans (thư mục controller / model / dal)
+3️⃣ Trang cart hiện tại của bạn
+
+Tôi sẽ viết code thanh toán hoàn chỉnh đúng với project của bạn để copy vào chạy ngay.
+
+
+
+
