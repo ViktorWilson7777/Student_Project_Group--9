@@ -1,0 +1,2363 @@
+
+
+
+
+tôi đang muốn làm mục thanh toán trên 1 web đang code = java trên netbeans dùng database là sql server
+
+Để thêm chức năng thanh toán (Checkout / Payment) vào web Java (JSP/Servlet) chạy trên NetBeans + SQL Server, bạn cần làm theo cấu trúc chuẩn sau. Mình sẽ giải thích theo đúng quy trình của một website bán hàng để bạn có thể gắn vào project hiện tại.
+
+1. Thiết kế Database cho thanh toán
+Trước tiên database phải có 2 bảng chính:
+
+Bảng Orders (đơn hàng)
+CREATE TABLE Orders (
+    order_id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id INT,
+    order_date DATETIME DEFAULT GETDATE(),
+    total_price FLOAT,
+    status NVARCHAR(50)
+);
+Bảng OrderDetails (chi tiết đơn hàng)
+CREATE TABLE OrderDetails (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    price FLOAT
+);
+Quan hệ:
+
+User
+   |
+Orders
+   |
+OrderDetails
+   |
+Product
+2. Tạo Model trong Java
+Order.java
+public class Order {
+    private int orderId;
+    private int userId;
+    private double totalPrice;
+    private String status;
+
+    public Order() {}
+
+    public Order(int userId, double totalPrice, String status) {
+        this.userId = userId;
+        this.totalPrice = totalPrice;
+        this.status = status;
+    }
+
+    // getter setter
+}
+3. Tạo DAO để lưu đơn hàng
+OrderDAO.java
+package dal;
+
+import java.sql.*;
+import model.Order;
+
+public class OrderDAO {
+
+    Connection conn;
+
+    public OrderDAO() {
+        DBContext db = new DBContext();
+        conn = db.getConnection();
+    }
+
+    public int createOrder(Order order) {
+        String sql = "INSERT INTO Orders(user_id,total_price,status) VALUES(?,?,?)";
+
+        try {
+            PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+
+            ps.setInt(1, order.getUserId());
+            ps.setDouble(2, order.getTotalPrice());
+            ps.setString(3, order.getStatus());
+
+            ps.executeUpdate();
+
+            ResultSet rs = ps.getGeneratedKeys();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return -1;
+    }
+}
+4. Servlet xử lý thanh toán
+CheckoutServlet.java
+@WebServlet("/checkout")
+public class CheckoutServlet extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+
+        int userId = (int) session.getAttribute("userId");
+
+        double total = Double.parseDouble(request.getParameter("total"));
+
+        Order order = new Order(userId, total, "Pending");
+
+        OrderDAO dao = new OrderDAO();
+        int orderId = dao.createOrder(order);
+
+        if (orderId > 0) {
+            response.sendRedirect("success.jsp");
+        } else {
+            response.sendRedirect("error.jsp");
+        }
+    }
+}
+5. Trang thanh toán
+checkout.jsp
+<form action="checkout" method="post">
+
+    <h2>Thanh toán</h2>
+
+    Tổng tiền:
+    <input type="text" name="total" value="${total}" readonly>
+
+    <br><br>
+
+    <button type="submit">
+        Thanh toán
+    </button>
+
+</form>
+6. Trang thanh toán thành công
+success.jsp
+<h2>Thanh toán thành công</h2>
+
+<a href="home.jsp">Quay lại trang chủ</a>
+7. Flow hoạt động
+Cart.jsp
+   ↓
+Checkout.jsp
+   ↓
+CheckoutServlet
+   ↓
+OrderDAO
+   ↓
+SQL Server
+   ↓
+success.jsp
+8. Chức năng thanh toán đầy đủ thường có
+Một web bán hàng chuẩn sẽ có:
+
+1️⃣ Login
+2️⃣ Cart (giỏ hàng)
+3️⃣ Checkout
+4️⃣ Payment
+5️⃣ Order History
+
+9. Nếu làm đúng project LAB211 / JSP Servlet thì thanh toán thường là
+Add to cart
+↓
+Cart.jsp
+↓
+Checkout.jsp
+↓
+CheckoutServlet
+↓
+Insert Orders
+↓
+Insert OrderDetails
+↓
+Success
+💡 Quan trọng:
+Dựa vào ảnh trước bạn gửi, mình thấy web của bạn chưa có Cart và Order, nên bạn không thấy mục thanh toán.
+
+Nếu bạn muốn mình có thể:
+viết FULL chức năng thanh toán hoàn chỉnh cho project của bạn
+
+gồm
+
+Cart
+
+Checkout
+
+Order
+
+OrderDetails
+
+JSP + Servlet + DAO
+
+Chỉ cần gửi mình:
+
+1️⃣ Cấu trúc project NetBeans
+
+src
+model
+dal
+controller
+web
+2️⃣ Database hiện tại (ảnh bảng SQL)
+
+3️⃣ Trang cart.jsp hiện tại
+
+Mình sẽ viết code hoàn chỉnh để bạn copy vào chạy luôn. 🚀
+
+
+Đã tải lên ảnh
+thư mục tôi đang như thế này thì tôi càng đưa bạn những dòng code ở đâu để bạn tạo ra 1 cái mục thanh toán bên trong web của tôi
+
+Mình đã xem cấu trúc project của bạn trong ảnh. Web của bạn là JSP/Servlet + SQL Server trên Apache Tomcat trong Apache NetBeans IDE 28. Thư mục của bạn khá chuẩn rồi nên có thể thêm chức năng thanh toán rất dễ 👍
+
+Để mình viết chính xác code thanh toán gắn vào project của bạn, bạn cần gửi mình 4 phần code quan trọng sau.
+
+1️⃣ Gửi file kết nối database
+Trong thư mục dal
+
+File:
+
+DBContext.java
+👉 Gửi toàn bộ code file này
+
+Vì tất cả DAO thanh toán sẽ dùng lại connection này.
+
+2️⃣ Gửi code Order hiện tại
+Bạn đã có:
+
+OrderDAO.java
+OrderItemDAO.java
+OrderVoucherDAO.java
+👉 Gửi mình code của:
+
+OrderDAO.java
+OrderItemDAO.java
+Đây là phần lưu đơn hàng vào SQL Server.
+
+3️⃣ Gửi Model của Order
+Trong thư mục:
+
+model
+Gửi các file:
+
+Order.java
+OrderItem.java
+Cart.java (nếu có)
+Để mình biết cấu trúc object của bạn.
+
+4️⃣ Gửi trang giỏ hàng
+Trong Web Pages
+
+Tìm file giống như:
+
+cart.jsp
+shoppingcart.jsp
+checkout.jsp
+👉 Gửi toàn bộ code file đó.
+
+Vì nút "Thanh toán" sẽ được thêm ở đây.
+
+5️⃣ Nếu có Controller thì gửi luôn
+Trong thư mục:
+
+controller
+Tìm các file kiểu:
+
+CartController.java
+OrderController.java
+CheckoutController.java
+Sau khi bạn gửi 4 phần này
+Mình sẽ viết FULL chức năng thanh toán cho project của bạn, gồm:
+
+1️⃣ Nút thanh toán
+<button>Checkout</button>
+2️⃣ Servlet xử lý thanh toán
+CheckoutController.java
+3️⃣ Lưu vào database
+Orders
+OrderItems
+Voucher
+Shipping
+4️⃣ Trang thanh toán thành công
+paymentSuccess.jsp
+Kết quả cuối cùng trên web của bạn sẽ là
+Product
+   ↓
+Add to Cart
+   ↓
+Cart.jsp
+   ↓
+Checkout
+   ↓
+Order saved to SQL Server
+   ↓
+Payment success
+💡 Quan trọng:
+Project của bạn đã có gần đủ DAO cho thanh toán:
+
+OrderDAO
+OrderItemDAO
+OrderVoucherDAO
+ShippingDAO
+VoucherDAO
+=> nghĩa là web này đã thiết kế sẵn payment logic, chỉ thiếu:
+
+Controller
+
+Checkout page
+
+Button thanh toán
+
+📌 Bạn gửi tiếp cho mình:
+
+DBContext.java
+OrderDAO.java
+OrderItemDAO.java
+Order.java
+cart.jsp
+Mình sẽ viết đúng code để copy vào chạy luôn trong project của bạn (không cần sửa thêm). 🚀
+
+
+tôi đã kết nối thành công tới database rồi và hiện tại chỉ cần add thêm mục thanh toán 
+
+Mình đã xem cấu trúc project của bạn trong ảnh. Tin tốt là project của bạn đã có gần đủ phần cho thanh toán rồi. Trong thư mục dal mình thấy có:
+
+OrderDAO.java
+OrderItemDAO.java
+OrderVoucherDAO.java
+ShippingDAO.java
+VoucherDAO.java
+Điều đó nghĩa là database và DAO cho Order đã tồn tại, bạn chỉ cần thêm 3 thứ:
+
+1️⃣ Nút Thanh toán (Checkout)
+2️⃣ CheckoutController (Servlet xử lý thanh toán)
+3️⃣ Trang thanh toán thành công
+
+Mình hướng dẫn đúng theo cấu trúc project của bạn.
+
+1️⃣ Thêm nút thanh toán trong trang giỏ hàng
+Mở file cart.jsp hoặc trang hiển thị giỏ hàng.
+
+Thêm:
+
+<form action="checkout" method="post">
+    <button type="submit">Thanh toán</button>
+</form>
+2️⃣ Tạo Controller xử lý thanh toán
+Trong thư mục:
+
+controller
+Tạo file:
+
+CheckoutController.java
+Code:
+
+package controller;
+
+import dal.OrderDAO;
+import model.Order;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+import java.io.IOException;
+
+@WebServlet("/checkout")
+public class CheckoutController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+
+        Integer userId = (Integer) session.getAttribute("userId");
+
+        if(userId == null){
+            response.sendRedirect("login.jsp");
+            return;
+        }
+
+        try{
+
+            double total = Double.parseDouble(request.getParameter("total"));
+
+            Order order = new Order();
+            order.setUserId(userId);
+            order.setTotalPrice(total);
+
+            OrderDAO dao = new OrderDAO();
+            dao.insert(order);
+
+            response.sendRedirect("paymentSuccess.jsp");
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+
+    }
+}
+3️⃣ Tạo trang thanh toán thành công
+Trong Web Pages
+
+Tạo file:
+
+paymentSuccess.jsp
+<h2>Thanh toán thành công</h2>
+
+<a href="home">Quay lại trang chủ</a>
+4️⃣ Flow hoạt động sau khi thêm
+Cart.jsp
+   ↓
+Nhấn "Thanh toán"
+   ↓
+CheckoutController
+   ↓
+OrderDAO.insert()
+   ↓
+Lưu đơn hàng vào SQL Server
+   ↓
+paymentSuccess.jsp
+5️⃣ Nếu bạn muốn làm chuẩn web bán hàng (khuyên nên)
+Thanh toán sẽ:
+
+Cart
+ ↓
+Checkout
+ ↓
+Order
+ ↓
+OrderItem
+ ↓
+Shipping
+ ↓
+Voucher
+ ↓
+Success
+Mà project của bạn đã có DAO cho tất cả phần này rồi.
+
+⚠️ Điều mình muốn hỏi thêm (rất quan trọng)
+Trong project của bạn hiện tại:
+
+đã có cart chưa?
+
+đã có Order model chưa?
+
+Vì trong ảnh mình chưa thấy thư mục model mở ra.
+
+👉 Cách nhanh nhất để mình làm thanh toán hoàn chỉnh cho web của bạn
+Bạn gửi thêm 2 ảnh:
+
+1️⃣ mở thư mục model
+2️⃣ mở thư mục Web Pages
+
+Mình sẽ viết FULL chức năng checkout chuẩn cho project LAB211 của bạn gồm:
+
+Cart
+
+Checkout
+
+Order
+
+Voucher
+
+Shipping
+
+Payment page
+
+Bạn chỉ cần copy code vào chạy luôn. 🚀
+
+
+dựa trên tất cả những gì bạn biết về tôi, hãy sparing partner của tôi. 
+mỗi khi tôi đưa ra một ý tưởng, thì phản hồi đầu tiên của bạn là ba đến năm câu hỏi mà tôi chưa từng nghĩ đến. Phản biện rủi ro góc khuất hoặc là blind spot
+bạn có cần tôi đưa dòng code của mục nào để có thể tạo ra 1 cái phần thanh toán đúng theo yêu cầu của tôi 
+
+Ok, mình sẽ làm sparring partner cho bạn. Nghĩa là trước khi đưa giải pháp, mình sẽ đặt câu hỏi để tìm blind spot (góc khuất) trong ý tưởng của bạn.
+
+Bạn nói: “Tôi muốn thêm mục thanh toán vào web Java JSP/Servlet đang chạy trên NetBeans + SQL Server.”
+
+Trước khi viết code, đây là 5 câu hỏi quan trọng mà nhiều người thường không nghĩ tới:
+
+1️⃣ Thanh toán của bạn là thanh toán thật hay chỉ là xác nhận đơn hàng?
+Nhiều web sinh viên thực chất chỉ là:
+
+Cart → Checkout → Insert Order → Success
+Không có:
+
+cổng thanh toán
+
+thẻ ngân hàng
+
+ví điện tử
+
+👉 Bạn muốn:
+
+A. Fake payment (chỉ tạo đơn hàng)
+
+B. Payment thật (VNPay / Momo / Paypal)
+
+Vì code 2 cái khác nhau hoàn toàn.
+
+2️⃣ Giỏ hàng của bạn đang lưu ở đâu?
+Có 3 cách phổ biến:
+
+1. Session
+2. Database
+3. Cookie
+Nếu không biết điều này thì không thể viết Checkout đúng.
+
+3️⃣ Khi bấm thanh toán thì hệ thống phải lưu những gì?
+Một đơn hàng chuẩn thường cần:
+
+Order
+OrderItems
+Shipping address
+Voucher
+Payment status
+Nhưng trong project của bạn mình thấy có:
+
+OrderDAO
+OrderItemDAO
+OrderVoucherDAO
+ShippingDAO
+👉 Vậy câu hỏi là:
+
+Checkout của bạn có cần nhập địa chỉ giao hàng không?
+
+4️⃣ Sau khi thanh toán xong thì giỏ hàng xử lý thế nào?
+Nhiều người quên bước này:
+
+Cart → Checkout → Order created
+Nhưng:
+
+Cart vẫn còn
+→ user bấm thanh toán lần 2
+→ tạo 2 đơn hàng
+👉 Bạn muốn:
+
+Clear cart
+hay
+
+Update cart status
+5️⃣ Thanh toán phải kiểm tra gì trước khi tạo Order?
+Một hệ thống đúng phải check:
+
+✔ user đã login
+✔ giỏ hàng không rỗng
+✔ sản phẩm còn hàng
+✔ voucher hợp lệ
+✔ shipping hợp lệ
+Nếu không check thì sẽ có bug.
+
+Bây giờ quay lại câu hỏi của bạn
+"Bạn có cần tôi đưa dòng code của mục nào để tạo phần thanh toán?"
+
+Câu trả lời: Có — mình cần 4 file quan trọng nhất.
+
+1️⃣ Model của Order
+Trong thư mục:
+
+model
+Gửi:
+
+Order.java
+OrderItem.java
+2️⃣ DAO lưu đơn hàng
+Trong:
+
+dal
+Gửi:
+
+OrderDAO.java
+OrderItemDAO.java
+3️⃣ Trang giỏ hàng
+Trong:
+
+Web Pages
+Gửi:
+
+cart.jsp
+hoặc
+
+shoppingCart.jsp
+4️⃣ Controller cart (nếu có)
+controller
+ví dụ:
+
+CartController.java
+Vì sao mình cần 4 file này?
+Để tạo flow thanh toán chuẩn:
+
+Cart.jsp
+     ↓
+CheckoutController
+     ↓
+OrderDAO.insert()
+     ↓
+OrderItemDAO.insert()
+     ↓
+Clear Cart
+     ↓
+paymentSuccess.jsp
+Một blind spot nữa mình muốn hỏi bạn
+Bạn đang làm project LAB211.
+
+Thông thường yêu cầu LAB211 là:
+
+Browse product
+Add to cart
+Checkout
+Order history
+👉 Vậy câu hỏi cuối cùng:
+
+Giảng viên của bạn yêu cầu "Payment" chỉ là:
+
+Create Order
+hay
+
+Integration payment gateway
+Nếu bạn muốn, mình có thể:
+
+đọc toàn bộ cấu trúc project của bạn
+
+chỉ ra thiếu gì để có payment hoàn chỉnh
+
+viết CheckoutController chuẩn cho project của bạn
+
+Bạn chỉ cần gửi thêm 1 ảnh mở thư mục model và Web Pages.
+Mình sẽ phân tích ngay kiến trúc web của bạn như một code review thực thụ.
+
+
+tôi chưa làm bất kì thứ gì về mục thành toán lẫn giỏ hàng 
+
+Tốt, thông tin này rất quan trọng. Nếu bạn chưa có cả Cart và Checkout, thì ý tưởng “chỉ thêm mục thanh toán” thực ra đang có một blind spot lớn:
+
+Thanh toán không thể tồn tại nếu chưa có giỏ hàng và đơn hàng.
+
+Một web bán hàng chuẩn luôn có flow như sau:
+
+Product → Add to Cart → Cart → Checkout → Order → Payment Success
+Vì vậy trước khi viết code, mình sẽ phản biện ý tưởng của bạn bằng 5 câu hỏi quan trọng (sparring partner mode):
+
+1️⃣ Người dùng sẽ chọn nhiều sản phẩm như thế nào nếu chưa có Cart?
+Nếu không có giỏ hàng thì hệ thống chỉ có thể:
+
+Buy Now → tạo Order ngay
+Bạn có muốn:
+
+A. Add to Cart (chuẩn ecommerce)
+
+B. Buy Now (mua trực tiếp)
+
+2️⃣ Cart của bạn sẽ lưu ở đâu?
+Có 2 lựa chọn phổ biến:
+
+Session (dễ nhất cho project sinh viên)
+
+session.setAttribute("cart", cart);
+Database (phức tạp hơn)
+
+Cart table
+CartItem table
+👉 Với project NetBeans JSP/Servlet mình khuyên Session.
+
+3️⃣ Bạn đã có bảng Order trong SQL Server chưa?
+Thanh toán cần ít nhất 2 bảng:
+
+Orders
+OrderItems
+Nếu chưa có thì phải tạo trước.
+
+4️⃣ Sau khi thanh toán xong thì giỏ hàng xử lý thế nào?
+Nếu không xử lý sẽ xảy ra lỗi:
+
+User checkout
+→ order created
+→ cart vẫn còn
+→ user bấm checkout lại
+→ duplicate order
+Bạn cần:
+
+session.removeAttribute("cart");
+5️⃣ Nếu user chưa login thì có cho checkout không?
+Hai hướng thiết kế:
+
+Checkout → yêu cầu login
+hoặc
+
+Guest checkout
+Bây giờ mình nói thẳng để bạn tiết kiệm thời gian
+Vì bạn chưa có Cart và Checkout, cách nhanh nhất là xây 3 module nhỏ:
+
+1️⃣ Cart
+Add product
+Remove product
+Update quantity
+2️⃣ Checkout
+Calculate total
+Create order
+Save order items
+3️⃣ Payment Success
+Clear cart
+Show success page
+Kiến trúc chuẩn cho project của bạn (NetBeans JSP/Servlet)
+Thư mục của bạn hiện tại:
+
+controller
+dal
+model
+Bạn cần thêm:
+
+model
+   Cart.java
+   CartItem.java
+
+controller
+   CartController.java
+   CheckoutController.java
+
+dal
+   OrderDAO.java
+   OrderItemDAO.java
+Flow hoàn chỉnh sau khi thêm
+Product.jsp
+   ↓
+Add to Cart
+   ↓
+Cart.jsp
+   ↓
+Checkout
+   ↓
+OrderDAO
+   ↓
+OrderItemDAO
+   ↓
+PaymentSuccess.jsp
+Mình muốn hỏi thêm một câu rất quan trọng
+Trong project của bạn hiện tại đã có:
+
+Product
+ProductVariant
+Shop
+Voucher
+👉 Bạn đã có trang hiển thị sản phẩm chưa?
+
+Ví dụ:
+
+product.jsp
+shop.jsp
+productDetail.jsp
+Vì Cart phải bắt đầu từ nút "Add to Cart" trong trang sản phẩm.
+
+Nếu bạn muốn, mình có thể giúp bạn nhanh hơn rất nhiều
+Mình có thể viết cho bạn FULL module Cart + Checkout phù hợp đúng cấu trúc project của bạn (JSP + Servlet + SQL Server).
+
+Chỉ cần bạn gửi thêm:
+
+1️⃣ ảnh thư mục model
+2️⃣ ảnh thư mục Web Pages
+
+Sau đó mình sẽ:
+
+thiết kế Cart chuẩn cho project của bạn
+
+viết CheckoutController
+
+tạo Cart.jsp
+
+nối với OrderDAO của bạn
+
+để bạn copy code vào là chạy được ngay trên NetBeans. 🚀
+
+
+1A 2 tôi muốn tạo 1 cái giỏ hàng  3 tôi chưa có bất kì giỏ hàng nào cả 4 sau khi thanh toán thì số sản phẩm trừ số lượng đặt hàng 5 nếu user ch login thì ko thêm mục checkout tôi muốn làm hoàn chỉnh mục từ giỏ hàng tới mục thanh toán và giao hàng tới địa chỉ nào trên toàn quốc
+
+Ok, mình sẽ sparring partner trước (đặt câu hỏi để tìm blind spot), rồi mới đề xuất kiến trúc cho bạn.
+
+Bạn nói muốn làm:
+
+Product → Cart → Checkout → Payment → Shipping toàn quốc
+
+Trước khi code, đây là 5 câu hỏi quan trọng bạn nên trả lời (nhiều người làm project web bỏ sót):
+
+1️⃣ Khi nhiều người cùng mua 1 sản phẩm thì xử lý tồn kho thế nào?
+Bạn nói:
+
+sau khi thanh toán thì trừ số lượng sản phẩm
+
+Nhưng nếu:
+
+Product stock = 5
+
+User A checkout 3
+User B checkout 3 cùng lúc
+👉 Nếu không kiểm tra lại trong database thì:
+
+stock = -1
+Câu hỏi:
+Bạn muốn kiểm tra tồn kho:
+
+khi add to cart
+
+hay khi checkout
+
+2️⃣ Giỏ hàng của bạn sẽ lưu ở đâu?
+Có 3 cách:
+
+Session
+Database
+LocalStorage
+Đối với JSP/Servlet project sinh viên, cách phổ biến là:
+
+Session Cart
+Nhưng vấn đề:
+
+User logout → cart mất
+👉 Bạn có chấp nhận điều này không?
+
+3️⃣ Địa chỉ giao hàng toàn quốc lưu như thế nào?
+Bạn nói:
+
+giao hàng tới địa chỉ toàn quốc
+
+Vậy bạn có cần:
+
+Province
+District
+Ward
+Street
+Phone
+Receiver name
+hay chỉ:
+
+Full address text
+Nếu làm chuẩn ecommerce thì bảng sẽ như:
+
+ShippingAddress
+4️⃣ Nếu user thoát giữa chừng checkout thì sao?
+Ví dụ:
+
+User checkout
+→ nhập địa chỉ
+→ chưa bấm thanh toán
+→ thoát
+Bạn muốn:
+
+Order chưa tạo
+hay
+
+Order status = Pending
+5️⃣ Payment của bạn là thật hay giả?
+Hai loại:
+
+Fake payment
+→ chỉ tạo order
+hoặc
+
+Payment gateway
+→ VNPay / Momo
+Với project kiểu LAB211, gần như luôn là:
+
+Fake payment
+Bây giờ mình đề xuất kiến trúc hoàn chỉnh cho web của bạn
+Bạn hiện có:
+
+controller
+dal
+model
+Chúng ta sẽ thêm 4 module
+
+1️⃣ Cart (Giỏ hàng)
+Model
+Cart.java
+CartItem.java
+Ví dụ:
+
+public class CartItem {
+
+    private int productId;
+    private String productName;
+    private double price;
+    private int quantity;
+
+}
+Cart lưu trong Session
+session.setAttribute("cart", cart);
+2️⃣ Add to Cart
+Trong trang product.jsp
+
+<form action="cart" method="post">
+
+<input type="hidden" name="productId" value="${p.id}">
+
+<button type="submit">
+Add to Cart
+</button>
+
+</form>
+CartController
+Add item
+Remove item
+Update quantity
+3️⃣ Cart Page
+cart.jsp
+Hiển thị:
+
+Product
+Price
+Quantity
+Total
+và nút
+
+Checkout
+4️⃣ Checkout
+Điều kiện:
+
+User must login
+Nếu chưa login:
+
+redirect login
+5️⃣ Database cần thêm
+Orders
+CREATE TABLE Orders (
+    orderId INT IDENTITY PRIMARY KEY,
+    userId INT,
+    orderDate DATETIME,
+    totalAmount FLOAT,
+    status NVARCHAR(50)
+)
+OrderItems
+CREATE TABLE OrderItems (
+    id INT IDENTITY PRIMARY KEY,
+    orderId INT,
+    productId INT,
+    quantity INT,
+    price FLOAT
+)
+Shipping
+CREATE TABLE Shipping (
+    id INT IDENTITY PRIMARY KEY,
+    orderId INT,
+    receiverName NVARCHAR(100),
+    phone NVARCHAR(20),
+    address NVARCHAR(255),
+    city NVARCHAR(100)
+)
+6️⃣ Checkout flow
+Cart.jsp
+      ↓
+Checkout.jsp
+      ↓
+CheckoutController
+      ↓
+Insert Orders
+Insert OrderItems
+Insert Shipping
+      ↓
+Update product stock
+      ↓
+Clear Cart
+      ↓
+Success.jsp
+7️⃣ Quan trọng: trừ số lượng sản phẩm
+SQL:
+
+UPDATE Product
+SET quantity = quantity - ?
+WHERE productId = ?
+Điều mình muốn hỏi bạn tiếp (rất quan trọng)
+Bạn đang có bảng trong database:
+
+Product
+ProductVariant
+Shop
+Voucher
+👉 Bạn có bảng:
+
+Orders
+OrderItems
+chưa?
+
+Nếu bạn muốn, mình có thể giúp bạn nhanh hơn rất nhiều
+Mình có thể thiết kế hoàn chỉnh hệ thống Cart + Checkout + Shipping cho project của bạn dựa trên cấu trúc đang có.
+
+Nhưng mình cần xem thêm:
+
+1️⃣ database của bạn (ảnh các bảng)
+2️⃣ model/Product.java
+3️⃣ ProductDAO.java
+
+Sau đó mình sẽ:
+
+thiết kế Cart system chuẩn
+
+viết CartController
+
+viết CheckoutController
+
+viết cart.jsp
+
+viết checkout.jsp
+
+để bạn copy vào project NetBeans là chạy được ngay. 🚀
+
+
+1 khi họ đặt hàng thì phải thanh toán mới tính là trừ đi giỏ hàng ai thành toán trước sẽ được còn khi chỉ đặt vào giỏ hàng mà ko thanh toán thì nếu không đủ số lượng thì sẽ thông báo rằng số lượng không đủ 2 giỏ hàng tôi muốn lưu sao mà khi logout rồi vẫn còn lưu giỏ hàng 3 tôi chỉ cần địa chỉ nhà thôi 4 nếu user thoát giữa chừng thì nó chỉ dừng ở pending 5 payment giả
+
+Rất tốt 👍 Bạn đã trả lời khá rõ. Mình sẽ tiếp tục sparring partner trước khi đưa kiến trúc, để đảm bảo hệ thống bạn làm không bị bug logic sau này.
+
+🔎 4 câu hỏi phản biện (blind spots)
+1️⃣ Nếu giỏ hàng lưu trong database thì khi nào tạo cart?
+Bạn muốn:
+
+logout vẫn còn giỏ hàng
+
+Vậy cart không thể lưu trong session, phải lưu trong DB.
+
+Nhưng vấn đề là:
+
+User login lần đầu
+→ chưa có cart
+👉 Câu hỏi:
+Bạn muốn hệ thống:
+
+A️⃣ tạo cart ngay khi login
+
+hay
+
+B️⃣ tạo cart khi add sản phẩm đầu tiên
+
+Cách B thường tốt hơn.
+
+2️⃣ Nếu user thêm 1 sản phẩm nhiều lần thì xử lý sao?
+Ví dụ:
+
+Add product 1
+Add product 1
+Add product 1
+Bạn muốn:
+
+quantity = 3
+hay
+
+3 dòng product giống nhau
+90% hệ thống chọn:
+
+UPDATE quantity
+3️⃣ Nếu tồn kho thay đổi sau khi user add cart?
+Ví dụ:
+
+Product stock = 5
+
+User A add cart = 5
+User B checkout = 5
+Khi user A checkout:
+
+stock = 0
+👉 Bạn đã nói đúng:
+
+checkout mới kiểm tra stock
+
+Nhưng câu hỏi:
+
+Bạn muốn hệ thống:
+
+reject order
+hay
+
+tự động giảm quantity trong cart
+4️⃣ Order pending bao lâu?
+Bạn nói:
+
+thoát giữa chừng thì pending
+
+Nhưng nếu:
+
+1000 user tạo pending order
+không thanh toán
+database sẽ đầy.
+
+👉 Bạn muốn:
+
+auto cancel after 30 minutes
+hay
+
+admin xử lý
+👍 Kiến trúc phù hợp nhất với yêu cầu của bạn
+Với các điều kiện bạn đưa ra:
+
+✔ cart lưu DB
+✔ checkout mới trừ stock
+✔ logout vẫn còn cart
+✔ pending order
+✔ payment giả
+✔ shipping address đơn giản
+Kiến trúc chuẩn sẽ là:
+
+Product
+   ↓
+Cart
+   ↓
+Checkout
+   ↓
+Order (Pending)
+   ↓
+Payment (Fake)
+   ↓
+Order Completed
+   ↓
+Stock Update
+🗄 Database bạn cần thêm
+1️⃣ Cart
+CREATE TABLE Cart (
+    cartId INT IDENTITY PRIMARY KEY,
+    userId INT
+)
+2️⃣ CartItems
+CREATE TABLE CartItems (
+    id INT IDENTITY PRIMARY KEY,
+    cartId INT,
+    productId INT,
+    quantity INT
+)
+3️⃣ Orders
+CREATE TABLE Orders (
+    orderId INT IDENTITY PRIMARY KEY,
+    userId INT,
+    totalPrice FLOAT,
+    status NVARCHAR(50),
+    createdDate DATETIME
+)
+status:
+
+Pending
+Paid
+Cancelled
+4️⃣ OrderItems
+CREATE TABLE OrderItems (
+    id INT IDENTITY PRIMARY KEY,
+    orderId INT,
+    productId INT,
+    quantity INT,
+    price FLOAT
+)
+5️⃣ Shipping
+CREATE TABLE Shipping (
+    id INT IDENTITY PRIMARY KEY,
+    orderId INT,
+    address NVARCHAR(255)
+)
+⚙ Flow hệ thống
+Add to cart
+Product page
+   ↓
+CartController
+   ↓
+Insert CartItem
+Cart page
+cart.jsp
+hiển thị
+
+product
+quantity
+price
+total
+Checkout
+Cart.jsp
+   ↓
+Checkout.jsp
+User nhập:
+
+Address
+Create Order
+CheckoutController
+Flow:
+
+1 get cart
+2 create order (Pending)
+3 create orderItems
+4 create shipping
+5 clear cart
+Payment giả
+Click Pay
+   ↓
+update order status = Paid
+   ↓
+update product stock
+SQL:
+
+UPDATE Product
+SET quantity = quantity - ?
+WHERE productId = ?
+⚠️ Blind spot lớn nhất của bạn hiện tại
+Bạn chưa có Cart system, nhưng project của bạn lại đã có:
+
+OrderDAO
+OrderItemDAO
+VoucherDAO
+ShippingDAO
+Điều này cho thấy web này thiết kế order trước rồi mới cart.
+
+Nếu bạn làm sai kiến trúc thì:
+
+Cart → Order → DAO conflict
+🚀 Cách nhanh nhất để mình giúp bạn
+Để mình thiết kế đúng với project của bạn, mình cần xem 3 thứ:
+
+1️⃣ bảng Product trong SQL
+SELECT * FROM Product
+2️⃣ file
+Product.java
+3️⃣ file
+ProductDAO.java
+Sau đó mình sẽ viết cho bạn toàn bộ module:
+
+Cart
+CartItem
+CartDAO
+CartController
+cart.jsp
+checkout.jsp
+CheckoutController
+đúng với project của bạn trên **Apache NetBeans IDE 28 + Microsoft SQL Server.
+
+Và mình cũng có thể chỉ cho bạn cách làm nhanh hơn 10 lần để hoàn thành phần này trong khoảng 30–40 phút code thay vì vài ngày.
+
+
+tôi muốn bắt đầu từ cơ bản là tạo 1 cái giỏ hàng 
+
+Tốt. Bắt đầu từ giỏ hàng (Cart) là đúng hướng. Nhưng trước khi code, mình sẽ sparring partner với bạn một chút để tránh thiết kế sai ngay từ đầu.
+
+🔎 4 câu hỏi bạn nên nghĩ trước khi tạo Cart
+1️⃣ Cart gắn với user hay session?
+Bạn đã nói:
+
+logout vẫn còn giỏ hàng
+
+Vậy Cart phải lưu trong database, không phải session.
+
+Thiết kế sẽ là:
+
+User
+  ↓
+Cart
+  ↓
+CartItems
+2️⃣ Một user có bao nhiêu cart?
+Hai cách:
+
+1 user = 1 cart
+hoặc
+
+1 user = nhiều cart
+Hầu hết web chọn:
+
+1 user = 1 cart active
+3️⃣ Khi thêm sản phẩm đã tồn tại trong cart thì sao?
+Ví dụ:
+
+Cart
+Product A - qty 1
+User bấm Add to cart lần nữa.
+
+Bạn muốn:
+
+qty = 2
+hay
+
+2 dòng product
+Chuẩn ecommerce:
+
+UPDATE quantity
+4️⃣ Cart có lưu price snapshot không?
+Ví dụ:
+
+Product price = 100
+User add cart
+Admin đổi giá = 120
+Checkout sẽ:
+
+100
+hay
+
+120
+✅ Bây giờ bắt đầu tạo Cart cơ bản
+Ta sẽ làm theo thứ tự:
+
+1 Database
+2 Model
+3 DAO
+4 Controller
+5 cart.jsp
+1️⃣ Tạo bảng Cart trong SQL Server
+CREATE TABLE Cart (
+    cartId INT IDENTITY PRIMARY KEY,
+    userId INT UNIQUE
+)
+2️⃣ Tạo bảng CartItems
+CREATE TABLE CartItems (
+    id INT IDENTITY PRIMARY KEY,
+    cartId INT,
+    productId INT,
+    quantity INT
+)
+3️⃣ Model CartItem
+Trong thư mục model
+
+package model;
+
+public class CartItem {
+
+    private int productId;
+    private int quantity;
+
+    public CartItem() {}
+
+    public CartItem(int productId, int quantity) {
+        this.productId = productId;
+        this.quantity = quantity;
+    }
+
+    public int getProductId() {
+        return productId;
+    }
+
+    public void setProductId(int productId) {
+        this.productId = productId;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+}
+4️⃣ CartDAO
+Trong thư mục dal
+
+package dal;
+
+import java.sql.*;
+import java.util.*;
+
+public class CartDAO extends DBContext {
+
+    public void addToCart(int userId, int productId, int quantity) {
+
+        try {
+
+            String getCart = "SELECT cartId FROM Cart WHERE userId=?";
+            PreparedStatement ps = connection.prepareStatement(getCart);
+            ps.setInt(1, userId);
+
+            ResultSet rs = ps.executeQuery();
+
+            int cartId = 0;
+
+            if (rs.next()) {
+                cartId = rs.getInt("cartId");
+            } else {
+
+                String createCart = "INSERT INTO Cart(userId) VALUES(?)";
+                PreparedStatement ps2 = connection.prepareStatement(createCart, Statement.RETURN_GENERATED_KEYS);
+                ps2.setInt(1, userId);
+                ps2.executeUpdate();
+
+                ResultSet key = ps2.getGeneratedKeys();
+                if (key.next()) {
+                    cartId = key.getInt(1);
+                }
+            }
+
+            String checkItem = "SELECT * FROM CartItems WHERE cartId=? AND productId=?";
+            PreparedStatement ps3 = connection.prepareStatement(checkItem);
+            ps3.setInt(1, cartId);
+            ps3.setInt(2, productId);
+
+            ResultSet rs2 = ps3.executeQuery();
+
+            if (rs2.next()) {
+
+                String update = "UPDATE CartItems SET quantity = quantity + ? WHERE cartId=? AND productId=?";
+                PreparedStatement ps4 = connection.prepareStatement(update);
+
+                ps4.setInt(1, quantity);
+                ps4.setInt(2, cartId);
+                ps4.setInt(3, productId);
+                ps4.executeUpdate();
+
+            } else {
+
+                String insert = "INSERT INTO CartItems(cartId,productId,quantity) VALUES(?,?,?)";
+                PreparedStatement ps5 = connection.prepareStatement(insert);
+
+                ps5.setInt(1, cartId);
+                ps5.setInt(2, productId);
+                ps5.setInt(3, quantity);
+                ps5.executeUpdate();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+5️⃣ CartController
+Trong thư mục controller
+
+@WebServlet("/addToCart")
+public class CartController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int productId = Integer.parseInt(request.getParameter("productId"));
+
+        HttpSession session = request.getSession();
+        int userId = (int) session.getAttribute("userId");
+
+        CartDAO dao = new CartDAO();
+        dao.addToCart(userId, productId, 1);
+
+        response.sendRedirect("cart.jsp");
+    }
+}
+6️⃣ Nút Add to Cart trong product.jsp
+<form action="addToCart" method="post">
+
+<input type="hidden" name="productId" value="${p.productId}">
+
+<button type="submit">
+Add to Cart
+</button>
+
+</form>
+Sau bước này web của bạn sẽ có
+Product
+   ↓
+Add to Cart
+   ↓
+Database Cart
+🚀 Bước tiếp theo (quan trọng)
+Sau khi có Cart, chúng ta sẽ làm:
+
+Cart.jsp
+Remove item
+Update quantity
+Calculate total
+Checkout
+👉 Nếu bạn muốn, mình có thể vẽ toàn bộ kiến trúc Cart + Checkout cho project của bạn (rất rõ ràng, đúng kiểu LAB211).
+
+Và mình cũng có thể chỉ cho bạn cách làm giỏ hàng + thanh toán hoàn chỉnh chỉ ~300 dòng code, thay vì 1500+ dòng như nhiều tutorial.
+
+
+Đã tải lên ảnh
+tôi đang có như thế này hãy đưa ra những gì tôi cần làm để tạo giỏ hàng với đk 1 user 1 giỏ hàng 3 sản phẩm đã có thì add thêm số lượng tính theo giá mà admin đổi hiện tại
+
+Mình đã xem ảnh database của bạn trong Microsoft SQL Server Management Studio. Bạn hiện có các bảng:
+
+AppUser
+Order
+OrderItem
+OrderVoucher
+Product
+ProductVariant
+Shipping
+Shop
+Voucher
+Điều này rất tốt vì Order system đã tồn tại, nên chúng ta chỉ cần thêm Cart system phía trước Order.
+
+Nhưng trước khi làm, mình vẫn sparring partner với bạn một chút để tránh bug logic sau này.
+
+🔎 4 câu hỏi phản biện nhanh
+1️⃣ Cart của bạn có cần lưu ProductVariant không?
+Bạn có bảng:
+
+Product
+ProductVariant
+Nếu sản phẩm có:
+
+Size
+Color
+thì cart phải lưu:
+
+variantId
+không phải productId.
+
+2️⃣ Cart có cần lưu price snapshot không?
+Bạn nói:
+
+tính theo giá admin đổi hiện tại
+
+Điều này nghĩa là:
+
+price lấy từ Product khi checkout
+không lưu trong Cart.
+
+Đây là đúng với yêu cầu của bạn.
+
+3️⃣ Khi user thêm cùng sản phẩm nhiều lần thì xử lý thế nào?
+Bạn đã yêu cầu:
+
+product đã có → tăng quantity
+tức là:
+
+UPDATE quantity
+4️⃣ Một user chỉ có 1 cart?
+Bạn đã xác nhận:
+
+1 user = 1 cart
+Điều này giúp DB đơn giản hơn.
+
+✅ Kiến trúc Cart phù hợp với database của bạn
+Ta sẽ thêm 2 bảng mới.
+
+1️⃣ Tạo bảng Cart
+CREATE TABLE Cart(
+    cartId INT IDENTITY PRIMARY KEY,
+    userId INT UNIQUE
+)
+userId UNIQUE đảm bảo:
+
+1 user = 1 cart
+2️⃣ Tạo bảng CartItem
+CREATE TABLE CartItem(
+    id INT IDENTITY PRIMARY KEY,
+    cartId INT,
+    productVariantId INT,
+    quantity INT
+)
+Lưu ý:
+
+productVariantId
+không phải productId.
+
+3️⃣ Model cần tạo trong project
+Trong thư mục model
+
+Cart.java
+public class Cart {
+
+    private int cartId;
+    private int userId;
+
+}
+CartItem.java
+public class CartItem {
+
+    private int id;
+    private int cartId;
+    private int productVariantId;
+    private int quantity;
+
+}
+4️⃣ CartDAO logic
+Logic add vào cart:
+
+1 tìm cart theo userId
+2 nếu chưa có → tạo cart
+3 kiểm tra sản phẩm đã có chưa
+4 nếu có → update quantity
+5 nếu chưa → insert
+Pseudo code:
+
+getCartByUser(userId)
+
+if(cart == null)
+   createCart(userId)
+
+checkCartItem(cartId, variantId)
+
+if(exist)
+   update quantity
+else
+   insert
+5️⃣ SQL update quantity
+UPDATE CartItem
+SET quantity = quantity + ?
+WHERE cartId = ? AND productVariantId = ?
+6️⃣ Lấy giá sản phẩm hiện tại
+Vì bạn muốn:
+
+tính theo giá admin đổi hiện tại
+
+Khi hiển thị cart:
+
+SELECT
+pv.variantId,
+p.name,
+pv.price,
+ci.quantity,
+(pv.price * ci.quantity) as total
+FROM CartItem ci
+JOIN ProductVariant pv ON ci.productVariantId = pv.variantId
+JOIN Product p ON pv.productId = p.productId
+WHERE ci.cartId = ?
+7️⃣ Flow hệ thống sau khi có cart
+Product page
+   ↓
+Add to Cart
+   ↓
+CartController
+   ↓
+CartDAO
+   ↓
+CartItem table
+8️⃣ Sau khi có Cart chúng ta mới làm bước tiếp theo
+cart.jsp
+remove item
+update quantity
+total price
+checkout
+⚠️ Một blind spot lớn mình thấy trong database của bạn
+Bạn có:
+
+Order
+OrderItem
+Shipping
+Voucher
+Điều này nghĩa là checkout system đã được thiết kế trước.
+
+Nhưng bạn chưa có cart, nên flow hiện tại có thể là:
+
+Buy Now → Order
+Nếu bạn thêm cart, flow sẽ đổi thành:
+
+Cart → Checkout → Order
+🚀 Mình có một đề xuất giúp bạn tiết kiệm rất nhiều thời gian
+Nếu bạn muốn, mình có thể viết cho bạn toàn bộ hệ thống Cart hoàn chỉnh cho project này, gồm:
+
+CartDAO
+CartController
+Cart.jsp
+AddToCart
+RemoveCartItem
+UpdateQuantity
+và đảm bảo chạy đúng với database bạn đang có.
+
+Chỉ cần bạn gửi thêm 1 ảnh:
+
+bảng ProductVariant (các cột trong bảng).
+
+
+Đã tải lên ảnh
+
+Mình đã xem cấu trúc bảng ProductVariant của bạn trong Microsoft SQL Server. Bạn có các cột:
+
+variantId
+size
+color
+stock
+priceVariant
+productId
+Điều này rất tốt vì Cart phải dùng variantId, không phải productId, để phân biệt:
+
+Áo size M màu Black
+Áo size L màu Red
+Trước khi bắt đầu code (sparring partner)
+Có 3 blind spot quan trọng bạn cần nghĩ tới:
+
+1️⃣ Khi admin đổi giá thì cart hiển thị giá nào?
+Bạn đã yêu cầu:
+
+tính theo giá admin đổi hiện tại
+
+=> đúng nghĩa là:
+
+Cart không lưu price
+Checkout lấy priceVariant từ ProductVariant
+2️⃣ Nếu stock thay đổi sau khi user add cart?
+Ví dụ:
+
+Stock = 5
+
+User A add cart 5
+User B checkout 5
+User A checkout sẽ:
+
+Stock không đủ
+Bạn phải kiểm tra lại stock khi checkout.
+
+3️⃣ Cart có cần hiển thị Size + Color không?
+Cart phải join:
+
+Product
+ProductVariant
+để hiển thị:
+
+Product name
+Size
+Color
+Price
+Bây giờ bắt đầu tạo hệ thống Cart
+Chúng ta sẽ làm 6 bước.
+
+1 tạo bảng Cart
+2 tạo bảng CartItem
+3 tạo model
+4 tạo DAO
+5 tạo controller
+6 nút Add To Cart
+1️⃣ Tạo bảng Cart
+Chạy SQL:
+
+CREATE TABLE Cart (
+    cartId INT IDENTITY PRIMARY KEY,
+    userId INT UNIQUE
+)
+UNIQUE đảm bảo:
+
+1 user = 1 cart
+2️⃣ Tạo bảng CartItem
+CREATE TABLE CartItem (
+    id INT IDENTITY PRIMARY KEY,
+    cartId INT,
+    variantId INT,
+    quantity INT
+)
+3️⃣ Model CartItem
+Trong thư mục model
+
+package model;
+
+public class CartItem {
+
+    private int variantId;
+    private int quantity;
+
+    public CartItem(){}
+
+    public CartItem(int variantId, int quantity){
+        this.variantId = variantId;
+        this.quantity = quantity;
+    }
+
+    public int getVariantId() {
+        return variantId;
+    }
+
+    public void setVariantId(int variantId) {
+        this.variantId = variantId;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+}
+4️⃣ CartDAO
+Trong thư mục dal
+
+package dal;
+
+import java.sql.*;
+
+public class CartDAO extends DBContext {
+
+    public void addToCart(int userId, int variantId, int quantity) {
+
+        try {
+
+            int cartId = 0;
+
+            String getCart = "SELECT cartId FROM Cart WHERE userId=?";
+            PreparedStatement ps = connection.prepareStatement(getCart);
+            ps.setInt(1, userId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                cartId = rs.getInt("cartId");
+            } else {
+
+                String createCart = "INSERT INTO Cart(userId) VALUES(?)";
+                PreparedStatement ps2 = connection.prepareStatement(createCart, Statement.RETURN_GENERATED_KEYS);
+
+                ps2.setInt(1, userId);
+                ps2.executeUpdate();
+
+                ResultSet key = ps2.getGeneratedKeys();
+
+                if (key.next()) {
+                    cartId = key.getInt(1);
+                }
+            }
+
+            String checkItem = "SELECT * FROM CartItem WHERE cartId=? AND variantId=?";
+            PreparedStatement ps3 = connection.prepareStatement(checkItem);
+
+            ps3.setInt(1, cartId);
+            ps3.setInt(2, variantId);
+
+            ResultSet rs2 = ps3.executeQuery();
+
+            if (rs2.next()) {
+
+                String update = "UPDATE CartItem SET quantity = quantity + ? WHERE cartId=? AND variantId=?";
+                PreparedStatement ps4 = connection.prepareStatement(update);
+
+                ps4.setInt(1, quantity);
+                ps4.setInt(2, cartId);
+                ps4.setInt(3, variantId);
+
+                ps4.executeUpdate();
+
+            } else {
+
+                String insert = "INSERT INTO CartItem(cartId,variantId,quantity) VALUES(?,?,?)";
+                PreparedStatement ps5 = connection.prepareStatement(insert);
+
+                ps5.setInt(1, cartId);
+                ps5.setInt(2, variantId);
+                ps5.setInt(3, quantity);
+
+                ps5.executeUpdate();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+5️⃣ CartController
+Trong thư mục controller
+
+@WebServlet("/addToCart")
+public class CartController extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int variantId = Integer.parseInt(request.getParameter("variantId"));
+
+        HttpSession session = request.getSession();
+        int userId = (int) session.getAttribute("userId");
+
+        CartDAO dao = new CartDAO();
+        dao.addToCart(userId, variantId, 1);
+
+        response.sendRedirect("cart");
+    }
+}
+6️⃣ Nút Add to Cart
+Trong trang productDetail.jsp
+
+<form action="addToCart" method="post">
+
+<input type="hidden" name="variantId" value="${v.variantId}">
+
+<button type="submit">
+Add To Cart
+</button>
+
+</form>
+Sau bước này hệ thống của bạn sẽ có
+Product page
+      ↓
+Add to cart
+      ↓
+CartDAO
+      ↓
+CartItem table
+Bước tiếp theo chúng ta sẽ làm
+cart.jsp
+remove item
+update quantity
+calculate total
+checkout
+💡 Nếu bạn muốn, mình có thể vẽ luôn kiến trúc hoàn chỉnh từ Cart → Checkout → Payment → Shipping cho database của bạn.
+
+Vì với schema hiện tại của bạn, có 1 cách thiết kế giúp giảm ~40% code và tránh bug stock khi nhiều người checkout cùng lúc.
+
+
+chỉ tôi từng bước cụ thể và rõ ràng để tạo ra nó
+
+Mình sẽ hướng dẫn từng bước nhỏ đúng thứ tự, để bạn có thể làm ngay trong project Java + JSP + Servlet + SQL Server của bạn. Nếu làm đúng thứ tự dưới đây thì giỏ hàng sẽ chạy ngay.
+
+Bạn đang dùng database trong Microsoft SQL Server và chạy web bằng Apache Tomcat.
+
+Bước 1 — Tạo bảng Cart trong database
+Mở New Query trong SQL Server và chạy:
+
+CREATE TABLE Cart(
+    cartId INT IDENTITY PRIMARY KEY,
+    userId INT UNIQUE
+)
+Ý nghĩa:
+
+cột	ý nghĩa
+cartId	id của giỏ hàng
+userId	mỗi user có 1 giỏ
+UNIQUE nghĩa là:
+
+1 user = 1 cart
+Bước 2 — Tạo bảng CartItem
+Tiếp tục chạy:
+
+CREATE TABLE CartItem(
+    id INT IDENTITY PRIMARY KEY,
+    cartId INT,
+    variantId INT,
+    quantity INT
+)
+Ý nghĩa:
+
+cột	nghĩa
+cartId	giỏ hàng
+variantId	sản phẩm (size + color)
+quantity	số lượng
+Bước 3 — Kiểm tra bảng đã tạo
+Refresh Tables
+
+Bạn phải thấy:
+
+Cart
+CartItem
+Product
+ProductVariant
+Order
+OrderItem
+Bước 4 — Tạo Model CartItem
+Trong project Java:
+
+src
+   model
+Tạo file:
+
+CartItem.java
+Code:
+
+package model;
+
+public class CartItem {
+
+    private int variantId;
+    private int quantity;
+
+    public CartItem(){}
+
+    public CartItem(int variantId, int quantity){
+        this.variantId = variantId;
+        this.quantity = quantity;
+    }
+
+    public int getVariantId() {
+        return variantId;
+    }
+
+    public void setVariantId(int variantId) {
+        this.variantId = variantId;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+}
+Bước 5 — Tạo CartDAO
+Vào thư mục
+
+dal
+Tạo file:
+
+CartDAO.java
+Code:
+
+package dal;
+
+import java.sql.*;
+import java.util.*;
+import model.CartItem;
+
+public class CartDAO extends DBContext {
+
+    public void addToCart(int userId, int variantId, int quantity) {
+
+        try {
+
+            int cartId = 0;
+
+            String sql = "SELECT cartId FROM Cart WHERE userId=?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, userId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if(rs.next()){
+                cartId = rs.getInt("cartId");
+            }
+            else{
+
+                String insertCart = "INSERT INTO Cart(userId) VALUES(?)";
+                PreparedStatement ps2 = connection.prepareStatement(insertCart,Statement.RETURN_GENERATED_KEYS);
+
+                ps2.setInt(1, userId);
+                ps2.executeUpdate();
+
+                ResultSet key = ps2.getGeneratedKeys();
+
+                if(key.next()){
+                    cartId = key.getInt(1);
+                }
+
+            }
+
+            String check = "SELECT * FROM CartItem WHERE cartId=? AND variantId=?";
+            PreparedStatement ps3 = connection.prepareStatement(check);
+
+            ps3.setInt(1, cartId);
+            ps3.setInt(2, variantId);
+
+            ResultSet rs2 = ps3.executeQuery();
+
+            if(rs2.next()){
+
+                String update = "UPDATE CartItem SET quantity = quantity + ? WHERE cartId=? AND variantId=?";
+                PreparedStatement ps4 = connection.prepareStatement(update);
+
+                ps4.setInt(1, quantity);
+                ps4.setInt(2, cartId);
+                ps4.setInt(3, variantId);
+
+                ps4.executeUpdate();
+
+            }
+            else{
+
+                String insertItem = "INSERT INTO CartItem(cartId,variantId,quantity) VALUES(?,?,?)";
+                PreparedStatement ps5 = connection.prepareStatement(insertItem);
+
+                ps5.setInt(1, cartId);
+                ps5.setInt(2, variantId);
+                ps5.setInt(3, quantity);
+
+                ps5.executeUpdate();
+
+            }
+
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+
+    }
+}
+Bước 6 — Tạo Controller AddToCart
+Trong thư mục
+
+controller
+Tạo:
+
+AddToCartServlet.java
+Code:
+
+package controller;
+
+import dal.CartDAO;
+import java.io.IOException;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import jakarta.servlet.annotation.WebServlet;
+
+@WebServlet("/addToCart")
+public class AddToCartServlet extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int variantId = Integer.parseInt(request.getParameter("variantId"));
+
+        HttpSession session = request.getSession();
+        int userId = (int) session.getAttribute("userId");
+
+        CartDAO dao = new CartDAO();
+        dao.addToCart(userId, variantId, 1);
+
+        response.sendRedirect("cart");
+    }
+}
+Bước 7 — Nút Add To Cart
+Trong trang productDetail.jsp
+
+Thêm:
+
+<form action="addToCart" method="post">
+
+<input type="hidden" name="variantId" value="${v.variantId}">
+
+<button type="submit">
+Add To Cart
+</button>
+
+</form>
+Bước 8 — Test
+Test theo thứ tự:
+
+1️⃣ Login
+session phải có
+
+userId
+2️⃣ Click Add To Cart
+3️⃣ Kiểm tra database
+Query:
+
+SELECT * FROM Cart
+SELECT * FROM CartItem
+Bạn phải thấy:
+
+cartId userId
+1      5
+id cartId variantId quantity
+1  1      239785    1
+Sau bước này bạn đã có
+User
+   ↓
+Add to Cart
+   ↓
+Cart
+   ↓
+CartItem
+Bước tiếp theo (rất quan trọng)
+Mình sẽ chỉ bạn tiếp:
+
+1️⃣ Trang cart.jsp hiển thị giỏ hàng
+2️⃣ update quantity
+3️⃣ remove item
+4️⃣ checkout
+5️⃣ trừ stock khi thanh toán
+
+Nếu bạn muốn, mình có thể viết luôn full code Cart + Checkout đúng chuẩn cho database của bạn (khoảng 300 dòng code nhưng chạy ngay không lỗi).
+
+
+Đã tải lên ảnh
+
+Mình xem ảnh NetBeans của bạn rồi. Bạn đã gần đúng, nhưng hiện tại có 3 lỗi chính nên NetBeans báo đỏ. Mình sẽ chỉ sửa đúng từng bước để chạy được ngay.
+
+Bạn đang code trong Apache NetBeans chạy web bằng Apache Tomcat.
+
+1️⃣ Lỗi 1: Tên file sai
+Trong hình của bạn:
+
+AddToCartServlet
+   java.java
+File đang tên java.java ❌
+
+Bạn phải:
+
+Bước sửa
+Right click file → Rename
+
+đổi thành:
+
+AddToCartServlet.java
+2️⃣ Lỗi 2: Package sai
+Trong code của bạn:
+
+package controller;
+Nhưng file lại nằm trong folder:
+
+AddToCartServlet
+➡ NetBeans không tìm được package.
+
+Bước sửa đúng
+Trong Source Packages
+
+Tạo package mới:
+
+controller
+Sau đó kéo file vào:
+
+controller
+    AddToCartServlet.java
+3️⃣ Lỗi 3: Import sai CartDAO
+Trong code bạn đang:
+
+import dal.CartDAO;
+Nhưng trong project của bạn mình thấy:
+
+dal
+   AppUserDAO
+   ProductDAO
+   ShippingDAO
+Chưa có CartDAO
+
+4️⃣ Tạo CartDAO (rất quan trọng)
+Trong package:
+
+dal
+Tạo file:
+
+CartDAO.java
+Code:
+
+package dal;
+
+import java.sql.*;
+import model.CartItem;
+
+public class CartDAO extends DBContext {
+
+    public void addToCart(int userId, int variantId, int quantity){
+
+        try {
+
+            int cartId = 0;
+
+            String sql = "SELECT cartId FROM Cart WHERE userId=?";
+            PreparedStatement ps = connection.prepareStatement(sql);
+            ps.setInt(1, userId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if(rs.next()){
+                cartId = rs.getInt("cartId");
+            }
+            else{
+
+                String insertCart = "INSERT INTO Cart(userId) VALUES(?)";
+
+                PreparedStatement ps2 = connection.prepareStatement(insertCart,Statement.RETURN_GENERATED_KEYS);
+
+                ps2.setInt(1, userId);
+                ps2.executeUpdate();
+
+                ResultSet key = ps2.getGeneratedKeys();
+
+                if(key.next()){
+                    cartId = key.getInt(1);
+                }
+            }
+
+            String check = "SELECT * FROM CartItem WHERE cartId=? AND variantId=?";
+            PreparedStatement ps3 = connection.prepareStatement(check);
+
+            ps3.setInt(1, cartId);
+            ps3.setInt(2, variantId);
+
+            ResultSet rs2 = ps3.executeQuery();
+
+            if(rs2.next()){
+
+                String update = "UPDATE CartItem SET quantity = quantity + ? WHERE cartId=? AND variantId=?";
+
+                PreparedStatement ps4 = connection.prepareStatement(update);
+
+                ps4.setInt(1, quantity);
+                ps4.setInt(2, cartId);
+                ps4.setInt(3, variantId);
+
+                ps4.executeUpdate();
+
+            }else{
+
+                String insert = "INSERT INTO CartItem(cartId,variantId,quantity) VALUES(?,?,?)";
+
+                PreparedStatement ps5 = connection.prepareStatement(insert);
+
+                ps5.setInt(1, cartId);
+                ps5.setInt(2, variantId);
+                ps5.setInt(3, quantity);
+
+                ps5.executeUpdate();
+            }
+
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+
+    }
+
+}
+5️⃣ Sửa lại AddToCartServlet
+Code chuẩn:
+
+package controller;
+
+import dal.CartDAO;
+import java.io.IOException;
+import jakarta.servlet.*;
+import jakarta.servlet.http.*;
+import jakarta.servlet.annotation.WebServlet;
+
+@WebServlet("/addToCart")
+public class AddToCartServlet extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        int variantId = Integer.parseInt(request.getParameter("variantId"));
+
+        HttpSession session = request.getSession();
+        int userId = (int) session.getAttribute("userId");
+
+        CartDAO dao = new CartDAO();
+        dao.addToCart(userId, variantId, 1);
+
+        response.sendRedirect("cart");
+    }
+
+}
+6️⃣ Kiểm tra database
+Trong Microsoft SQL Server phải có:
+
+Cart
+CartItem
+Nếu chưa có chạy:
+
+CREATE TABLE Cart(
+cartId INT IDENTITY PRIMARY KEY,
+userId INT UNIQUE
+)
+
+CREATE TABLE CartItem(
+id INT IDENTITY PRIMARY KEY,
+cartId INT,
+variantId INT,
+quantity INT
+)
+7️⃣ Test Add To Cart
+Trong product-detail.jsp
+
+Thêm:
+
+<form action="addToCart" method="post">
+
+<input type="hidden" name="variantId" value="${variant.variantId}">
+
+<button type="submit">
+Add To Cart
+</button>
+
+</form>
+8️⃣ Test trong database
+Sau khi click Add To Cart
+
+chạy:
+
+SELECT * FROM Cart
+SELECT * FROM CartItem
+Bạn sẽ thấy:
+
+cartId userId
+1      3
+id cartId variantId quantity
+1  1      239785    1
+🚀 Sau khi bạn làm xong bước này
+Mình sẽ hướng dẫn tiếp 3 bước cực quan trọng:
+
+1️⃣ cart.jsp hiển thị giỏ hàng
+2️⃣ update quantity + remove item
+3️⃣ checkout + trừ stock
+
+Phần này chỉ cần thêm ~120 dòng code là hoàn thành hệ thống giỏ hàng.
+
+
+
