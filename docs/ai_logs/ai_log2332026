@@ -1,0 +1,651 @@
+
+
+
+phan login trong du an nay hoat dong hu the nao
+
+Thought for 11s
+Trong tài liệu đồ án này, phần login không được mô tả chi tiết từng dòng code, nhưng có nói rõ ở Tuần 5 là phải làm Login/Register/CRUD cơ bản cho web app chạy trên Java Web (Servlet/JSP) + Tomcat + Database local. Nghĩa là login là một chức năng nền tảng của Project A (Web Server) để người dùng vào hệ thống trước khi dùng các nghiệp vụ khác. 
+
+
+Cách nó thường hoạt động trong dự án này sẽ là như sau:
+
+Người dùng mở trang login
+
+Ví dụ: login.jsp
+
+Nhập email/username và password.
+
+Form gửi dữ liệu lên Servlet
+
+Form POST đến một servlet như LoginServlet.
+
+Servlet sẽ nhận username/email và password.
+
+Servlet gọi DAO/Service để kiểm tra tài khoản
+
+Query xuống bảng User trong database local.
+
+Kiểm tra:
+
+tài khoản có tồn tại không
+
+mật khẩu có đúng không
+
+tài khoản có bị khóa hay không
+
+Nếu đúng thì tạo session
+
+Vì đây là web Java chạy trên Tomcat, login thường dùng HttpSession.
+
+Sau khi đăng nhập thành công, server sẽ lưu user vào session, ví dụ:
+
+session.setAttribute("user", user);
+
+có thể thêm role, userId, shopId...
+
+Chuyển hướng theo quyền
+
+Nếu là hệ thống e-commerce thì thường sẽ có các vai trò như:
+
+user/customer
+
+shop/seller
+
+admin
+
+Sau login, hệ thống redirect sang trang phù hợp:
+
+customer → home/shop/product
+
+admin → dashboard/manage
+
+seller → shop management
+
+Các trang khác kiểm tra session
+
+Khi người dùng vào cart, order, voucher, profile... thì servlet/jsp sẽ kiểm tra xem session có user chưa.
+
+Nếu chưa login thì chuyển về trang login.
+
+Nếu đã login thì cho truy cập.
+
+Logout
+
+Khi logout, session bị xóa hoặc invalidate:
+
+session.invalidate();
+
+Sau đó quay về login hoặc home.
+
+Nói ngắn gọn, trong đồ án này login là cơ chế:
+JSP nhập dữ liệu → Servlet xử lý → DAO kiểm tra DB → Session giữ trạng thái đăng nhập → phân quyền truy cập các chức năng. Cách này rất hợp với yêu cầu của môn vì tài liệu cũng nhấn mạnh mô hình Client-Server, web chạy trên Tomcat, kết nối DB local, và có các chức năng web cơ bản từ tuần 5. 
+
+
+Nếu bạn muốn, tôi có thể vẽ luôn cho bạn flow login của dự án LAB211 này theo kiểu cực dễ hiểu: login.jsp -> LoginServlet -> UserDAO -> DB -> Session -> redirect.
+
+
+
+login.jsp
+Tệp
+
+AppUserDAO.java
+Tệp
+
+AppUser.java
+Tệp
+
+LoginController.java
+Tệp
+
+RegisterController.java
+Tệp
+
+doc va giai thich
+
+Tôi đang đọc cả login.jsp, LoginController, AppUserDAO, AppUser và RegisterController rồi ghép lại thành luồng hoạt động thực tế của phần đăng nhập. Tôi sẽ giải thích theo kiểu dễ hiểu: dữ liệu đi từ form → controller → DAO → database → session.
+
+Thought for 52s
+Tôi đọc rồi. Phần login trong dự án này hoạt động theo kiểu rất chuẩn của JSP/Servlet:
+form ở login.jsp → LoginController nhận dữ liệu → AppUserDAO kiểm tra DB → nếu đúng thì lưu session và redirect. 
+
+ 
+
+
+Cụ thể từng file như sau:
+
+1. AppUser.java là model tài khoản
+File này chỉ là class đại diện cho 1 user trong hệ thống, gồm:
+
+userId
+
+name
+
+email
+
+password
+
+role
+
+Nghĩa là sau khi login thành công, hệ thống sẽ tạo ra 1 object AppUser chứa thông tin tài khoản để dùng tiếp. 
+
+
+2. login.jsp là giao diện nhập tài khoản
+Trang này có form login với 2 ô:
+
+username
+
+password
+
+và submit bằng POST tới đường dẫn login. Nó cũng có chỗ hiện lỗi khi đăng nhập sai, và giữ lại giá trị username đã nhập trước đó.
+Về mặt luồng, đây chỉ là view, không tự kiểm tra database. Việc xử lý thật sự nằm ở controller. LoginController cũng xác nhận rõ rằng khi vào bằng GET thì chỉ forward về login.jsp. 
+
+
+3. LoginController.java là nơi xử lý đăng nhập
+Khi bấm nút login, doPost() chạy:
+
+lấy username từ form
+
+lấy password
+
+nếu null thì đổi thành chuỗi rỗng
+
+gọi userDAO.login(username.trim(), password)
+
+Nếu tìm được user:
+
+lưu vào session bằng key "account"
+
+nếu role là admin thì sendRedirect("home")
+
+còn lại thì sendRedirect("user-home")
+
+Nếu không tìm được:
+
+gán lỗi "Email hoặc mật khẩu sai"
+
+giữ lại username
+
+forward về lại login.jsp để hiện lỗi. 
+
+
+4. AppUserDAO.java mới là nơi kiểm tra database
+Hàm quan trọng là:
+
+login(String email, String password)
+
+Bên trong nó:
+
+dùng PasswordUtil.hashPassword(password) để băm mật khẩu người dùng vừa nhập
+
+chạy SQL:
+
+SELECT * FROM AppUser WHERE email = ? AND password = ?
+
+Nghĩa là hệ thống này không so sánh password thô, mà so sánh mật khẩu đã hash với dữ liệu trong bảng AppUser.
+Nếu query ra bản ghi thì tạo AppUser và trả về; nếu không có thì trả null. 
+
+
+5. Register liên quan trực tiếp đến login
+RegisterController.java cho thấy khi đăng ký:
+
+nhập name, email, password
+
+kiểm tra email phải là @gmail.com
+
+kiểm tra email chưa tồn tại
+
+password ít nhất 8 ký tự
+
+sau đó hash password
+
+gán role mặc định là "user"
+
+rồi insert vào DB
+
+Điều này rất quan trọng, vì login chỉ thành công nếu password trong DB đã được lưu dưới dạng hash cùng kiểu với PasswordUtil.hashPassword(...). 
+
+
+Luồng hoạt động đầy đủ của login
+Người dùng mở /login
+
+doGet() forward sang login.jsp để hiện form. 
+
+
+Người dùng nhập tài khoản và mật khẩu rồi bấm login
+
+Form gửi POST /login
+
+LoginController lấy dữ liệu và gọi AppUserDAO.login(...) 
+
+
+AppUserDAO hash password rồi kiểm tra trong bảng AppUser bằng email + password đã hash. 
+
+
+Nếu đúng:
+
+tạo object AppUser
+
+lưu vào session với tên "account"
+
+redirect theo role (admin → home, user thường → user-home) 
+
+
+Nếu sai:
+
+quay lại login.jsp
+
+hiện lỗi "Email hoặc mật khẩu sai" 
+
+
+Điểm bạn nên chú ý trong code này
+1. Biến tên là username, nhưng thực tế đang đăng nhập bằng email
+Trong LoginController, code lấy:
+
+request.getParameter("username")
+
+nhưng lại truyền vào:
+
+userDAO.login(username.trim(), password)
+
+Trong khi DAO query theo cột email.
+Tức là ô này tuy đặt tên là username, nhưng hệ thống thực chất đang xem nó là email. 
+
+ 
+
+
+2. Placeholder có thể gây hiểu lầm
+Ở giao diện ghi kiểu “Email / Phone / Username”, nhưng backend hiện tại chỉ check theo email, không có logic login bằng phone hay username riêng.
+Cho nên nếu người dùng nhập username thường hoặc số điện thoại thì gần như sẽ không login được.
+
+3. Session hiện đang lưu toàn bộ object user
+Sau khi login thành công, code:
+
+request.getSession().setAttribute("account", user);
+
+Nghĩa là ở các trang khác, muốn biết ai đang đăng nhập thì thường sẽ lấy sessionScope.account. 
+
+
+4. Role quyết định trang đích sau login
+Role không chỉ để hiển thị, mà được dùng ngay sau khi login để điều hướng:
+
+admin → home
+
+user → user-home 
+
+
+Tóm gọn cực dễ hiểu
+Phần login của bạn đang chạy như này:
+
+Nhập email + password
+→ LoginController nhận
+→ AppUserDAO hash password rồi check bảng AppUser
+→ đúng thì tạo session "account"
+→ admin vào home, user vào user-home
+→ sai thì quay lại login.jsp và báo lỗi. 
+
+ 
+
+
+Nếu bạn muốn, tôi có thể đọc tiếp và chỉ luôn cho bạn:
+“ở dự án này cần sửa phần login chỗ nào cho đúng hơn”.
+
+
+giao vien co the hoi nhung cau nhu the nao ve phan nay
+
+Tôi đang bám sát chính các file login của bạn để đoán những câu giáo viên dễ hỏi nhất: mục đích từng file, luồng xử lý, session, hash mật khẩu, và chỗ nào trong code còn lệch logic. Tôi sẽ viết theo kiểu “câu hỏi có thể bị hỏi” kèm ý trả lời ngắn gọn để bạn học dễ hơn.
+
+Thought for 55s
+Có. Với phần login/register này, giáo viên rất dễ hỏi theo kiểu code defense hơn là hỏi lý thuyết chung, vì rubric của đồ án có phần “trả lời vấn đáp (Code Defense) tốt” và yêu cầu kiến trúc Java Web theo MVC rõ ràng. 
+
+ 
+
+
+Dưới đây là các câu rất dễ bị hỏi và cách trả lời:
+
+1. “Luồng login của em chạy như thế nào?”
+Cách trả lời:
+
+“Người dùng nhập dữ liệu ở login.jsp, form gửi POST đến /login.
+LoginController lấy username và password, sau đó gọi AppUserDAO.login(...) để kiểm tra database. Nếu đúng thì em lưu user vào session với key account, rồi redirect theo role: admin vào home, user thường vào user-home. Nếu sai thì forward lại login.jsp và báo lỗi.” 
+
+ 
+
+
+2. “Vì sao em dùng Servlet + DAO + Model, không viết hết trong JSP?”
+Cách trả lời:
+
+“Em tách theo MVC để code rõ trách nhiệm:
+
+login.jsp là View
+
+LoginController là Controller
+
+AppUserDAO là lớp truy cập dữ liệu
+
+AppUser là Model
+
+Cách này dễ bảo trì, dễ test, và đúng với yêu cầu Java Web chuẩn của môn.” 
+
+ 
+
+ 
+
+
+3. “Tại sao login lại gọi DAO mà không query SQL trực tiếp trong controller?”
+Cách trả lời:
+
+“Vì em muốn tách business flow với data access. Controller chỉ nhận request và điều hướng, còn DAO mới chịu trách nhiệm làm việc với DB. Như vậy code không bị dồn cục và dễ tái sử dụng.” 
+
+ 
+
+
+4. “Trong code của em đăng nhập bằng username hay email?”
+Đây là câu rất dễ bị bắt.
+
+Cách trả lời chuẩn:
+
+“Ở giao diện em đặt tên field là username, nhưng thực tế backend đang dùng giá trị đó như email.
+Trong LoginController em lấy request.getParameter("username"), nhưng khi xuống DAO thì hàm login(String email, String password) lại query theo cột email. Tức là hiện tại bản chất hệ thống đang login bằng email.” 
+
+ 
+
+
+Nếu giáo viên hỏi tiếp: “Vậy tên biến có hợp lý không?”
+Bạn trả lời:
+
+“Chưa hợp lý ạ. Em nên đổi tên field và biến từ username thành email để tránh hiểu nhầm.”
+
+5. “Mật khẩu có lưu plain text không?”
+Cách trả lời:
+
+“Không ạ. Khi register, em hash password bằng PasswordUtil.hashPassword(password) rồi mới insert vào DB. Khi login, em cũng hash password người dùng vừa nhập rồi mới so sánh với bản ghi trong bảng AppUser.” 
+
+ 
+
+
+6. “Tại sao phải hash password?”
+Cách trả lời:
+
+“Để bảo mật. Nếu database bị lộ thì không thấy trực tiếp mật khẩu gốc của user. Ngoài ra login cũng phải hash lại đầu vào để so sánh cùng định dạng với dữ liệu đã lưu.”
+
+7. “Nếu login thành công thì em lưu gì?”
+Cách trả lời:
+
+“Em lưu cả object AppUser vào session bằng key account. Sau đó các trang khác có thể lấy sessionScope.account để biết ai đang đăng nhập và role là gì.” 
+
+ 
+
+
+8. “Session dùng để làm gì trong phần này?”
+Cách trả lời:
+
+“Session giữ trạng thái đăng nhập giữa nhiều request. Vì HTTP là stateless, nên nếu không dùng session thì sang request kế tiếp server sẽ không biết user đã login chưa.”
+
+9. “Vì sao login thành công lại redirect chứ không forward?”
+Cách trả lời:
+
+“Sau login thành công em dùng sendRedirect(...) để tránh submit lại form khi refresh, đồng thời chuyển hẳn sang URL mới phù hợp với role. Còn khi login sai thì em forward về login.jsp để giữ request hiện tại và hiển thị lỗi ngay trên form.” 
+
+
+10. “Nếu sai tài khoản hoặc mật khẩu thì hệ thống xử lý sao?”
+Cách trả lời:
+
+“Nếu AppUserDAO.login(...) trả về null thì controller set error message là Email hoặc mật khẩu sai, giữ lại giá trị username đã nhập, rồi forward lại login.jsp.” 
+
+
+11. “Role có tác dụng gì trong login của em?”
+Cách trả lời:
+
+“Sau khi login thành công, em dùng role để phân hướng:
+
+admin → home
+
+role khác → user-home
+
+Nghĩa là role đang được dùng cho phân quyền điều hướng sau đăng nhập.” 
+
+ 
+
+
+12. “Register liên quan gì tới login?”
+Cách trả lời:
+
+“Register tạo tài khoản mới trong bảng AppUser. Nó kiểm tra name rỗng, email rỗng, email đúng định dạng @gmail.com, email chưa tồn tại, password tối thiểu 8 ký tự. Sau đó hash password, set role mặc định là user, insert vào DB. Vì login so sánh bằng email và hashed password nên register phải lưu đúng format này thì login mới hoạt động đúng.” 
+
+ 
+
+
+13. “Tại sao em kiểm tra email đã tồn tại?”
+Cách trả lời:
+
+“Để tránh tạo 2 tài khoản trùng email. Ở DAO em có hàm isEmailExist(email) để check trước khi insert.” 
+
+
+14. “Nếu database báo trùng email thì sao?”
+Cách trả lời:
+
+“Ở DAO phần insert, em có xử lý trường hợp exception chứa UQ_AppUser_Email thì trả về false. Như vậy controller biết đăng ký thất bại và báo lỗi phù hợp.” 
+
+
+15. “AppUser model của em chứa những gì?”
+Cách trả lời:
+
+“AppUser gồm:
+
+userId
+
+name
+
+email
+
+password
+
+role
+
+Đây là model đại diện cho tài khoản trong hệ thống.” 
+
+
+16. “Điểm chưa tốt trong phần login của em là gì?”
+Câu này rất hay gặp. Bạn nên trả lời thật.
+
+Câu trả lời đẹp:
+
+“Phần chưa tốt là tên biến username chưa đúng bản chất vì hiện tại hệ thống login bằng email. Ngoài ra hiện tại em mới xử lý phân quyền redirect cơ bản, chưa có chặn truy cập sâu ở tất cả servlet bằng filter. Nếu hoàn thiện hơn em sẽ thêm AuthFilter, RoleFilter, logout rõ ràng, và validate mạnh hơn ở giao diện.” 
+
+ 
+
+
+Câu này thường làm giáo viên thấy bạn có hiểu code, không phải chỉ chép.
+
+17. “Nếu người dùng nhập phone hoặc username thật thì có login được không?”
+Cách trả lời:
+
+“Với code hiện tại thì không ổn ạ, vì DAO đang query theo email, không có logic login bằng phone hay username thật. Nên nếu UI ghi kiểu ‘Email / Phone / Username’ thì backend hiện chưa hỗ trợ đầy đủ.”
+
+18. “Tại sao dùng PreparedStatement?”
+Cách trả lời:
+
+“Để truyền tham số an toàn hơn và tránh SQL injection tốt hơn so với nối chuỗi SQL thủ công.” 
+
+
+19. “Nếu chưa đăng nhập mà truy cập trang riêng thì sao?”
+Trong đoạn code bạn gửi hiện chưa thấy filter/auth check toàn hệ thống, nên trả lời khéo như này:
+
+“Trong phần em gửi ở đây, login đã tạo session account. Các trang bảo vệ sẽ cần kiểm tra session này trước khi cho truy cập. Nếu hoàn thiện đầy đủ hơn, em sẽ dùng filter để chặn tập trung thay vì kiểm tra rải rác.”
+
+20. “Phần login này có đúng với yêu cầu đồ án không?”
+Cách trả lời:
+
+“Có ạ, vì tài liệu yêu cầu ở giai đoạn Web Core phải có Login/Register/CRUD cơ bản trên Java Web chạy Tomcat và DB local. Phần login/register này là đúng tinh thần đó.” 
+
+
+Các câu dễ bị hỏi xoáy thêm
+Bạn nên học thuộc câu ngắn cho mấy câu này:
+
+“Tại sao dùng session chứ không dùng cookie thuần?”
+→ “Vì session an toàn và tiện hơn cho trạng thái đăng nhập phía server.”
+
+“Tại sao lưu cả object user vào session?”
+→ “Để lấy nhanh name, email, role, userId cho các chức năng sau.”
+
+“Vì sao register set role = user?”
+→ “Vì người đăng ký mới mặc định là người dùng thường, không được là admin.” 
+
+
+“Nếu refresh sau login thì có bị submit lại form không?”
+→ “Không, vì em dùng redirect sau khi login thành công.” 
+
+
+Mấy câu giáo viên hỏi là dễ chết nhất
+Bạn nhớ kỹ 3 cái này:
+
+“Em login bằng gì?”
+→ Trả lời: backend đang login bằng email.
+
+“Password có mã hóa không?”
+→ Trả lời: có hash ở register và hash lại ở login.
+
+“Vì sao dùng session?”
+→ Trả lời: để giữ trạng thái đăng nhập giữa nhiều request.
+
+Cách nói ngắn gọn khi bị hỏi trực tiếp
+Bạn có thể trả lời nguyên câu này:
+
+“Phần login của em theo MVC. login.jsp nhận input, LoginController xử lý request, AppUserDAO kiểm tra DB. Mật khẩu không lưu thô mà được hash khi register và hash lại khi login để so sánh. Nếu đúng thì em lưu AppUser vào session account và redirect theo role. Hiện tại field tên là username nhưng thực tế hệ thống đang login bằng email, đây là điểm em có thể đổi tên cho chuẩn hơn.” 
+
+ 
+
+ 
+
+
+Tôi có thể viết tiếp cho bạn một đoạn “mẫu trả lời vấn đáp 1 phút” để bạn học thuộc đi bảo vệ.
+
+
+vay lam sao de biet rang pass toi nhap dung hay sai 
+
+Tôi đang chỉ đúng chỗ trong code quyết định “mật khẩu đúng hay sai”. Cái mấu chốt nằm ở chỗ password bạn nhập sẽ được hash rồi đem so với password đã lưu trong bảng AppUser.
+
+Thought for 56s
+Biết bằng cách này:
+
+Khi bạn nhập password ở form login, LoginController lấy username và password, rồi gọi userDAO.login(username.trim(), password). Sau đó nó không tự so sánh ở controller, mà chờ kết quả trả về từ DAO. Nếu DAO trả về user != null thì coi là đúng; nếu trả về null thì coi là sai và hiện lỗi "Email hoặc mật khẩu sai". 
+
+
+Ở AppUserDAO.login(...), password bạn vừa nhập sẽ được đem đi:
+String hashedPassword = PasswordUtil.hashPassword(password);
+
+rồi query DB bằng:
+SELECT * FROM AppUser WHERE email = ? AND password = ?
+
+Tức là hệ thống sẽ lấy email + mật khẩu đã hash để tìm trong bảng AppUser. Nếu ResultSet rs.next() có dữ liệu, nghĩa là email và password khớp, nên login thành công. Nếu không có dòng nào thì hàm trả null, và controller hiểu là password sai hoặc email sai. 
+
+
+Lý do phải làm vậy là vì lúc đăng ký, RegisterController cũng đã lưu password dưới dạng:
+user.setPassword(PasswordUtil.hashPassword(password));
+nên login phải hash lại password nhập vào rồi mới so sánh đúng được. 
+
+
+Nói cực ngắn:
+
+Pass đúng = hash(password bạn nhập) trùng với password đã lưu trong DB
+Pass sai = hash(password bạn nhập) không trùng nên DAO trả null → hiện "Email hoặc mật khẩu sai".
+
+Nếu bạn muốn, tôi có thể chỉ luôn cho bạn cách tự kiểm tra trong database xem password đang lưu dạng gì để bạn dễ demo với giáo viên.
+
+
+vậy nếu nhập mật khẩu của 2 tài khoản khác nhau mà pass giống thì sao
+
+Thought for 29s
+Thì không sao cả về mặt chức năng.
+
+Trong code của bạn, lúc login hệ thống không chỉ kiểm tra mỗi password, mà kiểm tra cặp email + password:
+
+SELECT * FROM AppUser WHERE email = ? AND password = ? 
+
+
+Nên nếu:
+
+tài khoản A có email a@gmail.com, password là 12345678
+
+tài khoản B có email b@gmail.com, password cũng là 12345678
+
+thì vẫn đăng nhập bình thường, không bị lẫn.
+Vì khi A đăng nhập, hệ thống tìm:
+
+email của A
+
+và password đã hash của A
+
+Còn khi B đăng nhập, nó tìm:
+
+email của B
+
+và password đã hash của B. 
+
+
+Ngoài ra, ở phần đăng ký, code chỉ kiểm tra email có bị trùng hay không, chứ không cấm 2 người dùng cùng một mật khẩu. Tức là:
+
+email phải khác nhau
+
+password có thể giống nhau
+
+Bạn có thể trả lời giáo viên kiểu này:
+
+“Trong hệ thống của em, password không cần phải duy nhất giữa các tài khoản. Hệ thống xác thực dựa trên email + password chứ không phải password riêng lẻ. Vì vậy hai tài khoản có thể dùng cùng một mật khẩu, nhưng vẫn không đăng nhập nhầm nhau vì email khác nhau.”
+
+Có một ý thêm để bạn nói nếu bị hỏi sâu:
+về bảo mật thì cho phép nhiều người dùng cùng password không phải lỗi logic, nhưng người dùng nên được khuyến khích đặt mật khẩu mạnh và riêng.
+
+Tôi cũng có thể viết cho bạn vài câu trả lời vấn đáp ngắn kiểu giáo viên hỏi là đáp ngay.
+
+
+làm đi
+
+Thought for a couple of seconds
+Đây, bạn có thể học thuộc mấy câu ngắn này:
+
+Giáo viên hỏi:
+“Nếu 2 tài khoản có cùng mật khẩu thì sao?”
+
+Bạn trả lời:
+“Không sao ạ. Vì hệ thống của em không kiểm tra password riêng lẻ mà kiểm tra theo cặp email + password. Nên hai tài khoản có thể trùng mật khẩu, nhưng vẫn không đăng nhập nhầm nhau vì email khác nhau.”
+
+Giáo viên hỏi:
+“Vậy làm sao biết đúng tài khoản nào?”
+
+Bạn trả lời:
+“Khi người dùng nhập thông tin, hệ thống lấy email và password đã hash để truy vấn trong bảng AppUser. Nếu tìm thấy đúng bản ghi có email đó và password đó thì trả về đúng user tương ứng.”
+
+Giáo viên hỏi:
+“Nếu A và B cùng đặt mật khẩu 12345678 thì có lỗi không?”
+
+Bạn trả lời:
+“Không lỗi ạ. Vì A sẽ đăng nhập bằng email của A cộng với mật khẩu đó, còn B sẽ đăng nhập bằng email của B cộng với mật khẩu đó. Do email khác nhau nên hệ thống vẫn phân biệt được.”
+
+Giáo viên hỏi:
+“Password có cần duy nhất giữa các tài khoản không?”
+
+Bạn trả lời:
+“Không cần ạ. Trong hệ thống của em chỉ email là cần duy nhất, còn password giữa nhiều tài khoản có thể trùng nhau.”
+
+Giáo viên hỏi:
+“Nếu chỉ nhập đúng password mà sai email thì sao?”
+
+Bạn trả lời:
+“Vẫn đăng nhập thất bại ạ, vì hệ thống yêu cầu đúng cả email lẫn password, không phải chỉ đúng mỗi mật khẩu.”
+
+Giáo viên hỏi:
+“Vậy hệ thống của em xác thực bằng gì?”
+
+Bạn trả lời:
+“Hệ thống của em xác thực bằng email và mật khẩu đã hash. Nếu cặp này khớp với dữ liệu trong database thì đăng nhập thành công.”
+
+Một câu trả lời gộp đẹp để nói khi bảo vệ:
+
+“Trong hệ thống của em, hai tài khoản có thể dùng chung một mật khẩu, việc đó không làm login bị nhầm. Vì hệ thống xác thực theo cặp email và mật khẩu đã hash, chứ không dựa vào mật khẩu riêng lẻ. Do đó chỉ khi đúng cả email lẫn password thì mới đăng nhập vào đúng tài khoản tương ứng.”
+
+Nếu bạn muốn, tôi sẽ viết tiếp cho bạn một đoạn hỏi đáp bảo vệ phần login kiểu 10 câu ngắn để học thuộc.
+
+
+
+
