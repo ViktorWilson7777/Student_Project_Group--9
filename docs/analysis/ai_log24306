@@ -1,0 +1,4416 @@
+
+
+
+
+VoucherDeleteController.java
+Tệp
+
+VoucherEditontroller.java
+Tệp
+
+VoucherListController.java
+Tệp
+
+VoucherCreateController.java
+Tệp
+
+VoucherDAO.java
+Tệp
+
+Voucher.java
+Tệp
+đọc tất cả file này và giải thích cách hoạt động của từng dòng code trong đấy
+
+Mình đang đọc hết 6 file và sẽ giải thích theo từng file, từng đoạn lệnh để bạn dễ theo flow MVC trước rồi mới đi vào từng dòng.
+
+Mình đã đọc xong. Bộ code này đang làm CRUD voucher theo kiểu MVC: Controller nhận request, VoucherDAO làm việc với database, Voucher là model chứa dữ liệu. Các route chính là create, edit, delete, list.
+
+
+VoucherCreateController.java
+Tệp
+
+VoucherDeleteController.java
+Tệp
+
+VoucherListController.java
+Tệp
+
+VoucherEditontroller.java
+Tệp
+
+VoucherDAO.java
+Tệp
+
+Voucher.java
+Tệp
+Thought for 1m 5s
+Mình đọc hết 6 file rồi. Bộ này là module Voucher CRUD trong Java Web:
+
+Voucher.java = model dữ liệu
+
+VoucherDAO.java = tầng truy cập database
+
+VoucherCreateController / VoucherEditontroller / VoucherDeleteController / VoucherListController = nhận request từ browser rồi gọi DAO
+
+Các file .jsp được gọi tới nhưng chưa được upload, nên mình chỉ giải thích tới chỗ controller chuyển sang JSP thôi.
+
+
+VoucherCreateController.java
+Tệp
+
+VoucherDeleteController.java
+Tệp
+
+VoucherListController.java
+Tệp
+
+VoucherEditontroller.java
+Tệp
+
+VoucherDAO.java
+Tệp
+
+Voucher.java
+Tệp
+1) Flow tổng thể của cả cụm code
+Khi người dùng thao tác trên web:
+
+vào trang tạo voucher → gọi GET /voucher-create
+
+bấm submit form tạo → gọi POST /voucher-create
+
+vào trang sửa voucher → gọi GET /voucher-edit?id=...
+
+bấm lưu sửa → gọi POST /voucher-edit
+
+bấm xóa → gọi GET /voucher-delete?id=...
+
+xem danh sách → gọi GET /voucher-list?code=...&page=...
+
+Controller lấy dữ liệu từ request, đổi sang kiểu Java, nhét vào object Voucher, rồi gọi VoucherDAO để chạy SQL.
+
+2) Voucher.java — model/Voucher object
+File này là class đại diện cho 1 voucher trong Java.
+
+Phần đầu file
+package model;
+
+Khai báo class này nằm trong package model.
+
+import java.util.Date;
+
+Dùng kiểu Date cho startDate và endDate.
+
+public class Voucher {
+
+Tạo class Voucher.
+
+Các thuộc tính
+private int voucherId;
+
+Mã voucher trong database.
+
+private String code;
+
+Mã code voucher, ví dụ SALE10.
+
+private int discountPercent;
+
+Phần trăm giảm giá, ví dụ 10, 20.
+
+private double minOrderAmount;
+
+Giá trị đơn hàng tối thiểu để voucher được áp dụng.
+
+private boolean stackable;
+
+Có được cộng dồn với voucher khác hay không.
+
+private Date startDate;
+
+Ngày bắt đầu hiệu lực.
+
+private Date endDate;
+
+Ngày hết hiệu lực.
+
+Constructor rỗng
+public Voucher() { }
+
+Constructor không tham số.
+
+Dùng khi bạn tạo object trước rồi set từng field sau:
+
+Voucher v = new Voucher();
+v.setCode(...);
+Constructor đầy đủ
+Constructor có đủ 7 tham số:
+
+nhận toàn bộ dữ liệu voucher
+
+gán từng tham số vào từng field bằng this...
+
+Ví dụ:
+
+this.voucherId = voucherId;
+
+Gán voucherId truyền vào cho thuộc tính của object hiện tại.
+
+Tương tự cho code, discountPercent, minOrderAmount, stackable, startDate, endDate.
+
+Getter / Setter
+Mỗi cặp getter-setter có ý nghĩa giống nhau:
+
+getVoucherId() trả ra voucherId
+
+setVoucherId(int voucherId) gán lại voucherId
+
+getCode() trả ra code
+
+setCode(String code) gán code
+
+getDiscountPercent() trả ra phần trăm giảm
+
+setDiscountPercent(int discountPercent) gán phần trăm giảm
+
+getMinOrderAmount() trả ra minimum order
+
+setMinOrderAmount(double minOrderAmount) gán minimum order
+
+isStackable() trả ra true/false
+
+Với kiểu boolean, getter thường đặt là is...
+
+setStackable(boolean stackable) gán khả năng cộng dồn
+
+getStartDate() / setStartDate(...)
+
+getEndDate() / setEndDate(...)
+
+Kết luận file này
+File này không xử lý logic nghiệp vụ gì lớn, nó chỉ là object chứa dữ liệu voucher để controller và DAO truyền qua lại với nhau.
+
+3) VoucherDAO.java — tầng làm việc với database
+Đây là file quan trọng nhất vì chứa SQL.
+
+Dòng đầu
+package dal;
+
+Class nằm trong package dal = Data Access Layer.
+
+import java.sql.Connection;
+
+Dùng kết nối database.
+
+import java.sql.PreparedStatement;
+
+Dùng câu lệnh SQL có tham số ?.
+
+import java.util.ArrayList;
+
+Dùng list động.
+
+import java.util.List;
+
+Interface List.
+
+import model.Voucher;
+
+Import model Voucher.
+
+import java.sql.ResultSet;
+
+Dùng để đọc dữ liệu trả về từ câu SELECT.
+
+public class VoucherDAO extends DBContext {
+
+Tạo class DAO.
+
+extends DBContext nghĩa là class này kế thừa class kết nối DB của bạn.
+
+Tuy nhiên trong code bạn vẫn gọi DBContext.getConnection() dạng static, nên việc extends ở đây gần như chưa tận dụng nhiều.
+
+Hàm getAvailableVouchers()
+Mục đích
+Lấy các voucher đang còn hiệu lực tại thời điểm hiện tại.
+
+Từng dòng
+public List<Voucher> getAvailableVouchers() throws Exception {
+
+Hàm public, trả về danh sách voucher.
+
+Có thể ném exception ra ngoài.
+
+List<Voucher> list = new ArrayList<>();
+
+Tạo list rỗng để chứa kết quả.
+
+Khối SQL:
+
+SELECT * FROM Voucher
+WHERE GETDATE() BETWEEN startDate AND endDate
+GETDATE() là ngày giờ hiện tại trong SQL Server.
+
+BETWEEN startDate AND endDate nghĩa là voucher chỉ lấy nếu hôm nay nằm trong khoảng hiệu lực.
+
+Connection conn = DBContext.getConnection();
+
+Mở kết nối DB.
+
+PreparedStatement ps = conn.prepareStatement(sql);
+
+Tạo câu lệnh SQL.
+
+ResultSet rs = ps.executeQuery();
+
+Chạy SELECT và lấy kết quả.
+
+while(rs.next()){
+
+Lặp từng dòng trong bảng kết quả.
+
+Bên trong vòng lặp:
+
+Voucher v = new Voucher();
+
+Tạo object voucher mới.
+
+v.setVoucherId(rs.getInt("voucherId"));
+
+Lấy cột voucherId từ DB gán vào object.
+
+v.setCode(rs.getString("code"));
+
+Lấy code.
+
+v.setDiscountPercent(rs.getInt("discountPercent"));
+
+Lấy phần trăm giảm.
+
+v.setMinOrderAmount(rs.getDouble("minOrderAmount"));
+
+Lấy giá trị đơn tối thiểu.
+
+v.setStackable(rs.getBoolean("isStackable"));
+
+Lấy trạng thái cộng dồn.
+
+v.setStartDate(rs.getDate("startDate"));
+
+Lấy ngày bắt đầu.
+
+v.setEndDate(rs.getDate("endDate"));
+
+Lấy ngày kết thúc.
+
+list.add(v);
+
+Thêm voucher vừa map vào list.
+
+return list;
+
+Trả danh sách cho nơi gọi.
+
+Ý nghĩa
+Hàm này phục vụ cho chỗ checkout hoặc hiển thị voucher khả dụng.
+
+Hàm getVouchers(String code, int offset, int limit)
+Mục đích
+Lấy danh sách voucher theo keyword code và có phân trang.
+
+Từng dòng
+public List<Voucher> getVouchers(String code, int offset, int limit) throws Exception {
+
+Nhận:
+
+code: từ khóa tìm kiếm
+
+offset: bỏ qua bao nhiêu dòng đầu
+
+limit: lấy tối đa bao nhiêu dòng
+
+List<Voucher> list = new ArrayList<>();
+
+Tạo list kết quả.
+
+SQL:
+
+SELECT * FROM Voucher
+WHERE code LIKE ?
+ORDER BY voucherId
+OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+Giải thích:
+
+code LIKE ?
+
+Tìm voucher theo mã có chứa chuỗi nhập vào.
+
+ORDER BY voucherId
+
+Bắt buộc phải có khi dùng OFFSET FETCH trong SQL Server.
+
+OFFSET ? ROWS
+
+Bỏ qua số dòng tương ứng trang trước.
+
+FETCH NEXT ? ROWS ONLY
+
+Lấy số dòng bằng page size.
+
+Connection conn = DBContext.getConnection();
+
+Mở kết nối.
+
+PreparedStatement ps = conn.prepareStatement(sql);
+
+Tạo prepared statement.
+
+ps.setString(1, "%" + code + "%");
+
+Gán tham số thứ nhất cho LIKE.
+
+Nếu code = "SA" thì SQL thực chất tìm dạng %SA%.
+
+ps.setInt(2, offset);
+
+Gán offset.
+
+ps.setInt(3, limit);
+
+Gán limit.
+
+ResultSet rs = ps.executeQuery();
+
+Chạy SELECT.
+
+Vòng while (rs.next()):
+
+map từng dòng DB thành object Voucher
+
+giống hệt hàm trên
+
+return list;
+
+Trả danh sách.
+
+Ý nghĩa
+Đây là hàm dùng cho trang list voucher.
+
+Hàm searchByCode(String keyword)
+Mục đích
+Tìm voucher theo code nhưng không phân trang.
+
+Từng dòng
+public List<Voucher> searchByCode(String keyword) throws Exception {
+
+Trả danh sách voucher theo từ khóa.
+
+List<Voucher> list = new ArrayList<>();
+
+Tạo list rỗng.
+
+SQL:
+
+SELECT * FROM Voucher
+WHERE code LIKE ?
+Tìm mã chứa keyword.
+
+ps.setString(1, "%" + keyword + "%");
+
+Gán tham số LIKE.
+
+ResultSet rs = ps.executeQuery();
+
+Chạy query.
+
+while (rs.next()) { ... }
+
+Map dữ liệu thành object Voucher.
+
+return list;
+
+Trả kết quả.
+
+Nhận xét
+Hàm này gần trùng với getVouchers(), chỉ khác là không có phân trang. Nếu project lớn, bạn có thể gom logic lại để đỡ lặp code.
+
+Hàm insert(Voucher v)
+Mục đích
+Thêm voucher mới vào bảng.
+
+Từng dòng
+public void insert(Voucher v) throws Exception {
+
+Hàm không trả về gì, chỉ insert.
+
+SQL:
+
+INSERT INTO Voucher(code, discountPercent, minOrderAmount,
+isStackable, startDate, endDate)
+VALUES (?,?,?,?,?,?)
+Chèn dữ liệu vào 6 cột.
+
+Không chèn voucherId, nghĩa là bạn đang kỳ vọng nó là identity trong DB.
+
+Connection conn = DBContext.getConnection();
+
+Mở kết nối.
+
+PreparedStatement ps = conn.prepareStatement(sql);
+
+Tạo câu lệnh.
+
+ps.setString(1, v.getCode());
+
+Gán code vào dấu hỏi thứ 1.
+
+ps.setInt(2, v.getDiscountPercent());
+
+Gán discount.
+
+ps.setDouble(3, v.getMinOrderAmount());
+
+Gán min order.
+
+ps.setBoolean(4, v.isStackable());
+
+Gán isStackable.
+
+ps.setDate(5, new java.sql.Date(v.getStartDate().getTime()));
+
+Chuyển java.util.Date sang java.sql.Date rồi gán vào SQL.
+
+getTime() lấy milliseconds.
+
+ps.setDate(6, new java.sql.Date(v.getEndDate().getTime()));
+
+Gán ngày kết thúc.
+
+ps.executeUpdate();
+
+Chạy INSERT/UPDATE/DELETE.
+
+Hàm getById(int id)
+Mục đích
+Lấy 1 voucher theo id.
+
+Từng dòng
+public Voucher getById(int id) throws Exception {
+
+Nhận id, trả về 1 object Voucher.
+
+String sql = "SELECT * FROM Voucher WHERE voucherId=?";
+
+Query chọn 1 voucher theo ID.
+
+Connection conn = DBContext.getConnection();
+
+Mở kết nối.
+
+PreparedStatement ps = conn.prepareStatement(sql);
+
+Tạo statement.
+
+ps.setInt(1, id);
+
+Gán id.
+
+ResultSet rs = ps.executeQuery();
+
+Chạy SELECT.
+
+if (rs.next()) {
+
+Nếu có dòng dữ liệu đầu tiên thì tạo voucher.
+
+Bên trong:
+
+tạo Voucher v = new Voucher();
+
+map từng cột vào object
+
+return v;
+
+return null;
+
+Nếu không tìm thấy voucher nào có id đó thì trả null.
+
+Ý nghĩa
+Rất hợp cho trang edit: vào trang sửa thì phải load dữ liệu cũ lên form.
+
+Hàm update(Voucher v)
+Mục đích
+Cập nhật voucher đã tồn tại.
+
+Từng dòng
+public void update(Voucher v) throws Exception {
+
+Hàm update.
+
+SQL:
+
+UPDATE Voucher
+SET code=?, discountPercent=?, minOrderAmount=?,
+isStackable=?, startDate=?, endDate=?
+WHERE voucherId=?
+Giải thích:
+
+cập nhật toàn bộ field của voucher
+
+WHERE voucherId=? để chỉ sửa đúng 1 dòng
+
+Connection conn = DBContext.getConnection();
+
+PreparedStatement ps = conn.prepareStatement(sql);
+
+Gán tham số:
+
+code
+
+discountPercent
+
+minOrderAmount
+
+isStackable
+
+startDate
+
+endDate
+
+voucherId
+
+ps.executeUpdate();
+
+Chạy lệnh update.
+
+Hàm delete(int id)
+Mục đích
+Xóa voucher theo id.
+
+Từng dòng
+public void delete(int id) throws Exception {
+
+Hàm xóa.
+
+String sql = "DELETE FROM Voucher WHERE voucherId=?";
+
+Xóa đúng voucher có id truyền vào.
+
+Connection conn = DBContext.getConnection();
+
+PreparedStatement ps = conn.prepareStatement(sql);
+
+ps.setInt(1, id);
+
+ps.executeUpdate();
+
+Ý nghĩa
+Khi controller nhận id từ URL, nó gọi hàm này để xóa.
+
+Nhận xét kỹ về VoucherDAO
+Có vài điểm cần lưu ý:
+
+Chưa đóng conn, ps, rs
+
+Hiện tại code không có close() hay try-with-resources
+
+Dễ gây leak connection nếu chạy lâu
+
+Code map ResultSet bị lặp nhiều lần
+
+Có thể viết 1 hàm riêng kiểu mapVoucher(ResultSet rs)
+
+SELECT *
+
+Chạy được, nhưng tốt hơn nên ghi rõ tên cột
+
+getAvailableVouchers() chỉ kiểm tra ngày
+
+Chưa kiểm tra min order, chưa kiểm tra stackable, chưa kiểm tra trạng thái khác
+
+4) VoucherCreateController.java
+File này xử lý tạo voucher.
+
+Phần import và class
+package controller;
+
+Nằm trong package controller.
+
+Import VoucherDAO
+
+để gọi hàm insert.
+
+Import các class servlet như HttpServlet, HttpServletRequest, HttpServletResponse
+
+để xử lý request/response.
+
+import model.Voucher;
+
+để tạo object voucher.
+
+@WebServlet("/voucher-create")
+
+Khai báo URL mapping.
+
+Khi user truy cập /voucher-create, servlet này chạy.
+
+public class VoucherCreateController extends HttpServlet
+
+Class controller kế thừa HttpServlet.
+
+Hàm doGet(...)
+@Override
+
+Ghi đè method của HttpServlet.
+
+protected void doGet(...)
+
+Xử lý request GET.
+
+request.getRequestDispatcher("voucher-create.jsp").forward(request,response);
+
+Chuyển request sang file JSP tạo voucher.
+
+Nghĩa là:
+
+user vào URL /voucher-create
+
+controller mở form nhập voucher
+
+Ý nghĩa
+GET = hiển thị form.
+
+Hàm doPost(...)
+protected void doPost(...)
+
+Xử lý khi user submit form.
+
+try { ... } catch(Exception e) { e.printStackTrace(); }
+
+Bọc toàn bộ code trong try-catch để tránh crash servlet.
+
+Đọc dữ liệu từ form
+String code = request.getParameter("code");
+
+Lấy input name=code
+
+int discount = Integer.parseInt(request.getParameter("discount"));
+
+Lấy input discount rồi chuyển sang int
+
+double min = Double.parseDouble(request.getParameter("minOrder"));
+
+Lấy input minOrder, chuyển sang double
+
+boolean stack = Boolean.parseBoolean(request.getParameter("stackable"));
+
+Lấy input stackable, chuyển sang boolean
+
+java.sql.Date start = java.sql.Date.valueOf(request.getParameter("startDate"));
+
+Lấy chuỗi ngày từ form, đổi sang java.sql.Date
+
+valueOf() yêu cầu format kiểu yyyy-MM-dd
+
+java.sql.Date end = java.sql.Date.valueOf(request.getParameter("endDate"));
+
+Tương tự cho ngày kết thúc
+
+Tạo object Voucher
+Voucher v = new Voucher();
+
+Tạo object rỗng
+
+v.setCode(code);
+
+v.setDiscountPercent(discount);
+
+v.setMinOrderAmount(min);
+
+v.setStackable(stack);
+
+v.setStartDate(start);
+
+v.setEndDate(end);
+
+Đổ dữ liệu form vào object Voucher
+
+Gọi DAO
+VoucherDAO dao = new VoucherDAO();
+
+Tạo DAO
+
+dao.insert(v);
+
+Chèn voucher vào DB
+
+Chuyển trang
+response.sendRedirect("home");
+
+Sau khi tạo xong thì redirect sang home
+
+Ý nghĩa
+POST = nhận dữ liệu form và lưu xuống DB.
+
+5) VoucherEditontroller.java
+Tên class/file này đang bị gõ sai chính tả: Editontroller thay vì EditController. Code vẫn chạy nếu tên file và tên class khớp nhau, nhưng nhìn hơi xấu.
+
+Phần đầu
+@WebServlet("/voucher-edit")
+
+URL sửa voucher là /voucher-edit
+
+public class VoucherEditontroller extends HttpServlet
+
+Servlet xử lý sửa voucher
+
+doGet(...) trong file edit
+Mục đích
+Mở form sửa và đổ dữ liệu cũ lên form.
+
+Từng dòng
+int id = Integer.parseInt(request.getParameter("id"));
+
+Lấy id voucher từ URL, ví dụ /voucher-edit?id=5
+
+VoucherDAO dao = new VoucherDAO();
+
+Tạo DAO
+
+Voucher v = dao.getById(id);
+
+Lấy voucher từ DB theo id
+
+request.setAttribute("voucher", v);
+
+Gửi object voucher sang JSP dưới tên "voucher"
+
+request.getRequestDispatcher("voucher-edit.jsp").forward(request,response);
+
+Chuyển sang trang JSP sửa voucher
+
+Ý nghĩa
+JSP có thể dùng ${voucher.code}, ${voucher.discountPercent}... để hiện dữ liệu cũ.
+
+doPost(...) trong file edit
+Mục đích
+Nhận dữ liệu đã sửa rồi cập nhật lại DB.
+
+Từng dòng
+int id = Integer.parseInt(request.getParameter("id"));
+
+Lấy id voucher đang sửa
+
+String code = request.getParameter("code");
+
+int discount = Integer.parseInt(request.getParameter("discount"));
+
+double min = Double.parseDouble(request.getParameter("minOrder"));
+
+boolean stack = Boolean.parseBoolean(request.getParameter("stackable"));
+
+java.sql.Date start = java.sql.Date.valueOf(request.getParameter("startDate"));
+
+java.sql.Date end = java.sql.Date.valueOf(request.getParameter("endDate"));
+
+Lấy toàn bộ dữ liệu từ form
+
+Voucher v = new Voucher();
+
+Tạo object voucher
+
+v.setVoucherId(id);
+
+Quan trọng: phải set id để DAO biết update dòng nào
+
+Các dòng tiếp theo:
+
+set code
+
+set discount
+
+set min order
+
+set stackable
+
+set startDate
+
+set endDate
+
+VoucherDAO dao = new VoucherDAO();
+
+Tạo DAO
+
+dao.update(v);
+
+Gọi SQL update
+
+response.sendRedirect("home");
+
+Cập nhật xong thì quay về home
+
+Ý nghĩa
+GET của edit = lấy dữ liệu cũ
+POST của edit = lưu dữ liệu mới
+
+6) VoucherDeleteController.java
+File này xử lý xóa.
+
+Từng phần
+@WebServlet("/voucher-delete")
+
+URL xóa là /voucher-delete
+
+public class VoucherDeleteController extends HttpServlet
+
+Servlet xóa voucher
+
+doGet(...)
+int id = Integer.parseInt(request.getParameter("id"));
+
+Lấy id voucher từ URL
+
+VoucherDAO dao = new VoucherDAO();
+
+Tạo DAO
+
+dao.delete(id);
+
+Xóa voucher trong DB
+
+response.sendRedirect("home");
+
+Xóa xong chuyển về trang chủ
+
+Ý nghĩa
+File này đang dùng GET để xóa dữ liệu. Về mặt kỹ thuật chạy được, nhưng về thiết kế web thì hơi nguy hiểm vì:
+
+GET nên dùng để đọc dữ liệu
+
+DELETE/POST an toàn hơn cho thao tác xóa
+
+7) VoucherListController.java
+File này xử lý hiển thị danh sách voucher, có search theo code và phân trang.
+
+Phần đầu
+@WebServlet("/voucher-list")
+
+URL danh sách voucher
+
+import java.util.List;
+
+Vì cần List<Voucher>
+
+import model.Voucher;
+
+Dùng model
+
+doGet(...)
+Bước 1: lấy từ khóa code
+String code = request.getParameter("code");
+
+Lấy keyword tìm kiếm từ URL
+
+if (code == null) { code = ""; }
+
+Nếu không truyền gì thì gán chuỗi rỗng
+
+Nhờ đó LIKE '%%' sẽ trả về toàn bộ voucher
+
+Bước 2: setup phân trang
+int page = 1;
+
+Mặc định đang ở trang 1
+
+int pageSize = 20;
+
+Mỗi trang 20 voucher
+
+String pageRaw = request.getParameter("page");
+
+Lấy số trang từ URL
+
+if (pageRaw != null && !pageRaw.trim().isEmpty()) {
+
+Nếu có page và không rỗng
+
+page = Integer.parseInt(pageRaw);
+
+Chuyển sang int
+
+Bước 3: tính offset
+int offset = (page - 1) * pageSize;
+
+Công thức phân trang chuẩn
+
+Ví dụ:
+
+trang 1 → offset 0
+
+trang 2 → offset 20
+
+trang 3 → offset 40
+
+Bước 4: gọi DAO
+VoucherDAO dao = new VoucherDAO();
+
+Tạo DAO
+
+List<Voucher> list = dao.getVouchers(code, offset, pageSize);
+
+Lấy danh sách voucher theo keyword + phân trang
+
+Bước 5: gửi dữ liệu sang JSP
+request.setAttribute("vouchers", list);
+
+Gửi danh sách voucher
+
+request.setAttribute("code", code);
+
+Gửi lại keyword để JSP có thể giữ nguyên ô search
+
+request.setAttribute("page", page);
+
+Gửi số trang hiện tại
+
+Bước 6: forward sang JSP
+request.getRequestDispatcher("voucher-list.jsp").forward(request, response);
+
+Chuyển sang trang hiển thị list
+
+Ý nghĩa
+File này là controller chuẩn cho màn hình list/search/paging.
+
+8) Cách các file liên kết với nhau
+Luồng create
+User vào /voucher-create
+
+VoucherCreateController.doGet() mở voucher-create.jsp
+
+User submit form
+
+VoucherCreateController.doPost() đọc form
+
+Tạo Voucher
+
+VoucherDAO.insert(v) thêm vào DB
+
+Redirect về home
+
+Luồng edit
+User vào /voucher-edit?id=3
+
+VoucherEditontroller.doGet() gọi dao.getById(3)
+
+Gửi object voucher sang voucher-edit.jsp
+
+User sửa form rồi submit
+
+doPost() đọc dữ liệu mới
+
+dao.update(v)
+
+Redirect về home
+
+Luồng delete
+User bấm xóa với URL /voucher-delete?id=3
+
+VoucherDeleteController.doGet()
+
+dao.delete(3)
+
+Redirect về home
+
+Luồng list
+User vào /voucher-list?code=SALE&page=2
+
+VoucherListController.doGet()
+
+Tính offset
+
+dao.getVouchers("SALE", 20, 20)
+
+Gửi danh sách sang voucher-list.jsp
+
+9) Những điểm yếu/lỗi tiềm ẩn trong code này
+Có vài chỗ bạn nên biết:
+
+1. Không đóng tài nguyên DB
+Trong VoucherDAO, sau khi dùng xong Connection, PreparedStatement, ResultSet, bạn không đóng lại.
+
+Hậu quả:
+
+dễ đầy connection
+
+app chạy lâu có thể lỗi
+
+Tốt hơn nên dùng:
+
+try (Connection conn = DBContext.getConnection();
+     PreparedStatement ps = conn.prepareStatement(sql)) {
+    ...
+}
+2. catch chỉ printStackTrace()
+Hiện tại nếu lỗi:
+
+user không biết lỗi gì
+
+trang có thể đứng im hoặc hành vi khó đoán
+
+Tốt hơn:
+
+set message lỗi
+
+forward sang error page
+
+hoặc redirect kèm thông báo
+
+3. Dùng GET để xóa
+VoucherDeleteController xóa bằng doGet().
+Cái này không nên lắm vì:
+
+click link là xóa luôn
+
+bot/crawler cũng có thể vô tình trigger
+
+Tốt hơn:
+
+dùng POST
+
+hoặc confirm modal rồi submit form POST
+
+4. Boolean.parseBoolean(...)
+Nó chỉ trả true nếu string đúng là "true" không phân biệt hoa thường.
+
+Nếu form của bạn gửi:
+
+"on"
+
+"1"
+
+"yes"
+
+thì nó sẽ ra false.
+
+Cho nên input stackable phải được gửi rất chuẩn.
+
+5. Chưa validate dữ liệu
+Ví dụ chưa kiểm tra:
+
+discountPercent có nằm trong 1–100 không
+
+minOrderAmount có âm không
+
+startDate <= endDate không
+
+code có bị trùng không
+
+6. Tên class VoucherEditontroller
+Tên này bị typo.
+
+7. response.sendRedirect("home")
+Sau khi tạo/sửa/xóa, bạn redirect về home, không phải voucher-list.
+Nếu module voucher độc lập thì redirect về voucher-list thường hợp lý hơn.
+
+10) Tóm lại vai trò từng file
+Voucher.java
+Là object dữ liệu.
+Nó chỉ giữ thông tin voucher.
+
+VoucherDAO.java
+Là nơi chạy SQL:
+
+lấy voucher còn hiệu lực
+
+lấy danh sách voucher có phân trang
+
+tìm theo code
+
+thêm
+
+sửa
+
+xóa
+
+lấy theo id
+
+VoucherCreateController.java
+Mở form tạo và nhận dữ liệu tạo mới.
+
+VoucherEditontroller.java
+Mở form sửa và lưu dữ liệu sửa.
+
+VoucherDeleteController.java
+Xóa voucher theo id.
+
+VoucherListController.java
+Hiển thị danh sách, tìm kiếm, phân trang.
+
+11) Nói cực ngắn theo kiểu dễ nhớ
+Model: Voucher
+
+DAO: VoucherDAO
+
+Create Controller: nhận form tạo → insert DB
+
+Edit Controller: load dữ liệu cũ → update DB
+
+Delete Controller: nhận id → delete DB
+
+List Controller: search + paging → forward JSP
+
+12) Chỗ nào là “logic chính” nhất?
+Nếu hỏi file nào quan trọng nhất để hiểu module này, thì là:
+
+VoucherDAO.java
+vì nó quyết định dữ liệu đọc/ghi xuống DB thế nào
+
+VoucherEditontroller.java
+vì nó cho thấy luồng lấy dữ liệu cũ rồi update
+
+VoucherListController.java
+vì nó cho thấy search + paging
+
+Mình có thể làm tiếp cho bạn bản ghi chú trực tiếp vào từng dòng code theo kiểu comment //, tức là biến 6 file này thành phiên bản “code có chú thích”, để bạn đọc dễ hơn.
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+tại sao sau khi chọn sản phẩm apply các voucher và sau đấy nhấn xóa các sản phẩm thì nó trả giá trị âm
+
+Thought for 1m 40s
+Vì sau khi bạn xóa hết sản phẩm, hệ thống của bạn vẫn đang giữ voucher đã apply và vẫn chạy công thức giảm giá trên giỏ hàng mới.
+
+Nhìn đúng từ ảnh của bạn:
+
+Original Price = 0 VND
+
+Total Price = 5,000 VND
+
+Saved = -5,000 VND
+
+Điều này cho thấy code của bạn đang tính kiểu:
+
+saved = originalPrice - totalPrice;
+nên khi:
+
+originalPrice = 0
+totalPrice = 5000
+thì:
+
+saved = 0 - 5000 = -5000
+Gốc lỗi nằm ở đâu?
+Không nằm ở mấy file VoucherDAO, VoucherCreateController, VoucherEditController bạn gửi trước đó, vì mấy file đó chỉ là CRUD voucher thôi.
+Lỗi này nằm ở phần:
+
+CartController
+
+CheckoutController
+
+hoặc đoạn JSP/cart service đang tính lại total sau khi xóa item
+
+Tại sao total lại thành 5,000 dù giỏ hàng đã trống?
+Khả năng rất cao là do logic voucher của bạn đang hiểu minOrderAmount theo kiểu:
+
+đơn hàng sau giảm không được thấp hơn mức này
+
+Ví dụ voucher có:
+
+minOrderAmount = 5000
+Sau khi xóa hết hàng:
+
+originalPrice = 0
+nhưng code vẫn apply voucher và ép:
+
+finalTotal = max(minOrderAmount, originalPrice - discount)
+thì sẽ ra:
+
+finalTotal = max(5000, 0 - discount) = 5000
+Thế là giỏ hàng trống nhưng total vẫn là 5000.
+
+Sau đó UI lại tính:
+
+saved = originalPrice - finalTotal = 0 - 5000 = -5000
+nên mới ra số âm.
+
+Bản chất bug
+Bug là do voucher vẫn còn sống sau khi cart thay đổi.
+
+Tức là flow hiện tại của bạn đang là:
+
+Chọn sản phẩm
+
+Apply voucher
+
+Voucher được lưu vào session / request / cart object
+
+Xóa sản phẩm
+
+Hệ thống không remove voucher hoặc không re-validate voucher
+
+Vẫn đem voucher cũ đi tính tiếp
+
+Kết quả total và saved bị sai
+
+Cách sửa đúng
+Cách 1: Nếu giỏ hàng rỗng thì reset voucher luôn
+Sau khi xóa item hoặc cập nhật cart, bạn phải kiểm tra:
+
+if (cart == null || cart.getItems().isEmpty()) {
+    appliedVouchers.clear();   // hoặc remove session voucher
+    originalPrice = 0;
+    totalPrice = 0;
+    saved = 0;
+}
+Nếu bạn chỉ có 1 voucher:
+
+if (cart == null || cart.getItems().isEmpty()) {
+    appliedVoucher = null;
+    originalPrice = 0;
+    totalPrice = 0;
+    saved = 0;
+}
+Cách 2: Recalculate lại toàn bộ sau mỗi lần xóa
+Đừng giữ nguyên totalPrice cũ rồi trừ cộng tiếp.
+Mỗi lần cart đổi, hãy tính lại từ đầu:
+
+originalPrice = sum(selectedItems);
+currentAmount = originalPrice;
+
+for (Voucher v : appliedVouchers) {
+    // chỉ apply nếu currentAmount > 0
+}
+saved = originalPrice - currentAmount;
+totalPrice = currentAmount;
+Cách 3: Không cho voucher làm total lớn hơn original
+Bạn phải chặn tình huống vô lý này:
+
+if (totalPrice > originalPrice) {
+    totalPrice = originalPrice;
+}
+if (saved < 0) {
+    saved = 0;
+}
+Cái này là lớp bảo vệ cuối cùng, dù logic chính có sơ sót thì UI vẫn không ra số âm.
+
+Công thức nên dùng
+Nếu voucher của bạn là giảm theo phần trăm nhưng không được làm đơn hàng thấp hơn minOrderAmount, thì nên tính kiểu này:
+
+double rawDiscount = currentAmount * voucher.getDiscountPercent() / 100.0;
+double maxAllowedDiscount = currentAmount - voucher.getMinOrderAmount();
+
+double actualDiscount = Math.min(rawDiscount, maxAllowedDiscount);
+actualDiscount = Math.max(0, actualDiscount);
+
+currentAmount = currentAmount - actualDiscount;
+Ý nghĩa:
+
+rawDiscount: số tiền đáng ra được giảm
+
+maxAllowedDiscount: mức giảm tối đa trước khi chạm sàn minOrderAmount
+
+actualDiscount: giảm thật sự
+
+nếu giỏ hàng đã nhỏ hơn hoặc bằng minOrderAmount thì giảm = 0
+
+Phải thêm điều kiện này
+Trước khi apply voucher:
+
+if (currentAmount <= 0) {
+    totalPrice = 0;
+    saved = 0;
+    appliedVoucher = null; // hoặc clear list voucher
+    return;
+}
+Hoặc:
+
+if (currentAmount <= voucher.getMinOrderAmount()) {
+    // không được giảm nữa
+    actualDiscount = 0;
+}
+Tại sao số âm xuất hiện ở ô Saved?
+Vì bạn đang dùng:
+
+saved = originalPrice - totalPrice;
+Công thức này chỉ đúng khi:
+
+totalPrice <= originalPrice
+Nhưng hiện tại do bug, totalPrice = 5000 còn originalPrice = 0, nên saved bị âm.
+
+Cho nên ngoài việc sửa logic cart, bạn cũng nên chặn UI:
+
+saved = Math.max(0, originalPrice - totalPrice);
+totalPrice = Math.max(0, totalPrice);
+Kết luận ngắn gọn
+Lý do là:
+
+Bạn xóa sản phẩm rồi nhưng voucher vẫn còn được áp dụng trên cart rỗng, làm hàm tính total trả về một giá trị tối thiểu như 5000, từ đó công thức saved = original - total sinh ra số âm.
+
+Nếu bạn gửi đúng file CartController / CheckoutController / cart.jsp đang tính originalPrice, saved, totalPrice, mình sẽ chỉ ra chính xác dòng nào gây lỗi và sửa thẳng code cho bạn.
+
+
+Đã tải lên ảnh
+Đã tải lên ảnh
+tại sao sau khi bọn 3 voucher và tất cả voucher khác đã bị tô đen nhưng tôi nhân apply sau đấy vào lại voucer thì lại có thể add thêm dc 
+
+Thought for 28s
+Vì logic giới hạn 3 voucher của bạn chỉ đang hoạt động ở lúc mở popup hiện tại, chứ chưa được giữ đúng sau khi bấm Apply và mở lại popup.
+
+Nói dễ hiểu:
+
+Điều gì đang xảy ra
+Lúc bạn tick 3 voucher trong popup:
+
+JavaScript đếm số checkbox đã chọn
+
+Khi đủ 3, nó disable/tô mờ các voucher khác
+
+Nên lúc đó nhìn đúng.
+
+Nhưng sau khi bấm Apply:
+
+popup đóng lại
+
+lần sau mở lại, popup được render lại từ đầu
+
+trạng thái disabled cũ bị mất
+
+code của bạn có thể chỉ render lại danh sách voucher, nhưng không render lại đúng trạng thái “đã đủ 3 voucher”
+
+thế là checkbox khác lại chọn được tiếp
+
+Gốc lỗi thường nằm ở 1 trong 3 chỗ này
+1. Chỉ chặn ở frontend, không chặn ở backend
+Bạn đang có kiểu:
+
+frontend: “nếu chọn đủ 3 thì disable các cái khác”
+
+backend: vẫn nhận thêm voucher nếu người dùng gửi lên
+
+Khi mở popup lại, frontend reset, nên user chọn tiếp được.
+
+2. Sau khi Apply, danh sách voucher đã chọn không được load lại đúng
+Ví dụ trước đó bạn đã chọn:
+
+SALE0
+
+SALE4
+
+SALE6
+
+Nhưng khi mở lại popup, hệ thống không đánh dấu đủ 3 cái đó là “already applied”, nên biến đếm lại bắt đầu sai.
+
+Kết quả:
+
+UI tưởng mới chỉ chọn 0 hoặc 1 hoặc 2 cái
+
+nên cho chọn thêm
+
+3. Code Apply của bạn đang “cộng thêm” chứ không “thay thế”
+Ví dụ backend đang làm kiểu:
+
+appliedVouchers.addAll(newSelectedVouchers);
+thay vì:
+
+appliedVouchers = newSelectedVouchers;
+Thì mỗi lần mở lại popup rồi apply, voucher mới lại nối thêm vào danh sách cũ.
+
+Tóm gọn bản chất bug
+Đây là lỗi mất đồng bộ giữa UI và dữ liệu thật:
+
+UI popup đang đếm số voucher trong lần chọn hiện tại
+
+nhưng backend/cart/session lại đang giữ danh sách voucher khác
+
+hoặc ngược lại, backend có giữ nhưng popup không đọc lại đúng
+
+Cách đúng phải là
+Bạn phải có một nguồn dữ liệu thật duy nhất cho voucher đã áp dụng, thường là:
+
+session
+
+cart object
+
+order object
+
+Ví dụ:
+
+List<Voucher> appliedVouchers = cart.getAppliedVouchers();
+Khi mở popup, UI phải dựa vào danh sách này để render.
+
+Luồng đúng nên là
+Khi mở popup voucher
+Lấy danh sách voucher đã áp dụng từ session/cart
+
+Check sẵn các voucher đó
+
+Đếm số voucher đã áp dụng
+
+Nếu đã đủ 3 thì disable các voucher chưa được chọn
+
+Pseudocode frontend đúng
+const maxVoucher = 3;
+
+function updateVoucherState() {
+    const checkboxes = document.querySelectorAll(".voucher-checkbox");
+    const checkedBoxes = document.querySelectorAll(".voucher-checkbox:checked");
+    const selectedCount = checkedBoxes.length;
+
+    checkboxes.forEach(cb => {
+        if (!cb.checked) {
+            cb.disabled = selectedCount >= maxVoucher;
+        } else {
+            cb.disabled = false;
+        }
+    });
+}
+Khi popup mở:
+
+gọi updateVoucherState()
+
+Khi tick/untick:
+
+cũng gọi updateVoucherState()
+
+Nhưng frontend thôi chưa đủ
+Bạn cũng phải chặn ở backend.
+
+Ví dụ trong servlet/controller khi nhận voucher IDs:
+
+if (selectedVoucherIds.size() > 3) {
+    selectedVoucherIds = selectedVoucherIds.subList(0, 3);
+}
+Hoặc tốt hơn:
+
+if (selectedVoucherIds.size() > 3) {
+    throw new IllegalArgumentException("Maximum 3 vouchers allowed");
+}
+Vì frontend có thể lỗi, nhưng backend phải là nơi chặn cuối cùng.
+
+Nếu bug nằm ở chỗ Apply
+Bạn cần kiểm tra xem code Apply của bạn có đang kiểu này không:
+
+List<Integer> oldIds = (List<Integer>) session.getAttribute("appliedVoucherIds");
+oldIds.addAll(newIds);
+session.setAttribute("appliedVoucherIds", oldIds);
+Nếu có, đây là nguyên nhân lớn.
+
+Nên sửa thành:
+
+session.setAttribute("appliedVoucherIds", newIds);
+tức là thay thế danh sách cũ bằng danh sách hiện tại, không cộng dồn vô hạn.
+
+Nếu bug nằm ở popup mở lại
+Bạn cần kiểm tra khi render voucher list, có đoạn kiểu:
+
+<c:forEach var="v" items="${availableVouchers}">
+    <input type="checkbox" name="voucherIds" value="${v.voucherId}">
+</c:forEach>
+Nếu chỉ render thế này thì popup không biết voucher nào đã apply trước đó.
+
+Phải render kiểu:
+
+<input type="checkbox"
+       name="voucherIds"
+       value="${v.voucherId}"
+       <c:if test="${appliedVoucherIds contains v.voucherId}">checked</c:if>>
+Sau đó JS mới đếm đúng số đã chọn.
+
+Vì sao ảnh đầu “bị tô đen”, ảnh sau lại chọn thêm được?
+Rất có thể là:
+
+ảnh đầu: JS trong popup đang chạy đúng ở lần chọn hiện tại
+
+ảnh sau: popup mở lại, state cũ không được phục hồi đầy đủ
+
+nên checkbox khác không còn bị disable nữa
+
+Tức là disable chỉ là hiệu ứng tạm thời của popup, chưa phải là trạng thái thật của cart.
+
+Kết luận ngắn gọn
+Lý do là:
+
+Bạn mới chỉ giới hạn 3 voucher ở giao diện popup hiện tại. Sau khi Apply và mở lại popup, trạng thái đã chọn/đã đủ 3 voucher không được đồng bộ lại từ session/cart, hoặc backend đang cộng dồn voucher thay vì thay thế, nên người dùng vẫn add thêm được.
+
+Gửi mình file:
+
+CartController
+
+servlet xử lý apply voucher
+
+cart.jsp hoặc file modal voucher
+
+đoạn JavaScript tick checkbox voucher
+
+mình sẽ chỉ đúng dòng nào làm nó bị add thêm và sửa code luôn cho bạn.
+
+
+
+CartController.java
+Tệp
+
+ApplyVoucherController.java
+Tệp
+
+cart.jsp
+Tệp
+
+Thought for 1m 27s
+Mình thấy ra đúng lỗi rồi: bạn có viết controller chặn tối đa 3 voucher, nhưng modal hiện tại không hề dùng controller đó. Vì vậy mở lại popup vẫn add thêm được.
+
+Cụ thể có 2 vấn đề:
+
+Thứ nhất, ApplyVoucherController ở route /apply-voucher có chặn:
+
+bỏ trùng voucher
+
+nếu hơn 3 thì báo lỗi
+
+thay thế danh sách cũ bằng danh sách mới
+Nhưng modal trong cart.jsp lại submit tới cart?action=applyVoucher, không submit tới /apply-voucher. Trong CartController, nhánh "applyVoucher" chỉ lấy hết voucherId rồi set thẳng vào session, không kiểm tra giới hạn 3, không bỏ trùng, không kiểm tra stack/non-stack. Nên backend thật sự đang chạy là nhánh sai.
+
+Thứ hai, ở cart.jsp bạn có render lại những voucher đã chọn bằng checked="checked", nhưng hàm openVoucherModal() chỉ mở popup, không gọi lại handleVoucherSelection(). Nên khi mở lại:
+
+3 voucher cũ vẫn được check sẵn
+
+nhưng trạng thái disable/tô đen của các voucher còn lại chưa được tính lại
+
+thế là nhìn như vẫn chọn thêm được
+
+Nói ngắn gọn:
+
+Frontend không khôi phục lại trạng thái disable khi mở lại popup
+
+Backend đang dùng nhánh không chặn quá 3 voucher
+
+Sửa đúng nhất
+Cách 1: đổi form modal sang dùng ApplyVoucherController
+Trong cart.jsp, sửa form voucher:
+
+<form action="apply-voucher" method="post">
+và đổi tên checkbox từ:
+
+name="voucherId"
+thành:
+
+name="voucherIds"
+để khớp với:
+
+String[] voucherIds = request.getParameterValues("voucherIds");
+trong ApplyVoucherController. Khi đó giới hạn 3 voucher mới thực sự chạy. 
+
+
+Cách 2: khi mở modal, gọi lại hàm khóa checkbox
+Sửa JS:
+
+function openVoucherModal() {
+    document.getElementById("voucherModal").style.display = "block";
+    handleVoucherSelection();
+}
+và thêm:
+
+document.addEventListener("DOMContentLoaded", function () {
+    handleVoucherSelection();
+});
+để lúc trang load lại, các voucher đã check sẵn sẽ làm các voucher khác bị disable đúng luôn.
+
+Cách 3: nếu vẫn muốn giữ submit vào /cart
+Thì phải copy logic chặn từ ApplyVoucherController sang nhánh này trong CartController:
+
+if ("applyVoucher".equals(action)) {
+    String[] voucherIds = request.getParameterValues("voucherId");
+
+    Set<Integer> uniqueIds = new LinkedHashSet<>();
+    if (voucherIds != null) {
+        for (String id : voucherIds) {
+            uniqueIds.add(Integer.parseInt(id));
+        }
+    }
+
+    if (uniqueIds.size() > 3) {
+        session.setAttribute("voucherError", "You can apply at most 3 vouchers only.");
+        response.sendRedirect("cart");
+        return;
+    }
+
+    List<Voucher> selected = new ArrayList<>();
+    VoucherDAO vdao = new VoucherDAO();
+
+    for (Integer id : uniqueIds) {
+        Voucher v = vdao.getById(id);
+        if (v != null) selected.add(v);
+    }
+
+    session.setAttribute("vouchersSelected", selected);
+    response.sendRedirect("cart");
+    return;
+}
+Kết luận
+Lý do chính là:
+
+Bạn có controller chặn 3 voucher, nhưng form popup lại không submit vào controller đó; đồng thời popup mở lại không gọi lại hàm disable checkbox. Nên giao diện cho chọn thêm, và backend hiện tại cũng không chặn.
+
+Nếu bạn muốn, mình sẽ viết lại luôn cho bạn bản cart.jsp + CartController đã sửa hoàn chỉnh để chỉ cần copy-paste.
+
+
+viết lại toàn bộ những gì tôi cần copy vào và chỉ rõ địa điểm từng cái đấy ở đâu để tôi làm
+
+Thought for 45s
+Đây là bản copy-paste trực tiếp để sửa cho đúng. Lỗi hiện tại là:
+
+cart.jsp đang submit voucher về cart?action=applyVoucher bằng GET với field voucherId
+
+ApplyVoucherController lại đang chờ POST /apply-voucher với field voucherIds và có chặn tối đa 3 voucher 
+
+
+openVoucherModal() chỉ mở popup, chưa gọi lại handleVoucherSelection(), nên mở lại popup thì trạng thái disable bị mất 
+
+
+Mình sẽ cho bạn đúng 3 chỗ cần sửa.
+
+1) Sửa file ApplyVoucherController.java
+Địa điểm
+File:
+src/java/controller/ApplyVoucherController.java
+
+Việc cần làm
+Xóa toàn bộ file cũ và dán nguyên file mới này vào
+
+package controller;
+
+import dal.VoucherDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import model.Voucher;
+
+@WebServlet("/apply-voucher")
+public class ApplyVoucherController extends HttpServlet {
+
+    @Override
+    protected void doPost(HttpServletRequest request,
+            HttpServletResponse response)
+            throws ServletException, IOException {
+
+        try {
+            HttpSession session = request.getSession();
+
+            String[] voucherIds = request.getParameterValues("voucherIds");
+
+            // Nếu không chọn voucher nào thì xóa voucher cũ
+            if (voucherIds == null || voucherIds.length == 0) {
+                session.removeAttribute("vouchersSelected");
+                session.removeAttribute("voucherError");
+                response.sendRedirect("cart");
+                return;
+            }
+
+            // Bỏ trùng
+            Set<Integer> uniqueIds = new LinkedHashSet<>();
+            for (String id : voucherIds) {
+                try {
+                    uniqueIds.add(Integer.parseInt(id));
+                } catch (Exception ignored) {
+                }
+            }
+
+            // Chặn quá 3 voucher
+            if (uniqueIds.size() > 3) {
+                session.setAttribute("voucherError", "You can apply at most 3 vouchers only.");
+                response.sendRedirect("cart");
+                return;
+            }
+
+            VoucherDAO dao = new VoucherDAO();
+            List<Voucher> selected = new ArrayList<>();
+
+            int stackCount = 0;
+            boolean hasNonStack = false;
+
+            for (Integer id : uniqueIds) {
+                Voucher v = dao.getById(id);
+                if (v != null) {
+                    selected.add(v);
+
+                    if (v.isStackable()) {
+                        stackCount++;
+                    } else {
+                        hasNonStack = true;
+                    }
+                }
+            }
+
+            // Nếu có voucher non-stack thì chỉ được chọn đúng 1 voucher
+            if (hasNonStack && selected.size() > 1) {
+                session.setAttribute("voucherError", "Non-stack voucher cannot be combined with other vouchers.");
+                response.sendRedirect("cart");
+                return;
+            }
+
+            // Voucher stack tối đa 3
+            if (stackCount > 3) {
+                session.setAttribute("voucherError", "You can apply at most 3 stackable vouchers only.");
+                response.sendRedirect("cart");
+                return;
+            }
+
+            // Thay thế hoàn toàn danh sách voucher cũ
+            session.setAttribute("vouchersSelected", selected);
+            session.removeAttribute("voucherError");
+
+            response.sendRedirect("cart");
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            request.getSession().setAttribute("voucherError", "Failed to apply voucher.");
+            response.sendRedirect("cart");
+        }
+    }
+}
+2) Sửa phần modal voucher trong cart.jsp
+Địa điểm
+File:
+web/cart.jsp
+hoặc
+webapp/cart.jsp
+
+Bạn tìm đúng đoạn đang có kiểu như này:
+
+<form action="cart" method="get">
+    <input type="hidden" name="action" value="applyVoucher">
+và các checkbox kiểu:
+
+name="voucherId"
+Hiện tại file của bạn đúng là đang như vậy. 
+
+
+Việc cần làm
+Xóa toàn bộ khối form trong modal voucher cũ và thay bằng nguyên khối dưới đây
+
+<form id="voucherForm" action="apply-voucher" method="post">
+
+    <button type="submit">Apply</button>
+    <button type="button" onclick="closeVoucherModal()">Cancel</button>
+
+    <hr>
+
+    <h4>Available Vouchers</h4>
+
+    <c:if test="${not empty sessionScope.voucherError}">
+        <div style="color:red; margin-bottom:10px;">
+            ${sessionScope.voucherError}
+        </div>
+        <c:remove var="voucherError" scope="session"/>
+    </c:if>
+
+    <div style="max-height:350px; overflow-y:auto;">
+
+        <c:set var="selectedVouchers" value="${sessionScope.vouchersSelected}" />
+
+        <c:forEach items="${vouchers}" var="v">
+
+            <div class="voucher-item">
+
+                <c:choose>
+                    <c:when test="${v.stackable}">
+                        <input type="checkbox"
+                               name="voucherIds"
+                               class="voucher-checkbox"
+                               value="${v.voucherId}"
+                               data-type="STACK"
+                               onchange="handleVoucherSelection()"
+                               <c:forEach var="sv" items="${selectedVouchers}">
+                                   <c:if test="${sv.voucherId == v.voucherId}">
+                                       checked="checked"
+                                   </c:if>
+                               </c:forEach>
+                               >
+                    </c:when>
+
+                    <c:otherwise>
+                        <input type="checkbox"
+                               name="voucherIds"
+                               class="voucher-checkbox"
+                               value="${v.voucherId}"
+                               data-type="NON_STACK"
+                               onchange="handleVoucherSelection()"
+                               <c:forEach var="sv" items="${selectedVouchers}">
+                                   <c:if test="${sv.voucherId == v.voucherId}">
+                                       checked="checked"
+                                   </c:if>
+                               </c:forEach>
+                               >
+                    </c:otherwise>
+                </c:choose>
+
+                <b class="voucher-code">${v.code}</b>
+                - Discount ${v.discountPercent}%
+                <br>
+                Min order: ${v.minOrderAmount}
+
+            </div>
+
+        </c:forEach>
+
+    </div>
+
+</form>
+3) Sửa JavaScript trong cart.jsp
+Hiện tại file của bạn có:
+
+openVoucherModal() chỉ mở modal
+
+handleVoucherSelection() chỉ chạy khi tick tay, chưa chạy khi mở lại popup 
+
+
+3.1 Sửa hàm openVoucherModal() và closeVoucherModal()
+Địa điểm
+Trong cart.jsp, tìm đoạn:
+
+function openVoucherModal() {
+    document.getElementById("voucherModal").style.display = "block";
+}
+
+function closeVoucherModal() {
+    document.getElementById("voucherModal").style.display = "none";
+}
+Xóa đoạn đó và thay bằng:
+<script>
+    function openVoucherModal() {
+        document.getElementById("voucherModal").style.display = "block";
+        handleVoucherSelection();
+    }
+
+    function closeVoucherModal() {
+        document.getElementById("voucherModal").style.display = "none";
+    }
+</script>
+3.2 Sửa toàn bộ hàm handleVoucherSelection()
+Địa điểm
+Trong cart.jsp, tìm nguyên hàm cũ:
+
+function handleVoucherSelection() {
+    ...
+}
+Xóa toàn bộ hàm cũ và thay bằng:
+<script>
+    function handleVoucherSelection() {
+        let checkboxes = document.querySelectorAll(".voucher-checkbox");
+        let selected = [];
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                selected.push(cb);
+            }
+        });
+
+        let stackSelected = selected.filter(cb => cb.dataset.type === "STACK");
+        let nonStackSelected = selected.filter(cb => cb.dataset.type === "NON_STACK");
+
+        // reset trạng thái
+        checkboxes.forEach(cb => {
+            cb.disabled = false;
+            cb.parentElement.classList.remove("voucher-disabled");
+        });
+
+        // Nếu đã chọn non-stack thì khóa toàn bộ cái còn lại
+        if (nonStackSelected.length > 0) {
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+            return;
+        }
+
+        // Nếu đã chọn stack thì khóa non-stack
+        if (stackSelected.length > 0) {
+            checkboxes.forEach(cb => {
+                if (cb.dataset.type === "NON_STACK" && !cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+        }
+
+        // Nếu đã đủ 3 stack voucher thì khóa các stack chưa chọn
+        if (stackSelected.length >= 3) {
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        handleVoucherSelection();
+    });
+</script>
+4) Không bắt buộc nhưng nên sửa trong CartController.java
+Địa điểm
+File:
+src/java/controller/CartController.java
+
+Hiện tại trong file của bạn có nhánh này:
+
+if ("applyVoucher".equals(action)) {
+    String[] voucherIds = request.getParameterValues("voucherId");
+
+    List<Voucher> selected = new ArrayList<>();
+
+    if (voucherIds != null) {
+        VoucherDAO vdao = new VoucherDAO();
+
+        for (String id : voucherIds) {
+            Voucher v = vdao.getById(Integer.parseInt(id));
+            if (v != null) {
+                selected.add(v);
+            }
+        }
+    }
+
+    if (selected.isEmpty()) {
+        session.removeAttribute("vouchersSelected");
+    } else {
+        session.setAttribute("vouchersSelected", selected);
+    }
+
+    response.sendRedirect("cart");
+    return;
+}
+Nhánh này là nhánh cũ, đang không chặn >3 voucher. 
+
+
+Bạn có 2 lựa chọn
+Cách dễ nhất
+Giữ nguyên cũng được, vì sau khi sửa cart.jsp thì form sẽ submit sang /apply-voucher, nên nhánh này không còn dùng nữa.
+
+Cách sạch hơn
+Xóa hẳn khối if ("applyVoucher".equals(action)) { ... } đó đi.
+
+5) Bạn phải kiểm tra lại đúng các chỗ sau
+Sau khi sửa xong, phải đảm bảo:
+
+Modal voucher submit tới:
+
+action="apply-voucher"
+Method là:
+
+method="post"
+Tên checkbox là:
+
+name="voucherIds"
+Khi mở lại popup, openVoucherModal() có gọi:
+
+handleVoucherSelection();
+Trong ApplyVoucherController, route là:
+
+@WebServlet("/apply-voucher")
+6) Kết quả sau khi sửa
+Sau khi bạn copy đúng các đoạn trên:
+
+Chọn 3 voucher stackable → voucher khác bị khóa
+
+Bấm Apply
+
+Mở lại popup → các voucher khác vẫn bị khóa đúng
+
+Không thể add quá 3 nữa
+
+Nếu chọn voucher non-stack → không thể chọn thêm voucher khác
+
+Backend cũng chặn luôn, nên kể cả frontend lỗi thì vẫn không vượt luật được
+
+7) Tóm tắt cực ngắn để bạn làm nhanh
+Bạn chỉ cần làm 3 việc:
+
+Một là thay toàn bộ file ApplyVoucherController.java bằng bản mình đưa.
+Hai là trong cart.jsp, đổi form modal voucher sang action="apply-voucher" và method="post", đồng thời đổi name="voucherId" thành name="voucherIds".
+Ba là sửa JS openVoucherModal() và handleVoucherSelection() bằng bản mới.
+
+Nếu bạn muốn, tin nhắn sau mình sẽ viết tiếp cho bạn bản cart.jsp hoàn chỉnh nguyên khối từ phần modal xuống hết script` để bạn chỉ việc dán một lần.
+
+
+chỉ rõ tôi trong cái file cart.jsp nó ở dòng thứ mấy tới thứ mấy đi
+
+Thought for 1m 8s
+Có. Mình chỉ đúng theo file cart.jsp bạn đã upload hiện tại luôn.
+
+Trong cart.jsp, bạn cần sửa 3 đoạn chính
+1) Đoạn form của modal voucher: dòng 443 đến 510
+Đây là đoạn đang bị sai vì nó còn submit về:
+
+<form action="cart" method="get">
+<input type="hidden" name="action" value="applyVoucher">
+và checkbox đang là:
+
+name="voucherId"
+Bạn hãy xóa toàn bộ từ dòng 443 đến dòng 510 rồi dán nguyên khối này vào:
+
+<form id="voucherForm" action="apply-voucher" method="post">
+
+    <button type="submit">Apply</button>
+    <button type="button" onclick="closeVoucherModal()">Cancel</button>
+
+    <hr>
+
+    <h4>Available Vouchers</h4>
+
+    <c:if test="${not empty sessionScope.voucherError}">
+        <div style="color:red; margin-bottom:10px;">
+            ${sessionScope.voucherError}
+        </div>
+        <c:remove var="voucherError" scope="session"/>
+    </c:if>
+
+    <div style="max-height:350px; overflow-y:auto;">
+
+        <c:set var="selectedVouchers" value="${sessionScope.vouchersSelected}" />
+
+        <c:forEach items="${vouchers}" var="v">
+
+            <div class="voucher-item">
+
+                <c:choose>
+                    <c:when test="${v.stackable}">
+                        <input type="checkbox"
+                               name="voucherIds"
+                               class="voucher-checkbox"
+                               value="${v.voucherId}"
+                               data-type="STACK"
+                               onchange="handleVoucherSelection()"
+                               <c:forEach var="sv" items="${selectedVouchers}">
+                                   <c:if test="${sv.voucherId == v.voucherId}">
+                                       checked="checked"
+                                   </c:if>
+                               </c:forEach>
+                               >
+                    </c:when>
+
+                    <c:otherwise>
+                        <input type="checkbox"
+                               name="voucherIds"
+                               class="voucher-checkbox"
+                               value="${v.voucherId}"
+                               data-type="NON_STACK"
+                               onchange="handleVoucherSelection()"
+                               <c:forEach var="sv" items="${selectedVouchers}">
+                                   <c:if test="${sv.voucherId == v.voucherId}">
+                                       checked="checked"
+                                   </c:if>
+                               </c:forEach>
+                               >
+                    </c:otherwise>
+                </c:choose>
+
+                <b class="voucher-code">${v.code}</b>
+                - Discount ${v.discountPercent}%
+                <br>
+                Min order: ${v.minOrderAmount}
+
+            </div>
+
+        </c:forEach>
+
+    </div>
+
+</form>
+2) Đoạn mở/đóng modal: dòng 537 đến 543
+Hiện tại đoạn này của bạn là:
+
+function openVoucherModal() {
+    document.getElementById("voucherModal").style.display = "block";
+}
+
+function closeVoucherModal() {
+    document.getElementById("voucherModal").style.display = "none";
+}
+Bạn hãy xóa toàn bộ từ dòng 537 đến 543 rồi thay bằng:
+
+<script>
+    function openVoucherModal() {
+        document.getElementById("voucherModal").style.display = "block";
+        handleVoucherSelection();
+    }
+
+    function closeVoucherModal() {
+        document.getElementById("voucherModal").style.display = "none";
+    }
+</script>
+3) Hàm khóa checkbox voucher: dòng 591 đến 649
+Đây là hàm handleVoucherSelection().
+
+Bạn hãy xóa toàn bộ từ dòng 591 đến 649 rồi thay bằng:
+
+<script>
+    function handleVoucherSelection() {
+        let checkboxes = document.querySelectorAll(".voucher-checkbox");
+        let selected = [];
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                selected.push(cb);
+            }
+        });
+
+        let stackSelected = selected.filter(cb => cb.dataset.type === "STACK");
+        let nonStackSelected = selected.filter(cb => cb.dataset.type === "NON_STACK");
+
+        // reset trạng thái
+        checkboxes.forEach(cb => {
+            cb.disabled = false;
+            cb.parentElement.classList.remove("voucher-disabled");
+        });
+
+        // Nếu đã chọn non-stack thì khóa toàn bộ cái còn lại
+        if (nonStackSelected.length > 0) {
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+            return;
+        }
+
+        // Nếu đã chọn stack thì khóa non-stack
+        if (stackSelected.length > 0) {
+            checkboxes.forEach(cb => {
+                if (cb.dataset.type === "NON_STACK" && !cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+        }
+
+        // Nếu đã đủ 3 stack voucher thì khóa các stack chưa chọn
+        if (stackSelected.length >= 3) {
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        handleVoucherSelection();
+    });
+</script>
+Tóm tắt nhanh theo dòng
+Trong cart.jsp:
+
+Dòng 443–510 → thay toàn bộ form voucher modal
+
+Dòng 537–543 → thay hàm openVoucherModal() và closeVoucherModal()
+
+Dòng 591–649 → thay toàn bộ hàm handleVoucherSelection()
+
+Ngoài cart.jsp, còn 1 file nữa bắt buộc sửa
+ApplyVoucherController.java
+Bạn vẫn phải sửa file này như mình đã gửi trước đó, vì đây là backend chặn tối đa 3 voucher.
+
+Nếu bạn muốn sửa ít nhất có thể trong cart.jsp
+Thì chỉ cần nhớ 3 thay đổi cốt lõi này ngay trong file:
+
+Ở dòng 443
+Đổi từ:
+
+<form action="cart" method="get">
+thành:
+
+<form id="voucherForm" action="apply-voucher" method="post">
+Xóa dòng 445
+Xóa dòng này:
+
+<input type="hidden" name="action" value="applyVoucher">
+Ở dòng 468 và 483
+Đổi name="voucherId" thành:
+
+name="voucherIds"
+Ở dòng 537–539
+Thêm handleVoucherSelection(); vào trong openVoucherModal().
+
+Ở cuối file, sau dòng 649
+Thêm:
+
+document.addEventListener("DOMContentLoaded", function () {
+    handleVoucherSelection();
+});
+Nếu bạn cần, tin nhắn tiếp theo mình sẽ viết cho bạn theo kiểu:
+“dòng 443 thay bằng..., dòng 444 thay bằng..., dòng 445 xóa...”
+để bạn sửa từng dòng một cho đỡ nhầm.
+
+
+Đã tải lên ảnh
+toi k the chon vao muc select or enter code nua
+
+Thought for 1m 56s
+Bị vậy là do JavaScript của phần voucher đang lỗi, nên nút Select or enter code bấm vào không gọi được openVoucherModal() nữa.
+
+Dấu hiệu rất rõ trong ảnh của bạn là có ký tự } bị hiện ra ở góc trái dưới. Cái đó thường xảy ra khi đoạn JS/script bị dán sai, nhất là kiểu lồng <script> bên trong một <script> khác hoặc dư dấu đóng. Khi JS lỗi, nút này sẽ bấm mà không mở modal. Backend ApplyVoucherController và CartController vẫn đang đúng route xử lý voucher; lỗi hiện tại là phía cart.jsp phần script/modal.
+
+Bạn sửa đúng như này
+Bước 1: trong cart.jsp, sửa phần openVoucherModal
+Tìm đoạn từ dòng 535 đến 545.
+
+Nó phải có dạng đúng y như này, và không được có thêm <script> lồng bên trong nữa:
+
+<script>
+    function openVoucherModal() {
+        document.getElementById("voucherModal").style.display = "block";
+        handleVoucherSelection();
+    }
+
+    function closeVoucherModal() {
+        document.getElementById("voucherModal").style.display = "none";
+    }
+</script>
+Bước 2: sửa phần handleVoucherSelection
+Tìm đoạn từ dòng 589 đến 651.
+
+Nó phải là một block script duy nhất, như này:
+
+<script>
+    function handleVoucherSelection() {
+        let checkboxes = document.querySelectorAll(".voucher-checkbox");
+        let selected = [];
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                selected.push(cb);
+            }
+        });
+
+        let stackSelected = selected.filter(cb => cb.dataset.type === "STACK");
+        let nonStackSelected = selected.filter(cb => cb.dataset.type === "NON_STACK");
+
+        checkboxes.forEach(cb => {
+            cb.disabled = false;
+            cb.parentElement.classList.remove("voucher-disabled");
+        });
+
+        if (nonStackSelected.length > 0) {
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+            return;
+        }
+
+        if (stackSelected.length > 0) {
+            checkboxes.forEach(cb => {
+                if (cb.dataset.type === "NON_STACK" && !cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+        }
+
+        if (stackSelected.length >= 3) {
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        handleVoucherSelection();
+    });
+</script>
+Cực kỳ quan trọng
+Trong file cart.jsp của bạn:
+
+chỉ để 1 cặp <script> ... </script> cho mỗi đoạn
+
+không được để kiểu này:
+
+<script>
+    <script>
+        function openVoucherModal() { ... }
+    </script>
+</script>
+Nếu bạn đang dán kiểu đó thì chính nó làm nút bị chết.
+
+Bước 3: kiểm tra phần button
+Ở dòng 379–381, nút của bạn phải vẫn là:
+
+<button type="button" onclick="openVoucherModal()">
+    Select or enter code
+</button>
+Nếu đoạn này còn đúng mà nút vẫn không mở, gần như chắc chắn là do script lỗi ở dưới.
+
+Bước 4: kiểm tra nhanh sau khi sửa
+Lưu file rồi F5 lại trang. Nếu vẫn chưa được:
+
+nhấn F12
+
+vào tab Console
+
+bấm nút Select or enter code
+
+Nếu có lỗi đỏ kiểu:
+
+Uncaught SyntaxError
+
+Unexpected token
+
+openVoucherModal is not defined
+
+thì nghĩa là trong cart.jsp vẫn còn thừa hoặc lồng sai <script>.
+
+Nói ngắn gọn
+Lần trước chỗ hướng dẫn thay script, nếu bạn dán cả <script>...</script> vào bên trong đoạn đã có <script> sẵn, thì file sẽ vỡ JS. Vì vậy giờ nút voucher không bấm được.
+
+Nếu bạn muốn, gửi lại đúng phần cuối file cart.jsp từ dòng 520 đến hết file; mình sẽ chỉ ra ngay dòng nào đang thừa và viết lại đúng nguyên khối cho bạn.
+
+
+Đã tải lên ảnh
+
+Đúng rồi, lỗi nằm ngay đây.
+
+Bạn đang bị lồng <script> trong <script> và còn bị trùng hàm openVoucherModal().
+
+Trong ảnh của bạn:
+
+dòng 534 đã có <script>
+
+nhưng dòng 537 bạn lại chèn thêm <script>
+
+lại còn có 2 lần function openVoucherModal()
+
+Thế nên JavaScript bị vỡ.
+
+Bạn sửa đúng như này
+Xóa toàn bộ từ dòng 534 đến dòng 547
+Xóa sạch đoạn này luôn.
+
+Sau đó thay bằng đúng đoạn này
+<script>
+    function openVoucherModal() {
+        document.getElementById("voucherModal").style.display = "block";
+        handleVoucherSelection();
+    }
+
+    function closeVoucherModal() {
+        document.getElementById("voucherModal").style.display = "none";
+    }
+</script>
+Nghĩa là sau khi sửa, đoạn đó phải trông như này
+chỉ có 1 dòng <script>
+
+chỉ có 1 hàm openVoucherModal()
+
+không có <script> nào nằm bên trong nữa
+
+chỉ có 1 dòng </script> ở cuối
+
+Bản hiện tại của bạn sai ở 3 chỗ
+Sai 1
+Bạn đang có:
+
+<script>
+    function openVoucherModal() { }
+    <script>
+Cái này sai hoàn toàn.
+
+Sai 2
+Bạn đang khai báo openVoucherModal() hai lần.
+
+Sai 3
+Bạn có hai dòng đóng script:
+
+</script>
+</script>
+cũng sai.
+
+Sau khi sửa xong, kiểm tra tiếp đoạn dưới
+Ngay sau khối này, dòng 550 đang có một <script> mới cho phần khác.
+Cái đó được phép giữ, miễn là nó là một block script riêng bình thường.
+
+Tức là cấu trúc đúng phải là kiểu:
+
+<script>
+   // hàm open / close modal
+</script>
+
+<script>
+   // code checkAll hoặc code khác
+</script>
+Còn cấu trúc sai là kiểu:
+
+<script>
+   ...
+   <script>
+   ...
+</script>
+</script>
+Việc bạn cần làm ngay
+Xóa dòng 534–547
+
+Dán lại đúng 1 block mình đưa
+
+Lưu file
+
+reload trang
+
+Nếu muốn đối chiếu nhanh
+Đoạn đúng cuối cùng phải là:
+
+<script>
+    function openVoucherModal() {
+        document.getElementById("voucherModal").style.display = "block";
+        handleVoucherSelection();
+    }
+
+    function closeVoucherModal() {
+        document.getElementById("voucherModal").style.display = "none";
+    }
+</script>
+
+<script>
+    const checkAll = document.getElementById("checkAll");
+    ...
+</script>
+Nếu bạn chụp tiếp từ dòng 585 đến 655 thì mình sẽ kiểm tra luôn giúp bạn đoạn handleVoucherSelection() có bị lồng <script> y như vậy nữa không.
+
+
+đưa tôi nguyên đoạn code lại của file cart.jsp để tôi cop 1 lần duy nhất
+
+Đã suy nghĩ trong 37s
+Đây là nguyên file cart.jsp đã sửa xong để bạn copy đè một lần.
+
+Lưu ý nhỏ trước khi dán:
+
+file này đã đổi form voucher sang action="apply-voucher" và method="post"
+
+checkbox voucher đã đổi từ voucherId thành voucherIds
+
+đã sửa lỗi modal không mở
+
+đã sửa lỗi mở lại popup mà không khóa voucher đúng
+
+đã bỏ lỗi lồng <script> làm nút bị chết
+
+Bạn copy toàn bộ đoạn dưới đây đè lên file cart.jsp hiện tại:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Cart</title>
+
+        <style>
+            *{
+                box-sizing:border-box;
+            }
+
+            body{
+                margin:0;
+                background:#f5f5f5;
+                font-family:Arial, sans-serif;
+                color:#222;
+            }
+
+            h2{
+                max-width:1200px;
+                margin:28px auto 18px;
+                font-size:36px;
+                font-weight:700;
+            }
+
+            form[action="cart"]{
+                max-width:1200px;
+                margin:0 auto;
+            }
+
+            table{
+                width:100%;
+                border-collapse:separate;
+                border-spacing:0;
+                background:#fff;
+                border-radius:10px;
+                overflow:hidden;
+                box-shadow:0 4px 18px rgba(0,0,0,0.08);
+            }
+
+            th{
+                padding:20px 14px;
+                background:#fafafa;
+                color:#444;
+                font-size:15px;
+                font-weight:700;
+                border-bottom:1px solid #efefef;
+                text-align:center;
+            }
+
+            td{
+                padding:22px 14px;
+                border-bottom:1px solid #f1f1f1;
+                font-size:15px;
+                vertical-align:middle;
+                text-align:center;
+            }
+
+            tr:last-child td{
+                border-bottom:none;
+            }
+
+            tr:hover td{
+                background:#fffdfb;
+            }
+
+            th:first-child,
+            td:first-child{
+                width:64px;
+            }
+
+            input[type="checkbox"]{
+                width:18px;
+                height:18px;
+                accent-color:#ee4d2d;
+                cursor:pointer;
+            }
+
+            .product{
+                display:flex;
+                align-items:center;
+                gap:16px;
+                text-align:left;
+            }
+
+            .product img{
+                width:88px;
+                height:88px;
+                object-fit:cover;
+                border-radius:10px;
+                border:1px solid #eee;
+                background:#fff;
+                flex-shrink:0;
+            }
+
+            .product b{
+                display:block;
+                margin-bottom:6px;
+                font-size:19px;
+                line-height:1.35;
+                color:#222;
+            }
+
+            td:nth-child(3){
+                line-height:1.6;
+                color:#555;
+            }
+
+            td:nth-child(4),
+            td:nth-child(5),
+            td:nth-child(6){
+                font-weight:600;
+                white-space:nowrap;
+            }
+
+            td:nth-child(6){
+                color:#ee4d2d;
+                font-size:18px;
+            }
+
+            a{
+                color:#ee4d2d;
+                text-decoration:none;
+                font-weight:600;
+            }
+
+            a:hover{
+                text-decoration:underline;
+            }
+
+            .total-bar{
+                margin:22px 0 0;
+                background:#fff;
+                border-radius:12px;
+                box-shadow:0 4px 18px rgba(0,0,0,0.08);
+                padding:22px 24px;
+                display:grid;
+                grid-template-columns:auto auto 1fr;
+                gap:14px;
+                align-items:center;
+            }
+
+            .total-bar > div:last-child{
+                justify-self:end;
+                text-align:right;
+                line-height:1.8;
+                font-size:17px;
+            }
+
+            .total-bar > div:last-child br{
+                display:block;
+                content:"";
+            }
+
+            button{
+                border:none;
+                background:#ee4d2d;
+                color:#fff;
+                padding:13px 22px;
+                border-radius:8px;
+                cursor:pointer;
+                font-size:15px;
+                font-weight:700;
+                transition:background .2s ease, transform .2s ease, box-shadow .2s ease;
+            }
+
+            button:hover{
+                background:#d8432b;
+                transform:translateY(-1px);
+                box-shadow:0 8px 18px rgba(238,77,45,0.22);
+            }
+
+            button[type="button"]{
+                background:#fff1ee;
+                color:#ee4d2d;
+                border:1px solid #f3b3a5;
+            }
+
+            button[type="button"]:hover{
+                background:#ffe6df;
+            }
+
+            form[action="checkout"]{
+                max-width:1200px;
+                margin:18px auto 40px;
+            }
+
+            .checkout-btn{
+                min-width:190px;
+                font-size:18px;
+                padding:15px 28px;
+            }
+
+            #voucherModal{
+                z-index:9999;
+                backdrop-filter:blur(2px);
+            }
+
+            #voucherModal > div{
+                box-shadow:0 18px 50px rgba(0,0,0,0.2);
+                border-radius:14px !important;
+            }
+
+            #searchVoucher{
+                width:100%;
+                margin:10px 0 14px;
+                padding:12px 14px;
+                border:1px solid #ddd;
+                border-radius:8px;
+                outline:none;
+                font-size:14px;
+            }
+
+            #searchVoucher:focus{
+                border-color:#ee4d2d;
+            }
+
+            .voucher-item{
+                border:1px solid #eee;
+                border-radius:10px;
+                padding:14px 16px;
+                margin-bottom:12px;
+                line-height:1.7;
+                transition:all .2s ease;
+            }
+
+            .voucher-item:hover{
+                border-color:#ee4d2d;
+                background:#fffaf8;
+            }
+
+            .voucher-disabled{
+                opacity:.45;
+                background:#f3f3f3;
+            }
+
+            .voucher-error{
+                color:#d93025;
+                background:#fff1f0;
+                border:1px solid #ffc9c5;
+                border-radius:8px;
+                padding:10px 12px;
+                margin-bottom:12px;
+                font-size:14px;
+            }
+
+            @media (max-width: 1280px){
+                h2,
+                form[action="cart"],
+                form[action="checkout"]{
+                    max-width:calc(100% - 32px);
+                }
+            }
+
+            @media (max-width: 900px){
+                h2{
+                    font-size:28px;
+                }
+
+                table,
+                thead,
+                tbody,
+                th,
+                td,
+                tr{
+                    display:block;
+                }
+
+                th{
+                    display:none;
+                }
+
+                tr{
+                    background:#fff;
+                    margin-bottom:14px;
+                    border-radius:12px;
+                    overflow:hidden;
+                    box-shadow:0 4px 18px rgba(0,0,0,0.08);
+                }
+
+                td{
+                    text-align:left;
+                    padding:14px 16px;
+                    border-bottom:1px solid #f2f2f2;
+                }
+
+                td:first-child{
+                    width:auto;
+                }
+
+                .total-bar{
+                    grid-template-columns:1fr;
+                }
+
+                .total-bar > div:last-child{
+                    justify-self:start;
+                    text-align:left;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+
+        <jsp:include page="/user/user-header.jsp"/>
+
+        <h2>Shopping Cart</h2>
+
+        <form action="cart" method="get">
+
+            <input type="hidden" name="action" value="deleteSelected">
+
+            <table>
+
+                <tr>
+                    <th><input type="checkbox" id="checkAll"></th>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                </tr>
+
+                <c:forEach var="item" items="${cartItems}">
+                    <tr>
+
+                        <td>
+                            <input type="checkbox" name="selectedItems"
+                                   value="${item.variantId}" class="itemCheck">
+                        </td>
+
+                        <td>
+                            <div class="product">
+                                <img src="${item.imageUrl}">
+                                <div>
+                                    <b>${item.productName}</b><br>
+                                    ${item.color} / ${item.size}
+                                </div>
+                            </div>
+                        </td>
+
+                        <td>
+                            Size: ${item.size}<br>
+                            Color: ${item.color}
+                        </td>
+
+                        <td>
+                            ${item.priceVariant} VND
+                        </td>
+
+                        <td>
+                            ${item.quantity}
+                        </td>
+
+                        <td>
+                            ${item.priceVariant * item.quantity} VND
+                        </td>
+
+                        <td>
+                            <a href="cart?action=delete&variantId=${item.variantId}">Delete</a>
+                        </td>
+
+                    </tr>
+                </c:forEach>
+
+            </table>
+
+            <div class="total-bar">
+
+                <div>
+                    <button type="submit">Delete Selected</button>
+                </div>
+
+                <div>
+                    <button type="button" onclick="openVoucherModal()">
+                        Select or enter code
+                    </button>
+                </div>
+
+                <div>
+                    Total Price:
+                    <fmt:formatNumber value="${totalPrice}" maxFractionDigits="3"/>
+                    VND
+                    <br>
+
+                    Saved:
+                    <fmt:formatNumber value="${saved}" maxFractionDigits="3"/>
+                    VND
+                    <br>
+
+                    Original Price:
+                    <fmt:formatNumber value="${originalPrice}" maxFractionDigits="3"/>
+                    VND
+                    <br>
+                </div>
+
+            </div>
+
+        </form>
+
+        <form action="checkout" method="get">
+            <button class="checkout-btn" type="submit">
+                Checkout
+            </button>
+        </form>
+
+        <!-- VOUCHER MODAL -->
+        <div id="voucherModal" style="
+             display:none;
+             position:fixed;
+             top:0;
+             left:0;
+             width:100%;
+             height:100%;
+             background:rgba(0,0,0,0.4);">
+
+            <div style="
+                 background:white;
+                 width:500px;
+                 max-height:80vh;
+                 margin:60px auto;
+                 padding:20px;
+                 border-radius:6px;
+                 overflow:hidden;">
+
+                <form id="voucherForm" action="apply-voucher" method="post">
+
+                    <button type="submit">Apply</button>
+                    <button type="button" onclick="closeVoucherModal()">Cancel</button>
+
+                    <hr>
+
+                    <h4>Available Vouchers</h4>
+
+                    <c:if test="${not empty sessionScope.voucherError}">
+                        <div class="voucher-error">
+                            ${sessionScope.voucherError}
+                        </div>
+                        <c:remove var="voucherError" scope="session"/>
+                    </c:if>
+
+                    <div id="selectedItemsContainer"></div>
+
+                    <div style="max-height:350px; overflow-y:auto;">
+                        <c:set var="selectedVouchers" value="${sessionScope.vouchersSelected}" />
+
+                        <c:forEach items="${vouchers}" var="v">
+                            <div class="voucher-item">
+
+                                <c:choose>
+                                    <c:when test="${v.stackable}">
+                                        <input type="checkbox"
+                                               name="voucherIds"
+                                               class="voucher-checkbox"
+                                               value="${v.voucherId}"
+                                               data-type="STACK"
+                                               onchange="handleVoucherSelection()"
+                                               <c:forEach var="sv" items="${selectedVouchers}">
+                                                   <c:if test="${sv.voucherId == v.voucherId}">
+                                                       checked="checked"
+                                                   </c:if>
+                                               </c:forEach>
+                                               >
+                                    </c:when>
+
+                                    <c:otherwise>
+                                        <input type="checkbox"
+                                               name="voucherIds"
+                                               class="voucher-checkbox"
+                                               value="${v.voucherId}"
+                                               data-type="NON_STACK"
+                                               onchange="handleVoucherSelection()"
+                                               <c:forEach var="sv" items="${selectedVouchers}">
+                                                   <c:if test="${sv.voucherId == v.voucherId}">
+                                                       checked="checked"
+                                                   </c:if>
+                                               </c:forEach>
+                                               >
+                                    </c:otherwise>
+                                </c:choose>
+
+                                <b class="voucher-code">${v.code}</b>
+                                - Discount ${v.discountPercent}%
+                                <br>
+                                Min order: ${v.minOrderAmount}
+
+                            </div>
+                        </c:forEach>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const selected = "${empty param.selectedVariantIds ? param.selectedVariantId : param.selectedVariantIds}";
+                if (!selected) return;
+
+                selected.split(",").forEach(function(id){
+                    const checkbox = document.querySelector('input[name="selectedItems"][value="' + id + '"]');
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                });
+
+                handleVoucherSelection();
+            });
+
+            function openVoucherModal() {
+                syncSelectedItemsToVoucherForm();
+                document.getElementById("voucherModal").style.display = "block";
+                handleVoucherSelection();
+            }
+
+            function closeVoucherModal() {
+                document.getElementById("voucherModal").style.display = "none";
+            }
+
+            function syncSelectedItemsToVoucherForm() {
+                const container = document.getElementById("selectedItemsContainer");
+                container.innerHTML = "";
+
+                const checkedItems = document.querySelectorAll(".itemCheck:checked");
+
+                checkedItems.forEach(function (cb) {
+                    const hidden = document.createElement("input");
+                    hidden.type = "hidden";
+                    hidden.name = "selectedItems";
+                    hidden.value = cb.value;
+                    container.appendChild(hidden);
+                });
+            }
+
+            const voucherForm = document.getElementById("voucherForm");
+            if (voucherForm) {
+                voucherForm.addEventListener("submit", function () {
+                    syncSelectedItemsToVoucherForm();
+                });
+            }
+
+            const checkAll = document.getElementById("checkAll");
+            if (checkAll) {
+                checkAll.addEventListener("change", function () {
+                    let items = document.querySelectorAll(".itemCheck");
+                    items.forEach(function (cb) {
+                        cb.checked = checkAll.checked;
+                    });
+                });
+            }
+
+            function searchVoucher() {
+                let input = document.getElementById("searchVoucher");
+                if (!input) return;
+
+                let keyword = input.value.toLowerCase();
+                let items = document.querySelectorAll(".voucher-item");
+
+                items.forEach(function (v) {
+                    let text = v.querySelector(".voucher-code").innerText.toLowerCase();
+                    if (text.includes(keyword)) {
+                        v.style.display = "block";
+                    } else {
+                        v.style.display = "none";
+                    }
+                });
+            }
+
+            function handleVoucherSelection() {
+                let checkboxes = document.querySelectorAll(".voucher-checkbox");
+                let selected = [];
+
+                checkboxes.forEach(cb => {
+                    if (cb.checked) {
+                        selected.push(cb);
+                    }
+                });
+
+                let stackSelected = selected.filter(cb => cb.dataset.type === "STACK");
+                let nonStackSelected = selected.filter(cb => cb.dataset.type === "NON_STACK");
+
+                checkboxes.forEach(cb => {
+                    cb.disabled = false;
+                    cb.parentElement.classList.remove("voucher-disabled");
+                });
+
+                if (nonStackSelected.length > 0) {
+                    checkboxes.forEach(cb => {
+                        if (!cb.checked) {
+                            cb.disabled = true;
+                            cb.parentElement.classList.add("voucher-disabled");
+                        }
+                    });
+                    return;
+                }
+
+                if (stackSelected.length > 0) {
+                    checkboxes.forEach(cb => {
+                        if (cb.dataset.type === "NON_STACK" && !cb.checked) {
+                            cb.disabled = true;
+                            cb.parentElement.classList.add("voucher-disabled");
+                        }
+                    });
+                }
+
+                if (stackSelected.length >= 3) {
+                    checkboxes.forEach(cb => {
+                        if (!cb.checked) {
+                            cb.disabled = true;
+                            cb.parentElement.classList.add("voucher-disabled");
+                        }
+                    });
+                }
+            }
+        </script>
+
+    </body>
+</html>
+Sau khi dán file này, nhớ thêm một việc nữa: ApplyVoucherController.java của bạn phải giữ route /apply-voucher và nhận voucherIds, vì file mới này submit đúng theo route đó. Điều đó khớp với controller bạn đã upload. 
+
+
+Nếu dán xong mà vẫn lỗi, gửi tiếp cho mình ảnh tab Console trong F12.
+
+
+đã giải quyết dc cái voucher nhưng khi tôi cancel 1 món đồ sau đó mua lại thì nó k hiện vào cart
+
+Đã suy nghĩ trong 32s
+Khả năng cao là do luồng “cancel order” của bạn không liên quan trực tiếp tới session cart, còn CartController hiện tại chỉ thêm hàng vào cart khi request gửi tới /cart có đủ cả variantId và quantity. Nếu sau khi cancel bạn “mua lại” nhưng request không đi qua đúng luồng đó, hoặc không truyền đủ 2 tham số này, thì cart sẽ không thêm gì cả.
+
+Ngoài ra, cart của bạn đang được lưu trong session:
+
+lấy từ session.getAttribute("cart")
+
+xóa khỏi cart cũng chỉ xóa trong session
+
+thêm hàng cũng chỉ add vào list session đó
+Điều này có nghĩa là cancel đơn hàng trong database không tự động làm gì với cart session cả. 
+
+
+Có 3 khả năng thường gặp:
+
+1. Nút “mua lại” không gọi đúng URL thêm vào cart
+Với code hiện tại, phải đi kiểu như:
+
+/cart?variantId=...&quantity=...
+thì CartController mới add item. Nếu nút “buy again” của bạn chỉ mở trang product/detail hoặc chỉ truyền productId, cart sẽ không thêm. 
+
+
+2. Luồng cancel chỉ đổi trạng thái đơn hàng, không đụng tới cart
+Tức là đơn bị hủy trong DB, nhưng giỏ hàng session không được reset hay add lại. Nên “mua lại” phải là một action mới, không phải chỉ đổi status order.
+
+3. Bạn đang dùng “buy now” flow khác với “add to cart” flow
+Trong CartController có dấu hiệu bạn đang tách riêng logic buyNowVariantId trong session. Nếu nút mua lại đang đi theo luồng buy-now mà không thật sự add vào cart, thì vào trang cart sẽ không thấy món đó như bạn mong đợi. 
+
+
+Cách kiểm tra nhanh
+Hãy xem nút Buy Again / Mua lại của bạn đang trỏ tới đâu.
+
+Nó phải gọi dạng gần như này:
+
+href="cart?variantId=${item.variantId}&quantity=${item.quantity}"
+hoặc nếu dùng form:
+
+<form action="cart" method="get">
+    <input type="hidden" name="variantId" value="${item.variantId}">
+    <input type="hidden" name="quantity" value="${item.quantity}">
+    <button type="submit">Buy Again</button>
+</form>
+Nếu hiện tại nó không gửi về /cart với variantId và quantity, thì đó chính là lý do.
+
+Một điểm nữa cần nhớ
+Trong code add cart của bạn, nếu variantId đã có sẵn trong session cart thì nó không tạo dòng mới, mà chỉ tăng quantity lên thôi:
+
+for (CartItem c : cart) {
+    if (c.getVariantId() == variantId) {
+        c.setQuantity(c.getQuantity() + quantity);
+        found = true;
+        break;
+    }
+}
+if (!found) {
+    cart.add(item);
+}
+Nghĩa là đôi khi bạn tưởng “không hiện”, nhưng thật ra nó đã cộng dồn vào món cũ cùng variantId. 
+
+
+Kết luận
+Với code hiện tại, lỗi không nằm ở voucher nữa. Lỗi rất có thể nằm ở chỗ:
+
+nút mua lại không gửi đúng variantId + quantity sang /cart, hoặc
+
+luồng cancel/mua lại của bạn đang đi theo flow khác, không thật sự add vào session cart.
+
+Gửi mình file hoặc đoạn code của:
+
+nút Cancel
+
+nút Buy Again / Mua lại
+
+controller xử lý hủy đơn
+
+mình sẽ chỉ đúng dòng nào sai và viết lại đoạn đó cho bạn.
+
+
+giữ nguyên lại đoạn code cũ chỉ add thêm vào phần chặn sau khi đủ 3 voucher để mấy phần kia hoạt động bình thường
+
+Đã suy nghĩ trong vài giây
+Được. Vậy đừng đổi luồng submit sang ApplyVoucherController nữa. Giữ nguyên code cũ của cart.jsp và CartController, chỉ thêm chặn đủ 3 voucher vào đúng phần hiện tại để các phần khác vẫn chạy như cũ.
+
+Mình sẽ cho bạn đúng kiểu sửa ít nhất có thể.
+
+Mục tiêu
+Giữ nguyên:
+
+form trong cart.jsp vẫn submit về cart?action=applyVoucher
+
+checkbox vẫn có thể giữ tên cũ nếu bạn muốn
+
+các flow khác như cancel, buy again, cart hiện tại không bị ảnh hưởng
+
+Chỉ thêm:
+
+chặn không cho chọn quá 3 voucher ở giao diện
+
+backend chặn luôn quá 3 voucher ở CartController
+
+1) Sửa trong CartController.java
+Tìm đúng đoạn cũ này
+Trong CartController.java, tìm nhánh:
+
+if ("applyVoucher".equals(action)) {
+    String[] voucherIds = request.getParameterValues("voucherId");
+
+    List<Voucher> selected = new ArrayList<>();
+
+    if (voucherIds != null) {
+        VoucherDAO vdao = new VoucherDAO();
+
+        for (String id : voucherIds) {
+            Voucher v = vdao.getById(Integer.parseInt(id));
+            if (v != null) {
+                selected.add(v);
+            }
+        }
+    }
+
+    if (selected.isEmpty()) {
+        session.removeAttribute("vouchersSelected");
+    } else {
+        session.setAttribute("vouchersSelected", selected);
+    }
+
+    response.sendRedirect("cart");
+    return;
+}
+Xóa nguyên khối đó và thay bằng khối này
+if ("applyVoucher".equals(action)) {
+    String[] voucherIds = request.getParameterValues("voucherId");
+
+    List<Voucher> selected = new ArrayList<>();
+
+    if (voucherIds != null) {
+        VoucherDAO vdao = new VoucherDAO();
+
+        // bỏ trùng nhưng vẫn giữ thứ tự chọn
+        Set<Integer> uniqueIds = new LinkedHashSet<>();
+        for (String id : voucherIds) {
+            try {
+                uniqueIds.add(Integer.parseInt(id));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        // chặn quá 3 voucher
+        if (uniqueIds.size() > 3) {
+            session.setAttribute("voucherError", "You can apply at most 3 vouchers only.");
+            response.sendRedirect("cart");
+            return;
+        }
+
+        for (Integer id : uniqueIds) {
+            Voucher v = vdao.getById(id);
+            if (v != null) {
+                selected.add(v);
+            }
+        }
+    }
+
+    if (selected.isEmpty()) {
+        session.removeAttribute("vouchersSelected");
+    } else {
+        session.setAttribute("vouchersSelected", selected);
+    }
+
+    session.removeAttribute("voucherError");
+    response.sendRedirect("cart");
+    return;
+}
+Nếu file báo thiếu import
+Thêm 2 dòng này ở đầu file CartController.java:
+
+import java.util.LinkedHashSet;
+import java.util.Set;
+2) Sửa trong cart.jsp
+Giữ nguyên form cũ
+Tức là vẫn để kiểu:
+
+<form action="cart" method="get">
+    <input type="hidden" name="action" value="applyVoucher">
+và checkbox vẫn là:
+
+name="voucherId"
+Không đổi sang apply-voucher nữa.
+
+2.1 Hiển thị lỗi nếu chọn quá 3 voucher
+Tìm trong modal voucher
+Ngay dưới dòng:
+
+<h4>Available Vouchers</h4>
+Thêm ngay bên dưới đoạn này:
+<c:if test="${not empty sessionScope.voucherError}">
+    <div style="color:red; margin-bottom:10px;">
+        ${sessionScope.voucherError}
+    </div>
+    <c:remove var="voucherError" scope="session"/>
+</c:if>
+2.2 Sửa openVoucherModal()
+Tìm hàm cũ:
+function openVoucherModal() {
+    document.getElementById("voucherModal").style.display = "block";
+}
+Thay bằng:
+<script>
+    function openVoucherModal() {
+        document.getElementById("voucherModal").style.display = "block";
+        handleVoucherSelection();
+    }
+
+    function closeVoucherModal() {
+        document.getElementById("voucherModal").style.display = "none";
+    }
+</script>
+Nhớ:
+
+chỉ để 1 cặp <script>
+
+không lồng <script> bên trong nữa
+
+2.3 Thay toàn bộ hàm handleVoucherSelection()
+Tìm hàm cũ handleVoucherSelection()
+Xóa nguyên hàm đó, rồi thay bằng:
+
+<script>
+    function handleVoucherSelection() {
+        let checkboxes = document.querySelectorAll(".voucher-checkbox");
+        let selected = [];
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                selected.push(cb);
+            }
+        });
+
+        let stackSelected = selected.filter(cb => cb.dataset.type === "STACK");
+        let nonStackSelected = selected.filter(cb => cb.dataset.type === "NON_STACK");
+
+        // reset trạng thái
+        checkboxes.forEach(cb => {
+            cb.disabled = false;
+            cb.parentElement.classList.remove("voucher-disabled");
+        });
+
+        // Nếu đã chọn non-stack thì khóa toàn bộ cái còn lại
+        if (nonStackSelected.length > 0) {
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+            return;
+        }
+
+        // Nếu đã chọn stack thì khóa non-stack chưa chọn
+        if (stackSelected.length > 0) {
+            checkboxes.forEach(cb => {
+                if (cb.dataset.type === "NON_STACK" && !cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+        }
+
+        // Nếu đã đủ 3 voucher thì khóa toàn bộ voucher chưa chọn
+        if (selected.length >= 3) {
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        handleVoucherSelection();
+    });
+</script>
+3) Điều kiện để đoạn JS trên chạy đúng
+Trong từng checkbox voucher, bạn phải vẫn có:
+
+class="voucher-checkbox"
+và có:
+
+data-type="STACK"
+hoặc
+
+data-type="NON_STACK"
+Nếu phần này đang có rồi thì không cần sửa thêm.
+
+4) Bạn cần giữ nguyên những gì
+Để mọi phần khác hoạt động như cũ, giữ nguyên:
+
+action form voucher vẫn là cart
+
+method vẫn là get
+
+hidden action vẫn là applyVoucher
+
+tên checkbox vẫn là voucherId
+
+không dùng ApplyVoucherController nữa nếu bạn không muốn
+
+5) Tóm tắt cực ngắn
+Trong CartController.java
+Chỉ sửa nhánh if ("applyVoucher".equals(action)) thành bản mình đưa.
+
+Trong cart.jsp
+Chỉ làm 3 việc:
+
+thêm khối báo lỗi dưới tiêu đề Available Vouchers
+
+sửa openVoucherModal() để gọi thêm handleVoucherSelection()
+
+thay hàm handleVoucherSelection() bằng bản mới
+
+6) Nếu bạn muốn ít thay đổi nhất nữa
+Thì mình còn có thể viết cho bạn đúng kiểu:
+
+“thay dòng này bằng dòng này”
+
+“không đụng form”
+
+“không đụng modal HTML”
+
+“chỉ sửa 1 đoạn Java + 1 đoạn JS”
+
+Nếu cần, mình sẽ viết tiếp bản siêu tối giản đó.
+
+
+tôi muốn đoạn code từ đầu tôi gửi chỉ fix phần voucher theo ý tôi và ko sửa bất cứ thứ gì khác và đưa tôi nguyên đoạn code và chỉ rõ file tôi cần copy paste vào 
+
+Thought for 49s
+Được. Mình giữ nguyên flow cũ của bạn:
+
+vẫn dùng cart?action=applyVoucher
+
+vẫn dùng name="voucherId"
+
+không dùng ApplyVoucherController
+
+không đụng các phần add cart, cancel, checkout, buy again
+
+Mình chỉ sửa đúng phần voucher trong 2 file đang chạy thật của bạn: CartController.java và cart.jsp. Hiện tại nhánh applyVoucher trong CartController chưa chặn quá 3 voucher, còn cart.jsp mới chỉ chặn ở giao diện tạm thời nên mở lại modal có thể chọn tiếp.
+
+1) File cần copy đè số 1
+src/java/controller/CartController.java
+Copy nguyên file này đè vào CartController.java:
+
+package controller;
+
+import dal.ProductDAO;
+import dal.ProductVariantDAO;
+import dal.VoucherDAO;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.*;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
+import model.CartItem;
+import model.Product;
+import model.ProductVariant;
+import model.Voucher;
+
+@WebServlet("/cart")
+public class CartController extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        HttpSession session = request.getSession();
+
+        List<CartItem> cart = (List<CartItem>) session.getAttribute("cart");
+
+        if (cart == null) {
+            cart = new ArrayList<>();
+            session.setAttribute("cart", cart);
+        }
+
+        try {
+
+            String action = request.getParameter("action");
+
+            if ("deleteSelected".equals(action)) {
+                String[] selectedIds = request.getParameterValues("selectedItems");
+
+                if (selectedIds != null) {
+                    for (String id : selectedIds) {
+                        int variantId = Integer.parseInt(id);
+                        cart.removeIf(item -> item.getVariantId() == variantId);
+                    }
+                }
+
+                session.setAttribute("cart", cart);
+                response.sendRedirect("cart");
+                return;
+            }
+
+            if ("applyVoucher".equals(action)) {
+                String[] voucherIds = request.getParameterValues("voucherId");
+
+                List<Voucher> selected = new ArrayList<>();
+
+                if (voucherIds != null) {
+                    VoucherDAO vdao = new VoucherDAO();
+
+                    Set<Integer> uniqueIds = new LinkedHashSet<>();
+                    for (String id : voucherIds) {
+                        try {
+                            uniqueIds.add(Integer.parseInt(id));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                    if (uniqueIds.size() > 3) {
+                        session.setAttribute("voucherError", "You can apply at most 3 vouchers only.");
+                        response.sendRedirect("cart");
+                        return;
+                    }
+
+                    for (Integer id : uniqueIds) {
+                        Voucher v = vdao.getById(id);
+                        if (v != null) {
+                            selected.add(v);
+                        }
+                    }
+                }
+
+                if (selected.isEmpty()) {
+                    session.removeAttribute("vouchersSelected");
+                } else {
+                    session.setAttribute("vouchersSelected", selected);
+                }
+
+                session.removeAttribute("voucherError");
+                response.sendRedirect("cart");
+                return;
+            }
+
+            if ("delete".equals(action)) {
+                int variantId = Integer.parseInt(request.getParameter("variantId"));
+
+                for (int i = 0; i < cart.size(); i++) {
+                    if (cart.get(i).getVariantId() == variantId) {
+                        cart.remove(i);
+                        break;
+                    }
+                }
+
+                session.setAttribute("cart", cart);
+                response.sendRedirect("cart");
+                return;
+            }
+
+            String variantParam = request.getParameter("variantId");
+            String quantityParam = request.getParameter("quantity");
+
+            if (variantParam != null && quantityParam != null) {
+                int variantId = Integer.parseInt(variantParam);
+                int quantity = Integer.parseInt(quantityParam);
+
+                ProductVariantDAO dao = new ProductVariantDAO();
+                ProductVariant pv = dao.getById(variantId);
+
+                if (pv != null && pv.getProduct() != null) {
+                    ProductDAO pdao = new ProductDAO();
+                    Product product = pdao.getByProductId(pv.getProduct().getProductId());
+
+                    CartItem item = new CartItem();
+                    item.setVariantId(variantId);
+                    item.setProductName(product.getName());
+                    item.setPriceVariant(pv.getPriceVariant());
+                    item.setImageUrl(product.getImageUrl());
+                    item.setQuantity(quantity);
+                    item.setSize(pv.getSize());
+                    item.setColor(pv.getColor());
+
+                    boolean found = false;
+
+                    for (CartItem c : cart) {
+                        if (c.getVariantId() == variantId) {
+                            c.setQuantity(c.getQuantity() + quantity);
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        cart.add(item);
+                    }
+                }
+            }
+
+            session.setAttribute("cart", cart);
+            request.setAttribute("cartItems", cart);
+
+            Object buyNowVariantId = session.getAttribute("buyNowVariantId");
+            if (buyNowVariantId != null) {
+                request.setAttribute("buyNowVariantId", buyNowVariantId);
+                session.removeAttribute("buyNowVariantId");
+            }
+
+            recalculateCart(session, request, cart);
+            request.getRequestDispatcher("cart.jsp").forward(request, response);
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            request.setAttribute("error", ex.getMessage());
+            request.getRequestDispatcher("cart.jsp").forward(request, response);
+        }
+    }
+
+    private void recalculateCart(HttpSession session, HttpServletRequest request, List<CartItem> cart) {
+        try {
+            double originalTotal = 0;
+            
+            for (CartItem item : cart) {
+                originalTotal += item.getPriceVariant() * item.getQuantity();
+            }
+            
+            double total = originalTotal;
+            double saved = 0;
+            
+            List<Voucher> selected = (List<Voucher>) session.getAttribute("vouchersSelected");
+            List<Voucher> validSelected = new ArrayList<>();
+            
+            if (selected != null && originalTotal > 0) {
+                for (Voucher voucher : selected) {
+                    if (voucher != null && originalTotal >= voucher.getMinOrderAmount()) {
+                        validSelected.add(voucher);
+                    }
+                }
+            }
+            
+            if (cart.isEmpty() || validSelected.isEmpty()) {
+                session.removeAttribute("vouchersSelected");
+            } else {
+                session.setAttribute("vouchersSelected", validSelected);
+            }
+            
+            if (!cart.isEmpty() && !validSelected.isEmpty()) {
+                double maxMinOrder = 0;
+                
+                for (Voucher voucher : validSelected) {
+                    if (voucher.getMinOrderAmount() > maxMinOrder) {
+                        maxMinOrder = voucher.getMinOrderAmount();
+                    }
+                    
+                    double discount = total * voucher.getDiscountPercent() / 100.0;
+                    saved += discount;
+                    total -= discount;
+                }
+                
+                if (total < maxMinOrder) {
+                    total = maxMinOrder;
+                    saved = Math.max(0, originalTotal - total);
+                }
+            } else {
+                total = originalTotal;
+                saved = 0;
+            }
+            
+            session.setAttribute("saved", saved);
+            session.setAttribute("originalPrice", originalTotal);
+            session.setAttribute("totalPrice", total);
+            
+            request.setAttribute("saved", saved);
+            request.setAttribute("originalPrice", originalTotal);
+            request.setAttribute("totalPrice", total);
+            
+            VoucherDAO vdao = new VoucherDAO();
+            List<Voucher> list = vdao.getAvailableVouchers();
+            List<Voucher> filtered = new ArrayList<>();
+            
+            for (Voucher voucher : list) {
+                if (originalTotal >= voucher.getMinOrderAmount()) {
+                    filtered.add(voucher);
+                }
+            }
+            
+            request.setAttribute("vouchers", filtered);
+        } catch (Exception ex) {
+            System.getLogger(CartController.class.getName()).log(System.Logger.Level.ERROR, (String) null, ex);
+        }
+    }
+}
+2) File cần copy đè số 2
+web/cart.jsp hoặc webapp/cart.jsp
+Copy nguyên file này đè vào cart.jsp:
+
+<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Cart</title>
+
+        <style>
+
+*{
+                box-sizing:border-box;
+            }
+
+            body{
+                margin:0;
+                background:#f5f5f5;
+                font-family:Arial, sans-serif;
+                color:#222;
+            }
+
+            h2{
+                max-width:1200px;
+                margin:28px auto 18px;
+                font-size:36px;
+                font-weight:700;
+            }
+
+            form[action="cart"]{
+                max-width:1200px;
+                margin:0 auto;
+            }
+
+            table{
+                width:100%;
+                border-collapse:separate;
+                border-spacing:0;
+                background:#fff;
+                border-radius:10px;
+                overflow:hidden;
+                box-shadow:0 4px 18px rgba(0,0,0,0.08);
+            }
+
+            th{
+                padding:20px 14px;
+                background:#fafafa;
+                color:#444;
+                font-size:15px;
+                font-weight:700;
+                border-bottom:1px solid #efefef;
+                text-align:center;
+            }
+
+            td{
+                padding:22px 14px;
+                border-bottom:1px solid #f1f1f1;
+                font-size:15px;
+                vertical-align:middle;
+                text-align:center;
+            }
+
+            tr:last-child td{
+                border-bottom:none;
+            }
+
+            tr:hover td{
+                background:#fffdfb;
+            }
+
+            th:first-child,
+            td:first-child{
+                width:64px;
+            }
+
+            input[type="checkbox"]{
+                width:18px;
+                height:18px;
+                accent-color:#ee4d2d;
+                cursor:pointer;
+            }
+
+            .product{
+                display:flex;
+                align-items:center;
+                gap:16px;
+                text-align:left;
+            }
+
+            .product img{
+                width:88px;
+                height:88px;
+                object-fit:cover;
+                border-radius:10px;
+                border:1px solid #eee;
+                background:#fff;
+                flex-shrink:0;
+            }
+
+            .product b{
+                display:block;
+                margin-bottom:6px;
+                font-size:19px;
+                line-height:1.35;
+                color:#222;
+            }
+
+            td:nth-child(3){
+                line-height:1.6;
+                color:#555;
+            }
+
+            td:nth-child(4),
+            td:nth-child(5),
+            td:nth-child(6){
+                font-weight:600;
+                white-space:nowrap;
+            }
+
+            td:nth-child(6){
+                color:#ee4d2d;
+                font-size:18px;
+            }
+
+            a{
+                color:#ee4d2d;
+                text-decoration:none;
+                font-weight:600;
+            }
+
+            a:hover{
+                text-decoration:underline;
+            }
+
+            .total-bar{
+                margin:22px 0 0;
+                background:#fff;
+                border-radius:12px;
+                box-shadow:0 4px 18px rgba(0,0,0,0.08);
+                padding:22px 24px;
+                display:grid;
+                grid-template-columns:auto auto 1fr;
+                gap:14px;
+                align-items:center;
+            }
+
+            .total-bar > div:last-child{
+                justify-self:end;
+                text-align:right;
+                line-height:1.8;
+                font-size:17px;
+            }
+
+            .total-bar > div:last-child br{
+                display:block;
+                content:"";
+            }
+
+            button{
+                border:none;
+                background:#ee4d2d;
+                color:#fff;
+                padding:13px 22px;
+                border-radius:8px;
+                cursor:pointer;
+                font-size:15px;
+                font-weight:700;
+                transition:background .2s ease, transform .2s ease, box-shadow .2s ease;
+            }
+
+            button:hover{
+                background:#d8432b;
+                transform:translateY(-1px);
+                box-shadow:0 8px 18px rgba(238,77,45,0.22);
+            }
+
+            button[type="button"]{
+                background:#fff1ee;
+                color:#ee4d2d;
+                border:1px solid #f3b3a5;
+            }
+
+            button[type="button"]:hover{
+                background:#ffe6df;
+            }
+
+            form[action="checkout"]{
+                max-width:1200px;
+                margin:18px auto 40px;
+            }
+
+            .checkout-btn{
+                min-width:190px;
+                font-size:18px;
+                padding:15px 28px;
+            }
+
+            #voucherModal{
+                z-index:9999;
+                backdrop-filter:blur(2px);
+            }
+
+            #voucherModal > div{
+                box-shadow:0 18px 50px rgba(0,0,0,0.2);
+                border-radius:14px !important;
+            }
+
+            #searchVoucher{
+                width:100%;
+                margin:10px 0 14px;
+                padding:12px 14px;
+                border:1px solid #ddd;
+                border-radius:8px;
+                outline:none;
+                font-size:14px;
+            }
+
+            #searchVoucher:focus{
+                border-color:#ee4d2d;
+            }
+
+            .voucher-item{
+                border:1px solid #eee;
+                border-radius:10px;
+                padding:14px 16px;
+                margin-bottom:12px;
+                line-height:1.7;
+                transition:all .2s ease;
+            }
+
+            .voucher-item:hover{
+                border-color:#ee4d2d;
+                background:#fffaf8;
+            }
+
+            .voucher-disabled{
+                opacity:.45;
+                background:#f3f3f3;
+            }
+
+            @media (max-width: 1280px){
+                h2,
+                form[action="cart"],
+                form[action="checkout"]{
+                    max-width:calc(100% - 32px);
+                }
+            }
+
+            @media (max-width: 900px){
+                h2{
+                    font-size:28px;
+                }
+
+                table,
+                thead,
+                tbody,
+                th,
+                td,
+                tr{
+                    display:block;
+                }
+
+                th{
+                    display:none;
+                }
+
+                tr{
+                    background:#fff;
+                    margin-bottom:14px;
+                    border-radius:12px;
+                    overflow:hidden;
+                    box-shadow:0 4px 18px rgba(0,0,0,0.08);
+                }
+
+                td{
+                    text-align:left;
+                    padding:14px 16px;
+                    border-bottom:1px solid #f2f2f2;
+                }
+
+                td:first-child{
+                    width:auto;
+                }
+
+                .total-bar{
+                    grid-template-columns:1fr;
+                }
+
+                .total-bar > div:last-child{
+                    justify-self:start;
+                    text-align:left;
+                }
+            }
+
+        </style>
+
+    </head>
+
+    <jsp:include page="/user/user-header.jsp"/>
+
+    <body>
+
+        <h2>Shopping Cart</h2>
+
+        <form action="cart" method="get">
+
+            <input type="hidden" name="action" value="deleteSelected">
+
+            <table>
+
+                <tr>
+                    <th><input type="checkbox" id="checkAll"></th>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                    <th>Action</th>
+                </tr>
+
+                <c:forEach var="item" items="${cartItems}">
+
+                    <tr>
+
+                        <td>
+                            <input type="checkbox" name="selectedItems"
+                                   value="${item.variantId}" class="itemCheck">
+                        </td>
+
+                        <td>
+                            <div class="product">
+
+                                <img src="${item.imageUrl}">
+
+                                <div>
+                                    <b>${item.productName}</b><br>
+                                    ${item.color} / ${item.size}
+                                </div>
+
+                            </div>
+                        </td>
+
+                        <td>
+                            Size: ${item.size}<br>
+                            Color: ${item.color}
+                        </td>
+
+                        <td>
+                            ${item.priceVariant} VND
+                        </td>
+
+                        <td>
+                            ${item.quantity}
+                        </td>
+
+                        <td>
+                            ${item.priceVariant * item.quantity} VND
+                        </td>
+
+                        <td>
+                            <a href="cart?action=delete&variantId=${item.variantId}">Delete</a>
+                        </td>
+
+                    </tr>
+
+                </c:forEach>
+
+            </table>
+
+            <div class="total-bar">
+
+                <div>
+                    <button type="submit">Delete Selected</button>
+                </div>
+
+                <div>
+
+                    <button type="button" onclick="openVoucherModal()">
+                        Select or enter code
+                    </button>
+
+                </div>
+
+                <div>
+
+                    Total Price:
+                    <fmt:formatNumber value="${totalPrice}" maxFractionDigits="3"/>
+                    VND
+
+                    <br>
+
+                    Saved:
+                    <fmt:formatNumber value="${saved}" maxFractionDigits="3"/>
+                    VND
+                    <br>
+
+                    Original Price:
+                    <fmt:formatNumber value="${originalPrice}" maxFractionDigits="3"/>
+                    VND
+                    <br>
+
+                </div>
+
+                <div>
+                    
+                </div>
+
+            </div>
+
+        </form>
+        <form action="checkout" method="get">
+
+
+        <button class="checkout-btn" type="submit">
+            Checkout
+        </button>
+
+    </form>
+
+    <!-- VOUCHER MODAL -->
+
+    <div id="voucherModal" style="
+         display:none;
+         position:fixed;
+         top:0;
+         left:0;
+         width:100%;
+         height:100%;
+         background:rgba(0,0,0,0.4);">
+
+        <div style="
+             background:white;
+             width:500px;
+             max-height:80vh;
+             margin:60px auto;
+             padding:20px;
+             border-radius:6px;
+             overflow:hidden;">
+
+        
+
+            <form action="cart" method="get">
+
+                <input type="hidden" name="action" value="applyVoucher">
+
+                
+
+                <button type="submit">Apply</button>
+
+                <button type="button" onclick="closeVoucherModal()">Cancel</button>
+
+           
+                <hr>
+
+                <h4>Available Vouchers</h4>
+
+                <c:if test="${not empty sessionScope.voucherError}">
+                    <div style="color:red; margin-bottom:10px;">
+                        ${sessionScope.voucherError}
+                    </div>
+                    <c:remove var="voucherError" scope="session"/>
+                </c:if>
+
+                <div style="max-height:350px; overflow-y:auto;">
+
+                    <c:set var="selectedVouchers" value="${sessionScope.vouchersSelected}" />
+                    <c:forEach items="${vouchers}" var="v">
+
+                        <div class="voucher-item">
+
+                            <c:choose>
+                                <c:when test="${v.stackable}">
+                                    <input type="checkbox"
+                                           name="voucherId"
+                                           class="voucher-checkbox"
+                                           value="${v.voucherId}"
+                                           data-type="STACK"
+                                           onchange="handleVoucherSelection()"
+                                           <c:forEach var="sv" items="${selectedVouchers}">
+                                               <c:if test="${sv.voucherId == v.voucherId}">
+                                                   checked="checked"
+                                               </c:if>
+                                           </c:forEach>
+                                           >
+                                </c:when>
+
+                                <c:otherwise>
+                                    <input type="checkbox"
+                                           name="voucherId"
+                                           class="voucher-checkbox"
+                                           value="${v.voucherId}"
+                                           data-type="NON_STACK"
+                                           onchange="handleVoucherSelection()"
+                                           <c:forEach var="sv" items="${selectedVouchers}">
+                                               <c:if test="${sv.voucherId == v.voucherId}">
+                                                   checked="checked"
+                                               </c:if>
+                                           </c:forEach>
+                                           >
+                                </c:otherwise>
+                            </c:choose>
+                            <b class="voucher-code">${v.code}</b>
+                            - Discount ${v.discountPercent}%
+
+                            <br>
+                            Min order: ${v.minOrderAmount}
+
+                        </div>
+
+
+
+                    </c:forEach>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const selected = "${empty param.selectedVariantIds ? param.selectedVariantId : param.selectedVariantIds}";
+    if (!selected) return;
+
+    selected.split(",").forEach(function(id){
+        const checkbox = document.querySelector('input[name="selectedItems"][value="' + id + '"]');
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+    });
+
+    handleVoucherSelection();
+});
+</script>
+
+<script>
+    function openVoucherModal() {
+        document.getElementById("voucherModal").style.display = "block";
+        handleVoucherSelection();
+    }
+
+    function closeVoucherModal() {
+        document.getElementById("voucherModal").style.display = "none";
+    }
+</script>
+
+<script>
+
+    const checkAll = document.getElementById("checkAll");
+
+    if (checkAll) {
+        checkAll.addEventListener("change", function () {
+
+            let items = document.querySelectorAll(".itemCheck");
+
+            items.forEach(function (cb) {
+                cb.checked = checkAll.checked;
+            });
+
+        });
+    }
+
+</script>
+
+
+<script>
+
+    function searchVoucher() {
+
+        let input = document.getElementById("searchVoucher");
+        if (!input) return;
+
+        let keyword = input.value.toLowerCase();
+
+        let items = document.querySelectorAll(".voucher-item");
+
+        items.forEach(function (v) {
+
+            let text = v.querySelector(".voucher-code").innerText.toLowerCase();
+
+            if (text.includes(keyword)) {
+                v.style.display = "block";
+            } else {
+                v.style.display = "none";
+            }
+
+        });
+
+    }
+
+</script>
+
+<script>
+
+    function handleVoucherSelection() {
+
+        let checkboxes = document.querySelectorAll(".voucher-checkbox");
+
+        let selected = [];
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                selected.push(cb);
+            }
+        });
+
+        let stackSelected = selected.filter(cb => cb.dataset.type === "STACK");
+        let nonStackSelected = selected.filter(cb => cb.dataset.type === "NON_STACK");
+
+        checkboxes.forEach(cb => {
+            cb.disabled = false;
+            cb.parentElement.classList.remove("voucher-disabled");
+        });
+
+        if (nonStackSelected.length > 0) {
+
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+
+            return;
+        }
+
+        if (stackSelected.length > 0) {
+
+            checkboxes.forEach(cb => {
+                if (cb.dataset.type === "NON_STACK" && !cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+
+        }
+
+        if (selected.length >= 3) {
+
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    cb.disabled = true;
+                    cb.parentElement.classList.add("voucher-disabled");
+                }
+            });
+
+        }
+
+    }
+
+</script>
+</html>
+Chỉ có 2 file này cần paste
+src/java/controller/CartController.java
+
+web/cart.jsp hoặc webapp/cart.jsp
+
+Không cần paste vào ApplyVoucherController.java. File đó không cần dùng cho cách sửa này. CartController.java hiện là nơi xử lý action=applyVoucher, còn cart.jsp hiện là nơi render modal voucher và JS khóa checkbox.
+
+Nếu sau khi paste xong mà bạn bị lỗi compile, chụp nguyên lỗi đỏ trong NetBeans cho mình.
+
+
+
+
