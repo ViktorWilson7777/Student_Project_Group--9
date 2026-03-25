@@ -1,0 +1,978 @@
+
+
+
+Đã tải lên ảnh
+
+Văn bản đã dán (1).txt
+Tài liệu
+vi sao toi sua het phan voucher thi cai shop id no hien toan bo =0
+
+Thought for 2m 6s
+Nhìn ảnh này thì khả năng rất cao là DB không bị mất shopId, mà là phần đọc dữ liệu Product ra Java đang không gán shopId, nên int mặc định thành 0.
+
+Lý do mình nói vậy:
+
+Cột Shop vẫn hiện đúng nhiều tên shop khác nhau.
+
+Nhưng cột Shop ID lại toàn 0.
+
+Nếu trong DB product.shopId thật sự đều bằng 0 thì thường join ra tên shop cũng sẽ sai hoặc rỗng luôn, chứ không đẹp như ảnh.
+
+Nên lỗi thường nằm ở 1 trong mấy chỗ này:
+
+Product model
+
+private int shopId;
+có thể có rồi, nhưng thiếu:
+
+public int getShopId() { return shopId; }
+public void setShopId(int shopId) { this.shopId = shopId; }
+ProductDAO khi đọc từ ResultSet
+Bạn đang lấy được shopName, nhưng quên:
+
+p.setShopId(rs.getInt("shopId"));
+Query SQL
+Nếu đang join Product p với Shop s, nên ghi rõ alias:
+
+SELECT p.productId,
+       p.name,
+       p.price,
+       p.shopId AS productShopId,
+       s.shopName
+FROM Product p
+JOIN Shop s ON p.shopId = s.shopId
+rồi map:
+
+p.setShopId(rs.getInt("productShopId"));
+p.setShopName(rs.getString("shopName"));
+Constructor Product
+Rất hay bị kiểu này:
+
+new Product(id, name, price, 0, shopName)
+hoặc chỗ create/edit product đang vô tình:
+
+product.setShopId(0);
+Chỗ cần soi đầu tiên:
+
+Product.java
+
+ProductDAO.java
+
+ProductListController.java
+
+product-list.jsp
+
+Fix đúng nhất trong DAO thường là:
+
+while (rs.next()) {
+    Product p = new Product();
+    p.setProductId(rs.getInt("productId"));
+    p.setName(rs.getString("name"));
+    p.setPrice(rs.getDouble("price"));
+    p.setShopId(rs.getInt("shopId")); // hoặc productShopId nếu có alias
+    p.setShopName(rs.getString("shopName"));
+    list.add(p);
+}
+Với trường hợp của bạn, mình nghi nhất là:
+
+DAO đang map shopName nhưng quên map shopId, hoặc
+
+constructor Product đang truyền 0 vào shopId.
+
+Gửi mình ProductDAO.java với Product.java, mình chỉ đúng dòng nào làm nó ra toàn 0.
+
+
+Đã suy nghĩ trong 13s
+Không phải do voucher trực tiếp đâu.
+
+Những gì bạn sửa trước đó đang nằm ở CartController / applyVoucher / cart.jsp, tức là phần giỏ hàng và voucher, không đụng vào product list hay shop mapping. Trong đoạn file đã dán, phần sửa cũng chỉ xoay quanh applyVoucher, vouchersSelected, voucherError, rồi redirect về cart thôi. 
+
+ 
+
+
+Với ảnh của bạn, dấu hiệu rất rõ là:
+
+cột Shop vẫn hiện đúng tên shop
+
+nhưng cột Shop ID lại toàn 0
+
+Thế thì thường không phải DB mất dữ liệu, mà là object Product ở Java không được set shopId, nên int mặc định thành 0.
+
+Hay gặp nhất ở 4 chỗ:
+
+// 1) Product.java
+private int shopId;
+
+// phải có getter/setter
+public int getShopId() { return shopId; }
+public void setShopId(int shopId) { this.shopId = shopId; }
+// 2) ProductDAO.java
+p.setShopId(rs.getInt("shopId"));
+-- 3) SQL query
+SELECT p.productId, p.name, p.price, p.shopId, s.shopName
+FROM Product p
+JOIN Shop s ON p.shopId = s.shopId
+// 4) nếu có constructor Product
+new Product(..., 0, ...)
+Tức là lỗi khả năng cao là một trong hai kiểu này:
+
+query có lấy shopName nhưng không lấy / không map shopId
+
+constructor hoặc setter đang vô tình gán shopId = 0
+
+Chỗ bạn cần mở ra kiểm tra ngay là:
+
+Product.java
+
+ProductDAO.java
+
+ProductListController.java
+
+product-list.jsp
+
+Đặc biệt trong ProductDAO, đoạn map ResultSet phải có kiểu này:
+
+while (rs.next()) {
+    Product p = new Product();
+    p.setProductId(rs.getInt("productId"));
+    p.setName(rs.getString("name"));
+    p.setPrice(rs.getDouble("price"));
+    p.setShopId(rs.getInt("shopId"));
+    p.setShopName(rs.getString("shopName"));
+    list.add(p);
+}
+Và trong JSP phải đang in đúng:
+
+${p.shopId}
+chứ không phải nhầm sang biến khác.
+
+Kết luận ngắn: voucher không làm cột shopId thành 0; lỗi nằm ở phần Product DAO/model/query mapping. Gửi mình ProductDAO.java với Product.java, mình sẽ chỉ đúng dòng nào gây ra 0.
+
+
+Đã suy nghĩ trong 8s
+Vì phần bạn sửa trước đó là voucher/cart, còn lỗi này nằm ở product mapping.
+
+Nhìn ảnh thì:
+
+cột Shop vẫn ra đúng tên shop
+
+nhưng cột Shop ID lại toàn 0
+
+Điều đó thường có nghĩa là:
+
+DB không hẳn bị 0, mà là trong Java, shopId không được set, nên biến int mặc định thành 0.
+
+Hay lỗi ở 1 trong 4 chỗ này:
+
+1) Product.java
+Kiểm tra có đủ field + getter/setter chưa:
+
+private int shopId;
+
+public int getShopId() {
+    return shopId;
+}
+
+public void setShopId(int shopId) {
+    this.shopId = shopId;
+}
+2) ProductDAO.java
+Đây là chỗ nghi nhất.
+
+Nếu bạn đang map dữ liệu kiểu:
+
+p.setProductId(rs.getInt("productId"));
+p.setName(rs.getString("name"));
+p.setPrice(rs.getDouble("price"));
+p.setShopName(rs.getString("shopName"));
+mà thiếu dòng này:
+
+p.setShopId(rs.getInt("shopId"));
+thì JSP in ra sẽ luôn là 0.
+
+3) SQL query trong ProductDAO
+Nếu có join bảng Shop, nên viết rõ alias:
+
+SELECT p.productId,
+       p.name,
+       p.price,
+       p.shopId,
+       s.shopName
+FROM Product p
+JOIN Shop s ON p.shopId = s.shopId
+Nếu bạn chỉ select shopName mà không select p.shopId, thì Java cũng không có gì để set.
+
+An toàn hơn:
+
+SELECT p.productId,
+       p.name,
+       p.price,
+       p.shopId AS productShopId,
+       s.shopName
+FROM Product p
+JOIN Shop s ON p.shopId = s.shopId
+rồi map:
+
+p.setShopId(rs.getInt("productShopId"));
+p.setShopName(rs.getString("shopName"));
+4) Constructor Product
+Cũng hay bị kiểu này:
+
+new Product(id, name, price, 0, shopName)
+hoặc lúc create/edit product có đoạn vô tình:
+
+product.setShopId(0);
+Kết luận
+Lỗi này gần như chắc là:
+
+DAO quên map shopId từ ResultSet, hoặc
+
+constructor/setter đang gán 0
+
+Chỗ cần mở ra kiểm tra ngay
+Product.java
+
+ProductDAO.java
+
+ProductListController.java
+
+product-list.jsp
+
+Đoạn đúng trong DAO thường phải có:
+
+while (rs.next()) {
+    Product p = new Product();
+    p.setProductId(rs.getInt("productId"));
+    p.setName(rs.getString("name"));
+    p.setPrice(rs.getDouble("price"));
+    p.setShopId(rs.getInt("shopId"));
+    p.setShopName(rs.getString("shopName"));
+    list.add(p);
+}
+Gửi mình ProductDAO.java với Product.java, mình sẽ chỉ đúng dòng nào làm nó ra toàn 0.
+
+
+
+Văn bản đã dán (1).txt
+Tài liệu
+package model;
+
+public class Product {
+
+    private int productId;
+    private String name;
+    private double price;
+    private Shop shop;
+    private String imageUrl;
+
+
+
+    public Product() {
+    }
+
+    public Product(int productId, String name, double price, Shop shop, String imageUrl) {
+        this.productId = productId;
+        this.name = name;
+        this.price = price;
+        this.shop = shop;
+        this.imageUrl = imageUrl;
+    }
+
+    public int getProductId() {
+        return productId;
+    }
+
+    public void setProductId(int productId) {
+        this.productId = productId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public double getPrice() {
+        return price;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    public Shop getShop() {
+        return shop;
+    }
+
+    public void setShop(Shop shop) {
+        this.shop = shop;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
+
+    
+
+    
+}
+
+Thought for 57s
+Ra lỗi rồi.
+
+Product.java của bạn không có field shopId riêng, mà đang giữ theo kiểu:
+
+private Shop shop;
+nên shopId thật sự nằm trong:
+
+product.getShop().getShopId()
+Chứ không phải product.getShopId().
+
+Vấn đề chính nằm ở ProductDAO.searchProduct():
+
+while (rs.next()) {
+    Product p = new Product();
+    p.setProductId(rs.getInt("productId"));
+    p.setName(rs.getString("name"));
+    p.setPrice(rs.getDouble("price"));
+    p.setImageUrl(rs.getString("imageUrl"));
+
+    Shop s = new Shop();
+    s.setShopName(rs.getString("shopName"));
+    p.setShop(s);
+    list.add(p);
+}
+Ở đây bạn chỉ set shopName mà không set shopId.
+Nên shopId của Shop mặc định là 0.
+
+Đó là lý do:
+
+tên shop vẫn hiện đúng
+
+nhưng Shop ID toàn bộ = 0
+
+Sửa đúng ở searchProduct()
+Đổi thành:
+
+public List<Product> searchProduct(String keyword, int offset, int limit) {
+    List<Product> list = new ArrayList<>();
+
+    String sql = "SELECT p.*, s.shopName "
+            + "FROM product p "
+            + "JOIN shop s ON p.shopId = s.shopId "
+            + "WHERE p.name LIKE ? "
+            + "OR s.shopName LIKE ? "
+            + "ORDER BY p.productId "
+            + "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement st = conn.prepareStatement(sql)) {
+
+        st.setString(1, "%" + keyword + "%");
+        st.setString(2, "%" + keyword + "%");
+        st.setInt(3, offset);
+        st.setInt(4, limit);
+
+        ResultSet rs = st.executeQuery();
+
+        while (rs.next()) {
+            Product p = new Product();
+            p.setProductId(rs.getInt("productId"));
+            p.setName(rs.getString("name"));
+            p.setPrice(rs.getDouble("price"));
+            p.setImageUrl(rs.getString("imageUrl"));
+
+            Shop s = new Shop();
+            s.setShopId(rs.getInt("shopId"));   // thêm dòng này
+            s.setShopName(rs.getString("shopName"));
+            p.setShop(s);
+
+            list.add(p);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return list;
+}
+Kiểm tra luôn trong JSP
+Vì Product không có shopId trực tiếp, nên ở JSP phải hiện như này:
+
+${p.shop.shopId}
+và tên shop:
+
+${p.shop.shopName}
+Không dùng:
+
+${p.shopId}
+Kết luận
+Lỗi không phải do voucher.
+
+Lỗi là do searchProduct():
+
+có tạo Shop
+
+có set shopName
+
+nhưng quên set shopId
+
+nên lên giao diện nó ra 0.
+
+Nếu bạn muốn, gửi luôn product-list.jsp với ProductListController, mình sẽ check nốt xem chỗ hiển thị có đang dùng sai ${p.shopId} không.
+
+
+dua toi nguyen doan code cua cho day de toi copy paste vao cho day
+
+Thought for 7s
+Đây, thay nguyên hàm searchProduct(...) trong ProductDAO.java bằng đoạn này:
+
+public List<Product> searchProduct(String keyword, int offset, int limit) {
+    List<Product> list = new ArrayList<>();
+
+    String sql = "SELECT p.*, s.shopName "
+            + "FROM product p "
+            + "JOIN shop s ON p.shopId = s.shopId "
+            + "WHERE p.name LIKE ? OR s.shopName LIKE ? "
+            + "ORDER BY p.productId "
+            + "OFFSET ? ROWS FETCH NEXT ? ROWS ONLY";
+
+    try (Connection conn = DBContext.getConnection();
+         PreparedStatement st = conn.prepareStatement(sql)) {
+
+        st.setString(1, "%" + keyword + "%");
+        st.setString(2, "%" + keyword + "%");
+        st.setInt(3, offset);
+        st.setInt(4, limit);
+
+        ResultSet rs = st.executeQuery();
+
+        while (rs.next()) {
+            Product p = new Product();
+            p.setProductId(rs.getInt("productId"));
+            p.setName(rs.getString("name"));
+            p.setPrice(rs.getDouble("price"));
+            p.setImageUrl(rs.getString("imageUrl"));
+
+            Shop s = new Shop();
+            s.setShopId(rs.getInt("shopId"));
+            s.setShopName(rs.getString("shopName"));
+            p.setShop(s);
+
+            list.add(p);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
+    return list;
+}
+Và trong product-list.jsp, chỗ cột Shop ID với Shop phải để như này:
+
+<td>${p.shop.shopId}</td>
+<td>${p.shop.shopName}</td>
+Không dùng:
+
+<td>${p.shopId}</td>
+<td>${p.shopName}</td>
+Nếu muốn, gửi tiếp ProductDAO.java full, tôi ghép lại nguyên file cho bạn luôn.
+
+
+
+ProductDAO.java
+Tệp
+chep nguyen file cho toi luon di de toi cop 1 lan thoi
+
+Thought for 19s
+Đây là nguyên file ProductDAO.java đã sửa, bạn thay toàn bộ file này là được. Lỗi chính đã được fix ở hàm searchProduct(...): mình đã thêm s.setShopId(rs.getInt("shopId")); để không còn bị Shop ID = 0 nữa. Dựa trên file bạn gửi. 
+
+
+package dal;
+
+import java.sql.*;
+import java.util.*;
+import model.*;
+
+public class ProductDAO extends DBContext {
+
+    public int countSearchProduct(String productKeyword, String shopKeyword) {
+
+        String sql = """
+        SELECT COUNT(*)
+        FROM Product p
+        JOIN Shop s ON p.shopId = s.shopId
+        WHERE p.name LIKE ?
+        AND s.shopName LIKE ?
+    """;
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, "%" + productKeyword + "%");
+            ps.setString(2, "%" + shopKeyword + "%");
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
+
+    public List<Product> searchProductAndShop(String productKeyword,
+            String shopKeyword,
+            int offset,
+            int limit) {
+
+        List<Product> list = new ArrayList<>();
+
+        String sql = """
+    SELECT p.productId,
+           p.name,
+           p.price,
+           p.imageUrl,
+           s.shopId,
+           s.shopName
+    FROM Product p
+    JOIN Shop s ON p.shopId = s.shopId
+    WHERE p.name LIKE ?
+    AND s.shopName LIKE ?
+    ORDER BY p.productId
+    OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+    """;
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, "%" + productKeyword + "%");
+            ps.setString(2, "%" + shopKeyword + "%");
+            ps.setInt(3, offset);
+            ps.setInt(4, limit);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+
+                Shop shop = new Shop();
+                shop.setShopId(rs.getInt("shopId"));
+                shop.setShopName(rs.getString("shopName"));
+
+                Product p = new Product(
+                        rs.getInt("productId"),
+                        rs.getString("name"),
+                        rs.getDouble("price"),
+                        shop,
+                        rs.getString("imageUrl")
+                );
+
+                list.add(p);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+    public int countProductByShop(int shopId) {
+
+        String sql = """
+    SELECT COUNT(*)
+    FROM Product
+    WHERE shopId = ?
+    """;
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, shopId);
+
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
+
+    public int countProducts() {
+
+        String sql = "SELECT COUNT(*) FROM Product";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql); ResultSet rs = ps.executeQuery()) {
+
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
+
+    public List<Product> getRandomProducts(int offset, int limit) {
+
+        List<Product> list = new ArrayList<>();
+
+        String sql = """
+        SELECT p.productId,
+               p.name,
+               p.price,
+               p.imageUrl,
+               s.shopId,
+               s.shopName
+        FROM Product p
+        JOIN Shop s ON p.shopId = s.shopId
+        ORDER BY NEWID()
+        OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+    """;
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, offset);
+            ps.setInt(2, limit);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Shop shop = new Shop();
+                shop.setShopId(rs.getInt("shopId"));
+                shop.setShopName(rs.getString("shopName"));
+
+                Product p = new Product();
+                p.setProductId(rs.getInt("productId"));
+                p.setName(rs.getString("name"));
+                p.setPrice(rs.getDouble("price"));
+                p.setImageUrl(rs.getString("imageUrl"));
+                p.setShop(shop);
+
+                list.add(p);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+    public List<Product> getProductPaging(int offset, int limit) {
+        List<Product> list = new ArrayList<>();
+
+        String sql = """
+    SELECT p.productId,
+           p.name,
+           p.price,
+           p.imageUrl,
+           s.shopId,
+           s.shopName
+    FROM Product p
+    JOIN Shop s ON p.shopId = s.shopId
+    ORDER BY p.productId
+    OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+""";
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, offset);
+            ps.setInt(2, limit);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                Shop shop = new Shop();
+                shop.setShopId(rs.getInt("shopId"));
+                shop.setShopName(rs.getString("shopName"));
+                Product p = new Product(
+                        rs.getInt("productId"),
+                        rs.getString("name"),
+                        rs.getDouble("price"),
+                        shop,
+                        rs.getString("imageUrl")
+                );
+
+                list.add(p);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+    public List<ProductVariant> getVariantByProductId(int productId) {
+
+        List<ProductVariant> list = new ArrayList<>();
+
+        String sql = """
+        SELECT *
+        FROM ProductVariant
+        WHERE productId = ?
+    """;
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, productId);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+
+                ProductVariant v = new ProductVariant();
+
+                v.setVariantId(rs.getInt("variantId"));
+                v.setSize(rs.getString("size"));
+                v.setColor(rs.getString("color"));
+                v.setPriceVariant(rs.getDouble("priceVariant"));
+                v.setStock(rs.getInt("stock"));
+
+                list.add(v);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+    public List<Product> searchProduct(String keyword, int offset, int limit) {
+        List<Product> list = new ArrayList<>();
+
+        String sql = """
+        SELECT p.productId,
+               p.name,
+               p.price,
+               p.imageUrl,
+               s.shopId,
+               s.shopName
+        FROM Product p
+        JOIN Shop s ON p.shopId = s.shopId
+        WHERE p.name LIKE ?
+           OR s.shopName LIKE ?
+        ORDER BY p.productId
+        OFFSET ? ROWS FETCH NEXT ? ROWS ONLY
+        """;
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement st = conn.prepareStatement(sql)) {
+            st.setString(1, "%" + keyword + "%");
+            st.setString(2, "%" + keyword + "%");
+            st.setInt(3, offset);
+            st.setInt(4, limit);
+
+            ResultSet rs = st.executeQuery();
+
+            while (rs.next()) {
+                Product p = new Product();
+                p.setProductId(rs.getInt("productId"));
+                p.setName(rs.getString("name"));
+                p.setPrice(rs.getDouble("price"));
+                p.setImageUrl(rs.getString("imageUrl"));
+
+                Shop s = new Shop();
+                s.setShopId(rs.getInt("shopId"));
+                s.setShopName(rs.getString("shopName"));
+                p.setShop(s);
+
+                list.add(p);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+    public List<Product> getByShopId(int shopId) {
+
+        List<Product> list = new ArrayList<>();
+        String sql = "SELECT * FROM Product WHERE shopId = ?";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, shopId);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+
+                Product p = new Product();
+                p.setProductId(rs.getInt("productId"));
+                p.setName(rs.getString("name"));
+                p.setPrice(rs.getDouble("price"));
+                p.setImageUrl(rs.getString("imageUrl"));
+
+                Shop shop = new Shop();
+                shop.setShopId(rs.getInt("shopId"));
+                p.setShop(shop);
+
+                list.add(p);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+    public Product getByProductId(int productId) {
+
+        String sql = "SELECT * FROM Product WHERE productId = ?";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, productId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+
+                Product p = new Product();
+                p.setProductId(rs.getInt("productId"));
+                p.setName(rs.getString("name"));
+                p.setPrice(rs.getDouble("price"));
+                p.setImageUrl(rs.getString("imageUrl"));
+
+                Shop shop = new Shop();
+                shop.setShopId(rs.getInt("shopId"));
+                p.setShop(shop);
+
+                return p;
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public void insert(Product p) throws Exception {
+
+        String sql = "INSERT INTO Product (name, price, imageUrl, shopId) VALUES (?, ?, ?, ?)";
+
+        Connection conn = DBContext.getConnection();
+
+        PreparedStatement ps = conn.prepareStatement(
+                sql, Statement.RETURN_GENERATED_KEYS);
+
+        ps.setString(1, p.getName());
+        ps.setDouble(2, p.getPrice());
+        ps.setString(3, p.getImageUrl());
+        ps.setInt(4, p.getShop().getShopId());
+
+        ps.executeUpdate();
+
+        ResultSet rs = ps.getGeneratedKeys();
+
+        if (rs.next()) {
+
+            int productId = rs.getInt(1);
+            p.setProductId(productId);
+
+            String variantSql = """
+            INSERT INTO ProductVariant(productId, size, color, stock)
+            VALUES (?, NULL, NULL, 0)
+        """;
+
+            PreparedStatement ps2 = conn.prepareStatement(variantSql);
+
+            ps2.setInt(1, productId);
+
+            ps2.executeUpdate();
+        }
+    }
+
+    public void update(Product product) {
+
+        String sql = "UPDATE Product\n"
+                + "SET name = ?, price = ?, imageUrl = ?\n"
+                + "WHERE productId = ?";
+
+        try (Connection conn = DBContext.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, product.getName());
+            ps.setDouble(2, product.getPrice());
+            ps.setString(3, product.getImageUrl());
+            ps.setInt(4, product.getProductId());
+            ps.executeUpdate();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void delete(int id) throws Exception {
+        String sql = "DELETE FROM Product WHERE productId = ?";
+
+        Connection conn = DBContext.getConnection();
+        PreparedStatement ps = conn.prepareStatement(sql);
+        ps.setInt(1, id);
+        ps.executeUpdate();
+    }
+
+    public List<Product> getAll() {
+        List<Product> list = new ArrayList<>();
+        String sql = """
+                     SELECT p.productId,
+                        p.name,
+                        p.price,
+                        p.imageUrl,
+                        s.shopId,
+                        s.shopName
+                     FROM Product p
+                     JOIN Shop s ON p.shopId = s.shopId
+                     """;
+
+        try {
+            Connection conn = DBContext.getConnection();
+            PreparedStatement ps = conn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+
+                Product p = new Product();
+                p.setProductId(rs.getInt("productId"));
+                p.setName(rs.getString("name"));
+                p.setPrice(rs.getDouble("price"));
+                p.setImageUrl(rs.getString("imageUrl"));
+
+                Shop shop = new Shop();
+                shop.setShopId(rs.getInt("shopId"));
+                shop.setShopName(rs.getString("shopName"));
+
+                p.setShop(shop);
+
+                list.add(p);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return list;
+    }
+
+}
+Nhớ kiểm tra thêm trong product-list.jsp là đang dùng:
+
+${p.shop.shopId}
+${p.shop.shopName}
+chứ không phải ${p.shopId}.
+
+
+
+
